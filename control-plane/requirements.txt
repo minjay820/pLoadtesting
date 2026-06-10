@@ -1,0 +1,21 @@
+# nebula-load-tester · Control Plane — Python Dependencies
+# ----------------------------------------------------------
+# Django 5.x + DRF + Celery + Redis
+
+# Web framework
+Django>=5.0,<6.0
+
+# REST API framework
+djangorestframework>=3.15,<4.0
+
+# Async task queue
+celery>=5.3,<6.0
+
+# Redis client（Celery broker + result backend）
+redis>=5.0,<6.0
+
+# Celery 與 Django 整合（django-celery-results 可選，MVP 先用 Redis backend）
+django-celery-beat>=2.6,<3.0
+
+# Dev 工具
+ipython
