@@ -40,6 +40,6 @@ To prepare `pLoadtesting` for secure deployment, the following features are plan
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in this project, please **do not** open a public issue. Instead, report the vulnerability by emailing the maintainers (e.g. security@example.com - placeholder email) or via a private security advisory on GitHub.
+If you discover a security vulnerability in this project, please **do not** open a public issue. Instead, report the vulnerability using GitHub private vulnerability reporting if enabled, or contact the maintainer via the email listed on the GitHub profile.
 
 We will acknowledge your report and work to address the issue promptly.
