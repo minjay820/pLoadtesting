@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -20,12 +21,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-=!c+0(es-852n#f#ke#$1$$rx5mj_syf464tn7oj3i8vlfaf8r'
+SECRET_KEY = os.environ.get(
+    'DJANGO_SECRET_KEY',
+    'django-insecure-dev-only-change-me',
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() in {'1', 'true', 'yes', 'on'}
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,control-plane-web').split(',')
+    if host.strip()
+]
 
 
 # Application definition
@@ -143,7 +151,12 @@ CELERY_TIMEZONE = TIME_ZONE
 # =============================================================================
 # Django REST Framework
 # =============================================================================
+PLOADTESTING_API_TOKEN = os.environ.get('PLOADTESTING_API_TOKEN', 'dev-api-token-change-me')
+
 REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': [
+        'config.permissions.HasSharedApiToken',
+    ],
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
@@ -155,7 +168,6 @@ REST_FRAMEWORK = {
 # =============================================================================
 # Celery Configuration
 # =============================================================================
-import os
 # MVP 使用本機 Redis；生產環境請改為 Redis Sentinel 或 ElastiCache
 CELERY_BROKER_URL         = os.environ.get('REDIS_URL', 'redis://redis:6379/0')
 CELERY_RESULT_BACKEND     = os.environ.get('REDIS_URL', 'redis://redis:6379/0')

@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 CONTROL_PLANE_URL = os.getenv("CONTROL_PLANE_URL", "http://localhost:9000")
 WORKER_NAME       = os.getenv("WORKER_NAME", "worker-local-01")
 WORKER_PORT       = 8100  # 預設，後續可以依據真實起 API server 改動
+API_TOKEN         = os.getenv("PLOADTESTING_API_TOKEN", "dev-api-token-change-me")
 
 worker_state = {
     "worker_id": None,
@@ -41,6 +42,11 @@ def get_local_ip():
     except Exception:
         return "127.0.0.1"
 
+def api_headers() -> dict:
+    """Headers required by the Control Plane preview API."""
+    return {"X-PLOADTESTING-API-TOKEN": API_TOKEN}
+
+
 def register_worker() -> str:
     """向 Control Plane 註冊，回傳 Worker UUID"""
     url = f"{CONTROL_PLANE_URL}/api/workers/"
@@ -56,7 +62,7 @@ def register_worker() -> str:
     while True:
         try:
             logger.info(f"Registering worker '{WORKER_NAME}' to {url} ...")
-            resp = requests.post(url, json=payload, timeout=10)
+            resp = requests.post(url, json=payload, headers=api_headers(), timeout=10)
             resp.raise_for_status()
             
             data = resp.json()
@@ -81,7 +87,7 @@ def send_heartbeat():
     disk = psutil.disk_usage('/')
     
     payload = {
-        "status": "online",
+        "status": "busy" if worker_state["active_task_count"] > 0 else "online",
         "active_task_count": worker_state["active_task_count"],
         "resource_snapshot": {
             "cpu_pct": cpu_pct,
@@ -91,7 +97,7 @@ def send_heartbeat():
     }
     
     try:
-        resp = requests.post(url, json=payload, timeout=5)
+        resp = requests.post(url, json=payload, headers=api_headers(), timeout=5)
         resp.raise_for_status()
         logger.info(f"Heartbeat sent successfully. CPU: {cpu_pct}%, Mem: {mem.percent}%")
     except requests.exceptions.RequestException as e:
@@ -151,6 +157,13 @@ def calculate_k6_summary(json_file_path: str):
             "raw_report": {"error": str(e)}
         }
 
+def post_task_result(task_id: str, payload: dict):
+    """Post task execution results back to the Control Plane."""
+    url = f"{CONTROL_PLANE_URL}/api/tasks/{task_id}/results/"
+    resp = requests.post(url, json=payload, headers=api_headers(), timeout=10)
+    resp.raise_for_status()
+
+
 def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
     worker_state["active_task_count"] += 1
     logger.info(f"Starting execution for task {task_id} with script {script_path}")
@@ -174,21 +187,35 @@ def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
             process = subprocess.run(cmd, env=env, capture_output=True, text=True)
             logger.info(f"Task {task_id} exited with {process.returncode}")
             
+            summary = calculate_k6_summary(output_file)
+            summary["raw_report"].update({
+                "stdout": process.stdout,
+                "stderr": process.stderr,
+                "exit_code": process.returncode,
+            })
             if process.returncode != 0:
                 logger.error(f"k6 execution failed: {process.stderr}")
+                summary["execution_status"] = "failed"
+                summary["error_message"] = process.stderr or f"k6 exited with code {process.returncode}"
+            else:
+                summary["execution_status"] = "completed"
             
-            summary = calculate_k6_summary(output_file)
-            
-            url = f"{CONTROL_PLANE_URL}/api/tasks/{task_id}/results/"
             try:
-                resp = requests.post(url, json=summary, timeout=10)
-                resp.raise_for_status()
+                post_task_result(task_id, summary)
                 logger.info(f"Successfully posted results for task {task_id}")
             except requests.exceptions.RequestException as e:
                 logger.error(f"Failed to post results for task {task_id}: {e}")
                 
         else:
             logger.warning(f"Unsupported engine: {engine}")
+            try:
+                post_task_result(task_id, {
+                    "execution_status": "failed",
+                    "error_message": f"Unsupported engine: {engine}",
+                    "raw_report": {"error": f"Unsupported engine: {engine}"},
+                })
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Failed to post unsupported-engine result for task {task_id}: {e}")
             
     except Exception as e:
         logger.error(f"Exception while executing task {task_id}: {e}")
@@ -216,14 +243,22 @@ app = FastAPI(lifespan=lifespan)
 
 @app.post("/execute")
 async def execute_endpoint(request: Request, background_tasks: BackgroundTasks):
+    if request.headers.get("X-PLOADTESTING-API-TOKEN") != API_TOKEN:
+        auth_header = request.headers.get("Authorization", "")
+        bearer_token = ""
+        if auth_header.lower().startswith("bearer "):
+            bearer_token = auth_header.split(" ", 1)[1].strip()
+        if bearer_token != API_TOKEN:
+            return JSONResponse(status_code=403, content={"detail": "A valid API token is required."})
+
     data = await request.json()
     task_id = data.get("task_id")
     engine = data.get("engine")
     script_path = data.get("script_path")
     parameters = data.get("parameters", {})
     
-    if not task_id or not script_path:
-        return JSONResponse(status_code=400, content={"detail": "Missing task_id or script_path"})
+    if not task_id or not engine or not script_path:
+        return JSONResponse(status_code=400, content={"detail": "Missing task_id, engine, or script_path"})
         
     background_tasks.add_task(execute_task, task_id, engine, script_path, parameters)
     

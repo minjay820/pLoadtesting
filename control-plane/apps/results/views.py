@@ -62,13 +62,21 @@ class TaskResultCreateView(APIView):
         serializer = TestResultCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        execution_status = serializer.validated_data.pop("execution_status", "completed")
+        error_message = serializer.validated_data.pop("error_message", "")
+
         # ── 建立 TestResult（task 由此注入，不來自請求端） ──────────
-        result = serializer.save(task=task)
+        result = TestResult.objects.create(task=task, **serializer.validated_data)
 
         # ── 連動更新 LoadTestTask 狀態 ──────────────────────────────
-        task.status      = LoadTestTask.Status.COMPLETED
+        task.status = (
+            LoadTestTask.Status.FAILED
+            if execution_status == "failed"
+            else LoadTestTask.Status.COMPLETED
+        )
+        task.error_message = error_message if execution_status == "failed" else ""
         task.finished_at = timezone.now()
-        task.save(update_fields=["status", "finished_at", "updated_at"])
+        task.save(update_fields=["status", "error_message", "finished_at", "updated_at"])
 
         return Response(
             TestResultSerializer(result).data,
