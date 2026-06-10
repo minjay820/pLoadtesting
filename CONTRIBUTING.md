@@ -4,7 +4,7 @@ Thank you for your interest in contributing to pLoadtesting! This document outli
 
 ---
 
-## 🛠️ 開發環境需求 (Development Environment Requirements)
+## 🛠️ Development Environment Requirements
 
 To set up your development environment, you will need the following tools installed:
 
@@ -15,7 +15,7 @@ To set up your development environment, you will need the following tools instal
 
 ---
 
-## 🌿 Branch 命名規則 (Branch Naming Conventions)
+## 🌿 Branch Naming Conventions
 
 Please name your branches according to their purpose using the following prefixes:
 
@@ -27,7 +27,7 @@ Please name your branches according to their purpose using the following prefixe
 
 ---
 
-## 💬 Commit Message 建議 (Commit Message Guidelines)
+## 💬 Commit Message Guidelines
 
 We encourage structured git commit messages following the Conventional Commits specification:
 
@@ -51,7 +51,7 @@ We encourage structured git commit messages following the Conventional Commits s
 
 ---
 
-## 🔄 Pull Request 流程 (PR Process)
+## 🔄 PR Process
 
 1. **Fork & Branch**: Create your feature branch from the latest `main` branch.
 2. **Local Testing**: Run local tests (see testing guidelines below) to make sure your changes do not break existing logic.
@@ -61,23 +61,23 @@ We encourage structured git commit messages following the Conventional Commits s
 
 ---
 
-## 🚀 如何新增 k6 / JMeter Scenario (Adding Scenarios)
+## 🚀 Adding Scenarios
 
 ### k6 Scenarios
-1. Go to [engines/k6/](file:///Users/minjay/myAntigravity/pLoadtesting/engines/k6).
+1. Go to [engines/k6/](engines/k6/).
 2. Create or modify a `.js` scenario file.
 3. Write your JS script using ES modules according to [k6 docs](https://k6.io/docs/).
 4. Ensure it can run via command: `k6 run <script-name>.js`.
 
 ### JMeter Scenarios
-1. Go to [engines/jmeter/](file:///Users/minjay/myAntigravity/pLoadtesting/engines/jmeter).
+1. Go to [engines/jmeter/](engines/jmeter/).
 2. Create or edit a `.jmx` XML test plan using JMeter GUI.
 3. Keep the target parameterized (e.g., `${__P(TARGET_HOST, localhost)}`).
 4. Ensure it can run headlessly via command: `jmeter -n -t <plan>.jmx -l results.jtl`.
 
 ---
 
-## 🐳 如何確認 Docker Compose / target-app 可啟動 (Local Verification)
+## 🐳 Local Verification
 
 Ensure you can launch the target application locally via Docker:
 
@@ -101,17 +101,17 @@ python main.py
 
 ---
 
-## 📋 Issue Triage 原則 (Issue Triage Rules)
+## 📋 Issue Triage Rules
 
 * **Verification**: Verify if bug reports have a clear reproduction recipe and environment info.
 * **Labeling**: Apply appropriate labels such as `bug`, `feature`, `documentation`, or `engine-integration`.
-* **Prioritization**: Prioritize issues based on severity (e.g., blocking CI, service crashes) and align them with the upcoming milestones in [ROADMAP.md](file:///Users/minjay/myAntigravity/pLoadtesting/ROADMAP.md).
+* **Prioritization**: Prioritize issues based on severity (e.g., blocking CI, service crashes) and align them with the upcoming milestones in [ROADMAP.md](ROADMAP.md).
 
 ---
 
-## ⚖️ 第三方工具授權注意事項 (Third-party Licensing Rules)
+## ⚖️ Third-party Licensing Rules
 
 When contributing integrations for third-party tools (e.g. k6, JMeter, Prometheus, Grafana):
 * Ensure any script or configuration template you commit complies with the original tool's license (e.g., Apache 2.0, AGPL, etc.).
 * Do not bundle proprietary SDKs or binary distributions in your PR.
-* Document any third-party license impacts or new notice entries required in [THIRD_PARTY_NOTICES.md](file:///Users/minjay/myAntigravity/pLoadtesting/THIRD_PARTY_NOTICES.md).
+* Document any third-party license impacts or new notice entries required in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

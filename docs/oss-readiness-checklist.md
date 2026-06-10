@@ -10,14 +10,14 @@ This checklist is used to evaluate the readiness of the `pLoadtesting` repositor
 - [x] **ROADMAP**: Clearly separated version scopes, goals, and non-goals from v0.1.0 to v1.0.0.
 - [x] **SECURITY**: Established a policy on reporting vulnerabilities, handling credentials, and load-test authorizations.
 - [x] **Third-party Notices**: Provided details of third-party engine licensing restrictions in `THIRD_PARTY_NOTICES.md`.
-- [ ] **GitHub Templates**:
-  - [ ] Issue template for Bug Report
-  - [ ] Issue template for Feature Request
-  - [ ] Issue template for Engine Integration
-  - [ ] Issue template for Documentation
-  - [ ] Pull Request template
-- [ ] **GitHub Actions CI**: Automated lint/import checks and unit test executions on push/PR.
-- [ ] **Test Coverage**: Basic endpoints `/api/health`, `/api/cpu-bound`, `/api/io-bound`, and `/api/data` covered by automated tests.
+- [x] **GitHub Templates**:
+  - [x] Issue template for Bug Report
+  - [x] Issue template for Feature Request
+  - [x] Issue template for Engine Integration
+  - [x] Issue template for Documentation
+  - [x] Pull Request template
+- [x] **GitHub Actions CI**: Automated lint/import checks and unit test executions on push/PR.
+- [x] **Test Coverage**: Basic endpoints `/api/health`, `/api/cpu-bound`, `/api/io-bound`, and `/api/data` covered by automated tests.
 
 ---
 

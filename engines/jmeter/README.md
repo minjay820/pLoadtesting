@@ -1,26 +1,25 @@
-# ⚙️ engines/jmeter — JMeter 壓測引擎
+# ⚙️ engines/jmeter — JMeter Testing Engine
 
-本目錄存放 pLoadtesting 的 **Apache JMeter** 測試計畫，
-對應 Target App 的四個 Endpoint，涵蓋健康檢查、CPU 壓力、I/O 壓力與資料序列化四種情境。
+This directory contains the Apache JMeter test plan configurations for `pLoadtesting`, corresponding to the four endpoints of the Target App: health checks, CPU stress, I/O stress, and data serialization.
 
 ---
 
-## 📁 目錄結構
+## 📁 Directory Structure
 
 ```
 engines/jmeter/
-├── ploadtesting_test_plan.jmx   ← 主測試計畫（JMeter 5.5+ 相容）
-├── reports/               ← 執行後自動產生（.gitignore 排除）
-│   ├── results.jtl        ←   原始量測資料（CSV 格式）
-│   └── html/              ←   HTML 視覺化報告
-└── README.md              ← 本文件
+├── ploadtesting_test_plan.jmx   ← Main test plan (JMeter 5.5+ compatible)
+├── reports/                     ← Automatically generated (ignored by git)
+│   ├── results.jtl              ←   Raw CSV-formatted metrics
+│   └── html/                    ←   HTML visual report dashboard
+└── README.md                    ← This file
 ```
 
 ---
 
-## 🧵 Thread Group 規格一覽
+## 🧵 Thread Group Specifications
 
-| # | 名稱 | Endpoint | Threads | Ramp-up | Duration / Loop |
+| # | Name | Endpoint | Threads | Ramp-up | Duration / Loop |
 |:---:|---|---|:---:|:---:|:---:|
 | TG1 | Smoke Test | `GET /api/health` | 1 | 1s | Loop × 5 |
 | TG2 | CPU Stress | `GET /api/cpu-bound?n=1000000` | 50 | 30s | 60s |
@@ -29,34 +28,34 @@ engines/jmeter/
 
 ---
 
-## 🚀 執行方式
+## 🚀 Execution Guide
 
-### 前置需求
+### Prerequisites
 
-| 工具 | 版本要求 | 下載 |
+| Tool | Version Requirement | Download |
 |---|---|---|
 | Apache JMeter | 5.5+ | https://jmeter.apache.org/download_jmeter.cgi |
 | Java | 11+ | https://adoptium.net |
 
 ```bash
-# 確認 JMeter 可執行
+# Verify JMeter CLI is available
 jmeter --version
 ```
 
 ---
 
-### 1. 標準執行（Non-GUI CLI 模式，建議用於正式壓測）
+### 1. Standard CLI Non-GUI Execution (Recommended)
 
-> **重要**：正式壓測請務必使用 Non-GUI 模式，GUI 模式會消耗額外資源，導致量測數值失真。
+> **Important**: Always use Non-GUI mode for official load tests. The JMeter GUI consumes additional resources, distorting test results.
 
 ```bash
-# 在此目錄下執行
+# Navigate to this directory
 cd engines/jmeter
 
-# 建立報告輸出目錄
+# Create reports directories
 mkdir -p reports/html
 
-# 執行全部 Thread Groups，產出 JTL + HTML 報告
+# Run the test plan to generate both JTL and HTML reports
 jmeter \
   -n \
   -t ploadtesting_test_plan.jmx \
@@ -65,17 +64,17 @@ jmeter \
   -o reports/html
 ```
 
-**參數說明**
+**Parameters Reference**
 
-| 參數 | 說明 |
+| Flag | Description |
 |---|---|
-| `-n` | Non-GUI 模式（必須） |
-| `-t <file>` | 指定測試計畫 `.jmx` |
-| `-l <file>` | JTL 結果輸出路徑（原始量測資料） |
-| `-e` | 執行結束後產生 HTML 報告 |
-| `-o <dir>` | HTML 報告輸出目錄（**必須為空目錄**） |
+| `-n` | Non-GUI CLI mode (Required) |
+| `-t <file>` | Path to `.jmx` test plan |
+| `-l <file>` | Destination file for raw output JTL logs |
+| `-e` | Generate HTML dashboard reports on completion |
+| `-o <dir>` | Destination directory for HTML reports (must be empty or non-existent) |
 
-執行完畢後，用瀏覽器開啟報告：
+After completion, view the reports in your browser:
 
 ```bash
 open reports/html/index.html   # macOS
@@ -84,9 +83,9 @@ xdg-open reports/html/index.html   # Linux
 
 ---
 
-### 2. 覆寫靶機位址（CLI 變數注入）
+### 2. Overriding Target Host and Port (CLI Parameter Injection)
 
-測試計畫預設打 `localhost:8000`；若靶機部署在其他主機，可用 `-J` 覆寫：
+The test plan defaults targets to `localhost:8000`. You can override targets using `-J` variables:
 
 ```bash
 jmeter -n \
@@ -99,22 +98,21 @@ jmeter -n \
 
 ---
 
-### 3. 僅執行單一 Thread Group
+### 3. Run a Single Thread Group
 
-在 GUI 中將不需要的 Thread Group 停用（右鍵 → Disable），再存檔後執行 CLI。
-或在 CLI 用 `--jmeterlogfile` 搭配 JMeter Property 控制：
+You can disable groups in the JMeter GUI (Right-click -> Disable), save, and run via the CLI.
+Alternatively, use dedicated configurations:
 
 ```bash
-# 範例：只執行 TG1 Smoke Test（先在 GUI 停用 TG2~TG4，存檔後執行）
+# Example: Run smoke test only (disable TG2-TG4 in GUI first)
 jmeter -n -t ploadtesting_test_plan_smoke_only.jmx -l reports/smoke.jtl
 ```
 
 ---
 
-### 4. 使用 Docker 執行（無需本機安裝 JMeter）
+### 4. Running via Docker
 
 ```bash
-# 以官方 JMeter Docker 映像執行（justb4/jmeter 為社群常用映像）
 docker run --rm \
   -v "$(pwd)":/workspace \
   -w /workspace \
@@ -126,60 +124,39 @@ docker run --rm \
   -e -o reports/html
 ```
 
-> `--network host` 讓 JMeter 容器可直接存取 Host 上的 `localhost:8000`（Target App）。
-
 ---
 
-### 5. 僅產生 HTML 報告（不重新壓測）
-
-若已有 JTL 檔案，可單獨產生 HTML 報告：
+### 5. Generate HTML Dashboard from Existing JTL Logs
 
 ```bash
-jmeter -g reports/results.jtl -o reports/html_reregen
+jmeter -g reports/results.jtl -o reports/html_regenerated
 ```
 
 ---
 
-## 📊 HTML 報告關鍵指標說明
+## 📊 Key HTML Dashboard Metrics
 
-| 指標 | 說明 | 健康基準（參考） |
+| Metric | Description | Health Benchmark (Reference) |
 |---|---|---|
-| **Throughput** | 每秒完成的請求數（RPS） | 越高越好 |
-| **Average** | 平均回應時間（ms） | `< 500ms`（視 SLA 而定） |
-| **90th pct** | 90% 請求的最大回應時間 | `< 1000ms` |
-| **99th pct** | 99% 請求的最大回應時間 | `< 3000ms` |
-| **Error %** | 請求失敗率 | `< 1%` |
-| **Received KB/s** | 網路接收吞吐量 | 取決於 TG4 回傳資料量 |
+| **Throughput** | Requests per second (RPS) completed | Higher is better |
+| **Average** | Mean response time (ms) | `< 500ms` (depending on SLA) |
+| **90th pct** | Response time for 90% of requests | `< 1000ms` |
+| **99th pct** | Response time for 99% of requests | `< 3000ms` |
+| **Error %** | Percentage of failed HTTP requests | `< 1%` |
+| **Received KB/s** | Network download throughput | Depends on TG4 data size |
 
 ---
 
-## 🔧 常見問題
+## 🔧 Troubleshooting
 
-### Q1：執行時出現 `Error in NonGUIDriver java.lang.Exception: Could not open JTL file: 'reports/results.jtl'`
+### Q1: `Error in NonGUIDriver java.lang.Exception: Could not open JTL file`
+* **Reason**: The `reports/` folder does not exist.
+* **Solution**: Create it by running `mkdir -p reports/html` first.
 
-**原因**：`reports/` 目錄不存在。  
-**解法**：`mkdir -p reports/html` 後再執行。
+### Q2: `An error occurred: Non empty output folder reports/html`
+* **Reason**: The `-o` output directory already contains files.
+* **Solution**: Clear it with `rm -rf reports/html` first.
 
-### Q2：出現 `An error occurred: Non empty output folder reports/html`
-
-**原因**：`-o` 指定的 HTML 報告目錄已有舊資料。  
-**解法**：`rm -rf reports/html && mkdir -p reports/html`
-
-### Q3：TG3 I/O Stress 的 Active Threads 沒有達到 200
-
-**原因**：Target App 連線逾時設定（`response_timeout=30000ms`）與 JMeter Thread 啟動速度的競爭條件。  
-**解法**：調整 JMeter 的 `HTTPSampler.response_timeout` 或縮短 `delay` 參數值。
-
-### Q4：如何調整 `n` 或 `delay` 值而不修改 .jmx？
-
-透過 JMeter 的 `__P()` 函式搭配 `-J` 參數（需在 .jmx 中先替換為函式語法）。
-目前版本採靜態值，如需動態化請改用 `${__P(cpu_n,1000000)}` 語法。
-
----
-
-## 📄 .gitignore 建議
-
-```gitignore
-# 壓測產出物（報告與 JTL 量測資料）
-engines/jmeter/reports/
-```
+### Q3: TG3 I/O stress active threads do not reach 200
+* **Reason**: Fast timeout collisions.
+* **Solution**: Check or adjust `HTTPSampler.response_timeout` properties.
