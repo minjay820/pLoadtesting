@@ -151,13 +151,14 @@ nebula-load-tester/
 |:---:|---|---|:---:|
 | **Phase 0** | 專案鷹架 (Scaffolding) | 建立目錄結構、架構文件、docker-compose 外框 | ✅ 完成 |
 | **Phase 1** | Target App | 實作靶機 API，提供 `/health`、`/api/*` 端點，內建 metrics | ✅ 完成 |
-| **Phase 2** | 引擎整合 (Engines) | 撰寫 k6 基礎場景腳本，驗證端對端壓測可行性 | ✅ 完成 |
-| **Phase 3** | Worker Agent | 實作 Worker 服務，支援本地執行 k6 並輸出結構化結果 | 🔜 **當前** |
-| **Phase 4** | Control Plane MVP | 實作基礎 Web UI：任務建立、Worker 列表、結果查看 | 🔜 |
-| **Phase 5** | 多引擎擴充 | 將 JMeter、LoadRunner 引擎納入 Worker 執行能力 | 🔜 |
-| **Phase 6** | 可觀測性整合 | 串接 InfluxDB + Grafana，提供即時監控儀表板 | 🔜 |
-| **Phase 7** | 分散式 Workers | 支援多節點水平擴展，Control Plane 實現負載均衡調度 | 🔜 |
-| **Phase 8** | 生產強化 | CI/CD 整合、SLA 告警、完整 E2E 測試覆蓋 | 🔜 |
+| **Phase 2** | 引擎整合 (Engines) | 撰寫 k6 / JMeter 壓測腳本，驗證端對端壓測可行性 | ✅ 完成 |
+| **Phase 3** | Control Plane MVP | Django + DRF 後端：WorkerNode / LoadTestTask / TestResult 資料模型與 REST API；Celery 任務派發 | 🔜 **當前** |
+| **Phase 4** | Worker Agent | 實作 Worker 服務，接收 Control Plane 指令，執行 k6 / JMeter 並回傳結構化結果 | 🔜 |
+| **Phase 5** | Web Dashboard | Control Plane 前端 UI：任務建立、Worker 列表、結果圖表 | 🔜 |
+| **Phase 6** | 多引擎擴充 | 將 JMeter、LoadRunner 引擎納入 Worker 執行能力 | 🔜 |
+| **Phase 7** | 可觀測性整合 | 串接 InfluxDB + Grafana，提供即時監控儀表板 | 🔜 |
+| **Phase 8** | 分散式 Workers | 支援多節點水平擴展，Control Plane 實現負載均衡調度 | 🔜 |
+| **Phase 9** | 生產強化 | CI/CD 整合、SLA 告警、完整 E2E 測試覆蓋 | 🔜 |
 
 ---
 
