@@ -140,7 +140,7 @@ Core script warehouse organized by engine types. Each subdirectory represents an
 
 ```bash
 # 1. Clone the repository
-git clone <repo-url> pLoadtesting
+git clone https://github.com/minjay820/pLoadtesting.git
 cd pLoadtesting
 
 # 2. Spin up target-app
