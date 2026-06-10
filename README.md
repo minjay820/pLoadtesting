@@ -1,10 +1,32 @@
-# 🌌 nebula-load-tester
+# 🌌 pLoadtesting
 
 > **多引擎自動化壓測生態系統 (Multi-Engine Automated Load Testing Ecosystem)**
+>
+> Multi-engine automated load testing ecosystem for k6, JMeter, worker agents, control plane orchestration, and reproducible performance reports.
 
 [![Phase](https://img.shields.io/badge/Phase-0%20Scaffolding-blueviolet)]()
 [![Status](https://img.shields.io/badge/Status-In%20Development-yellow)]()
 [![License](https://img.shields.io/badge/License-MIT-green)]()
+
+---
+
+## 🚦 專案狀態 (Project Status & Roadmap)
+
+### 📌 Project Status
+Currently, this project is in an **early-stage / v0.1.0 preparation** phase. It is actively being structured for open-source contribution and initial feature stabilization.
+
+### ✅ What Works Today
+* **Target App**: Reference Python/FastAPI target server with health check, CPU-bound tasks, async I/O-bound tasks, and high-volume data serialization endpoints.
+* **Basic Endpoints**: Tested `/api/health`, `/api/cpu-bound`, `/api/io-bound`, and `/api/data` endpoints.
+* **Initial Engine Scripts**: Initial configuration and scripts for k6 and JMeter.
+* **Docker Compose Skeleton**: Basic orchestration container setup for local validation of target-app.
+
+### 🔮 Planned
+* **Control Plane**: Task scheduler, worker dispatch queues, and Django-based REST API for managing load tests.
+* **Worker Agent**: Dynamic orchestration agents (Go/NodeJS-based) capable of launching local engines and streaming stdout logs/metrics back to the control plane.
+* **Dashboard / Web UI**: Interactive frontend for creating load-test tasks, viewing worker nodes status, and displaying reports.
+* **Distributed Execution**: Orchestrated execution over multiple distributed load testing nodes.
+* **Report Collection & Observability**: Centralized report aggregation and real-time visualization with InfluxDB/Prometheus and Grafana.
 
 ---
 
@@ -166,8 +188,8 @@ nebula-load-tester/
 
 ```bash
 # 1. Clone 專案
-git clone <repo-url> nebula-load-tester
-cd nebula-load-tester
+git clone <repo-url> pLoadtesting
+cd pLoadtesting
 
 # 2. 啟動靶機（Phase 1 已可用）
 docker compose up target-app -d
@@ -199,12 +221,12 @@ docker compose up -d
 
 ## 📄 授權 (License)
 
-This project is licensed under the MIT License.
+This project is licensed under the [MIT License](LICENSE).
 
 Copyright (c) 2026 pLoadtesting contributors.
 
-本專案原始碼以 MIT License 授權。
+本專案原始碼以 [MIT License](LICENSE) 授權。
 本專案可能與 Apache JMeter、k6、LoadRunner、Prometheus、Grafana 等第三方工具整合，但這些工具各自受其原始專案或供應商授權條款約束。
 
 pLoadtesting does not claim ownership of third-party load testing engines or observability tools.
-Please review `THIRD_PARTY_NOTICES.md` before redistributing Docker images, bundled binaries, sample scripts, or packaged releases.
+Please review [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) before redistributing Docker images, bundled binaries, sample scripts, or packaged releases.

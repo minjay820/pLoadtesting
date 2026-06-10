@@ -11,3 +11,4 @@ pydantic==2.11.5
 
 # HTTP client (供未來 I/O-bound 擴充使用，例如呼叫外部服務)
 httpx==0.28.1
+pytest==8.3.4
