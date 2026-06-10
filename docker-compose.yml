@@ -46,19 +46,62 @@ services:
       - PYTHONUNBUFFERED=1
 
   # ---------------------------------------------------------------------------
-  # control-plane  🔜 Phase 4 — 尚未實作
+  # Redis
+  # 作為 Celery 的 Broker
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: nebula-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - nebula-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # control-plane-web  🔜 Phase 4 (MVP)
   # Web 中控平台：任務調度、Worker 管理、報告彙整。
   # ---------------------------------------------------------------------------
-  # control-plane:
-  #   build: ./control-plane
-  #   container_name: nebula-control-plane
-  #   ports:
-  #     - "8080:8080"
-  #   networks:
-  #     - nebula-net
-  #   depends_on:
-  #     target-app:
-  #       condition: service_healthy
+  control-plane-web:
+    build:
+      context: ./control-plane
+      dockerfile: Dockerfile
+    container_name: nebula-control-plane-web
+    command: python manage.py runserver 0.0.0.0:9000
+    ports:
+      - "9000:9000"
+    networks:
+      - nebula-net
+    depends_on:
+      redis:
+        condition: service_healthy
+      target-app:
+        condition: service_healthy
+    volumes:
+      - ./control-plane:/app
+
+  # ---------------------------------------------------------------------------
+  # control-plane-celery  🔜 Phase 4 (MVP)
+  # 處理非同步任務排程
+  # ---------------------------------------------------------------------------
+  control-plane-celery:
+    build:
+      context: ./control-plane
+      dockerfile: Dockerfile
+    container_name: nebula-control-plane-celery
+    command: celery -A config worker --beat -l info
+    networks:
+      - nebula-net
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./control-plane:/app
 
   # ---------------------------------------------------------------------------
   # worker  🔜 Phase 3 — 尚未實作
@@ -70,7 +113,7 @@ services:
   #   networks:
   #     - nebula-net
   #   depends_on:
-  #     - control-plane
+  #     - control-plane-web
 
 networks:
   nebula-net:
