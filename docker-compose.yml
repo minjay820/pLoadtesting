@@ -120,6 +120,8 @@ services:
     environment:
       - CONTROL_PLANE_URL=http://control-plane-web:9000
       - WORKER_NAME=worker-agent-1
+    volumes:
+      - ./engines:/app/engines
 
 networks:
   nebula-net:

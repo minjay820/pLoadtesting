@@ -59,6 +59,8 @@ class WorkerRegistrationSerializer(serializers.ModelSerializer):
     last_heartbeat_at 由 View 設為 now()。
     """
 
+    name = serializers.CharField(validators=[])
+
     class Meta:
         model  = WorkerNode
         fields = ["name", "ip_address", "port", "capabilities"]

@@ -40,8 +40,33 @@ def dispatch_pending_tasks():
             task.save(update_fields=['worker', 'status', 'updated_at'])
             dispatched_count += 1
             
-            # TODO: 實際打 API 給 Worker 留待下一階段實作
-            print(f"模擬發送 API 請求到 Worker {worker.ip_address}:{worker.port} 執行任務 {task.name}")
+            # Send HTTP request to worker
+            worker_url = f"http://{worker.ip_address}:{worker.port}/execute"
+            payload = {
+                "task_id": str(task.id),
+                "engine": task.engine,
+                "script_path": task.script_path,
+                "parameters": task.parameters or {}
+            }
+            try:
+                import urllib.request
+                import json
+                
+                # Add target_url to parameters if not present
+                if task.target_url:
+                    payload["parameters"]["TARGET_URL"] = task.target_url
+                
+                req = urllib.request.Request(
+                    worker_url,
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers={"Content-Type": "application/json"}
+                )
+                with urllib.request.urlopen(req, timeout=5) as response:
+                    if response.status >= 400:
+                        raise Exception(f"HTTP Error {response.status}")
+                logger.info(f"Successfully dispatched task {task.id} to worker {worker.name}")
+            except Exception as e:
+                logger.error(f"Failed to dispatch task {task.id} to worker {worker.name}: {e}")
         else:
             logger.warning(f"No online workers available for task {task.id}")
             
