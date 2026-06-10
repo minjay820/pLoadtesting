@@ -9,9 +9,15 @@ urlpatterns = [
     # Django Admin
     path("admin/", admin.site.urls),
 
-    # API v1
-    # 所有 /api/ 路徑由各 app 的 urls.py 負責，
-    # 未來新增 tasks、results app 時直接在此 include。
+    # ── API v1 ─────────────────────────────────────────────────────────────
+    # Workers：節點登記 / 心跳
     path("api/workers/", include("apps.workers.urls", namespace="workers")),
+
+    # Tasks：任務建立 / 查詢
+    path("api/tasks/",   include("apps.tasks.urls",   namespace="tasks")),
+
+    # Results：Worker 回傳報告（路由格式 /api/tasks/<uuid>/results/）
+    path("api/tasks/",   include("apps.results.urls",  namespace="results")),
 ]
+
 
