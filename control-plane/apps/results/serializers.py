@@ -53,6 +53,20 @@ class TestResultSerializer(serializers.ModelSerializer):
 
 
 class TestResultCreateSerializer(serializers.ModelSerializer):
+    execution_status = serializers.ChoiceField(
+        choices=["completed", "failed"],
+        required=False,
+        default="completed",
+        write_only=True,
+        help_text="Worker execution status for the task lifecycle.",
+    )
+    error_message = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        write_only=True,
+        help_text="Failure summary when execution_status is failed.",
+    )
+
     """
     Worker 回傳結果時使用的序列化器。
 
@@ -77,6 +91,8 @@ class TestResultCreateSerializer(serializers.ModelSerializer):
             "peak_vus",
             "thresholds_passed",
             "thresholds_detail",
+            "execution_status",
+            "error_message",
         ]
         extra_kwargs = {
             "raw_report":       {"required": True},

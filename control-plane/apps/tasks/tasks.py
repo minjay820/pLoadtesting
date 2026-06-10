@@ -1,73 +1,112 @@
+import json
 import logging
+import urllib.error
+import urllib.request
+
 from celery import shared_task
-from django.utils import timezone
+from django.conf import settings
 from django.db.models import Q
-from .models import LoadTestTask
+from django.utils import timezone
+
 from apps.workers.models import WorkerNode
+from .models import LoadTestTask
 
 logger = logging.getLogger(__name__)
+
+
+def _worker_supports_engine(worker: WorkerNode, engine: str) -> bool:
+    """Return True when the worker advertises support for the task engine."""
+    return engine in (worker.capabilities or [])
+
+
+def _select_available_worker(task: LoadTestTask) -> WorkerNode | None:
+    """Pick an online, idle worker that supports the task engine."""
+    candidates = WorkerNode.objects.filter(
+        status=WorkerNode.Status.ONLINE,
+        active_task_count=0,
+    ).order_by("last_heartbeat_at")
+
+    for worker in candidates:
+        if _worker_supports_engine(worker, task.engine):
+            return worker
+    return None
+
+
+def _dispatch_to_worker(task: LoadTestTask, worker: WorkerNode) -> None:
+    """Send the task to the selected worker, raising on delivery failure."""
+    worker_url = f"http://{worker.ip_address}:{worker.port}/execute"
+    parameters = dict(task.parameters or {})
+    if task.target_url:
+        parameters.setdefault("TARGET_URL", task.target_url)
+
+    payload = {
+        "task_id": str(task.id),
+        "engine": task.engine,
+        "script_path": task.script_path,
+        "parameters": parameters,
+    }
+    req = urllib.request.Request(
+        worker_url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "X-PLOADTESTING-API-TOKEN": settings.PLOADTESTING_API_TOKEN,
+        },
+        method="POST",
+    )
+
+    with urllib.request.urlopen(req, timeout=5) as response:
+        if response.status < 200 or response.status >= 300:
+            raise urllib.error.HTTPError(
+                worker_url,
+                response.status,
+                f"Unexpected worker response: HTTP {response.status}",
+                response.headers,
+                None,
+            )
+
 
 @shared_task
 def dispatch_pending_tasks():
     """
-    尋找 status='pending' 且 scheduled_at 小於等於現在時間 (或為 null) 的任務。
-    尋找 status='online' 的 Worker。
-    如果找到 Worker，將任務的 worker 欄位指派給它，並將狀態改為 dispatched。
+    Dispatch due pending tasks only after successful worker delivery.
+
+    A task remains PENDING when no compatible idle worker exists or when HTTP
+    delivery fails, so later scheduler ticks can retry it instead of leaving it
+    permanently stuck in DISPATCHED.
     """
     now = timezone.now()
-    
-    # 尋找需要執行的任務 (排程時間到了或未設定)
+
     pending_tasks = LoadTestTask.objects.filter(
         status=LoadTestTask.Status.PENDING
     ).filter(
         Q(scheduled_at__lte=now) | Q(scheduled_at__isnull=True)
     )
-    
-    if not pending_tasks.exists():
-        return 0
-        
+
     dispatched_count = 0
-    
+
     for task in pending_tasks:
-        # 簡單的調度邏輯：找到一個 online 且支援該任務引擎的 Worker
-        # 目前 MVP 階段，只要是 online 即可
-        worker = WorkerNode.objects.filter(status=WorkerNode.Status.ONLINE).first()
-        
-        if worker:
-            logger.info(f"Dispatching task {task.id} to worker {worker.name}")
-            task.worker = worker
-            task.status = LoadTestTask.Status.DISPATCHED
-            task.save(update_fields=['worker', 'status', 'updated_at'])
-            dispatched_count += 1
-            
-            # Send HTTP request to worker
-            worker_url = f"http://{worker.ip_address}:{worker.port}/execute"
-            payload = {
-                "task_id": str(task.id),
-                "engine": task.engine,
-                "script_path": task.script_path,
-                "parameters": task.parameters or {}
-            }
-            try:
-                import urllib.request
-                import json
-                
-                # Add target_url to parameters if not present
-                if task.target_url:
-                    payload["parameters"]["TARGET_URL"] = task.target_url
-                
-                req = urllib.request.Request(
-                    worker_url,
-                    data=json.dumps(payload).encode("utf-8"),
-                    headers={"Content-Type": "application/json"}
-                )
-                with urllib.request.urlopen(req, timeout=5) as response:
-                    if response.status >= 400:
-                        raise Exception(f"HTTP Error {response.status}")
-                logger.info(f"Successfully dispatched task {task.id} to worker {worker.name}")
-            except Exception as e:
-                logger.error(f"Failed to dispatch task {task.id} to worker {worker.name}: {e}")
-        else:
-            logger.warning(f"No online workers available for task {task.id}")
-            
+        worker = _select_available_worker(task)
+        if not worker:
+            logger.warning("No compatible idle workers available for task %s", task.id)
+            task.error_message = "No compatible idle worker is currently available."
+            task.save(update_fields=["error_message", "updated_at"])
+            continue
+
+        logger.info("Dispatching task %s to worker %s", task.id, worker.name)
+        try:
+            _dispatch_to_worker(task, worker)
+        except Exception as exc:  # noqa: BLE001 - keep scheduler resilient
+            logger.error("Failed to dispatch task %s to worker %s: %s", task.id, worker.name, exc)
+            task.error_message = f"Dispatch to worker '{worker.name}' failed: {exc}"
+            task.save(update_fields=["error_message", "updated_at"])
+            continue
+
+        task.worker = worker
+        task.status = LoadTestTask.Status.DISPATCHED
+        task.error_message = ""
+        task.save(update_fields=["worker", "status", "error_message", "updated_at"])
+        dispatched_count += 1
+        logger.info("Successfully dispatched task %s to worker %s", task.id, worker.name)
+
     return dispatched_count

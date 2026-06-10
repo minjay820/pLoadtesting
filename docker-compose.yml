@@ -82,6 +82,10 @@ services:
         condition: service_healthy
       target-app:
         condition: service_healthy
+    environment:
+      - DJANGO_DEBUG=True
+      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,control-plane-web
+      - PLOADTESTING_API_TOKEN=${PLOADTESTING_API_TOKEN:-dev-api-token-change-me}
     volumes:
       - ./control-plane:/app
 
@@ -100,6 +104,10 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    environment:
+      - DJANGO_DEBUG=True
+      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,control-plane-web
+      - PLOADTESTING_API_TOKEN=${PLOADTESTING_API_TOKEN:-dev-api-token-change-me}
     volumes:
       - ./control-plane:/app
 
@@ -120,6 +128,7 @@ services:
     environment:
       - CONTROL_PLANE_URL=http://control-plane-web:9000
       - WORKER_NAME=worker-agent-1
+      - PLOADTESTING_API_TOKEN=${PLOADTESTING_API_TOKEN:-dev-api-token-change-me}
     volumes:
       - ./engines:/app/engines
 
