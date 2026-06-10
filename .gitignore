@@ -1,2 +1,17 @@
 .DS_Store
 /**/__pycache__/*
+*.log
+.pytest_cache/
+__pycache__/
+.venv/
+node_modules/
+dist/
+build/
+coverage/
+htmlcov/
+.coverage
+.coverage.*
+.cache/
+tmp/
+*.report
+*.jtl

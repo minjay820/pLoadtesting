@@ -1,5 +1,5 @@
 /**
- * nebula-load-tester — k6 CPU Stress Test
+ * pLoadtesting — k6 CPU Stress Test
  * ==========================================
  * 目標端點：GET /api/cpu-bound?n=1000000
  * 目的：模擬 CPU 密集型高並發，量測 Throughput 與 Response Time 的壓力極限。

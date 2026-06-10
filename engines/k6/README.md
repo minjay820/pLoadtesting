@@ -1,6 +1,6 @@
 # ⚙️ engines/k6 — k6 壓測引擎
 
-本目錄存放 nebula-load-tester 的 **[k6](https://k6.io)** 壓測腳本，
+本目錄存放 pLoadtesting 的 **[k6](https://k6.io)** 壓測腳本，
 以 JavaScript (ES2015+) 撰寫，涵蓋四種壓測情境，對應 Target App 的四個端點。
 
 ---

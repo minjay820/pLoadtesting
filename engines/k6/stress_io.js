@@ -1,5 +1,5 @@
 /**
- * nebula-load-tester — k6 I/O Stress Test
+ * pLoadtesting — k6 I/O Stress Test
  * ==========================================
  * 目標端點：GET /api/io-bound?delay=1.0
  * 目的：以 200 VUs 高並發驗證 FastAPI 非同步 Event Loop 的 I/O 能力。

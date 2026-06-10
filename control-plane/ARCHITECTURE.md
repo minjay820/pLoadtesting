@@ -1,6 +1,6 @@
 # 🖥️ Control Plane — 架構設計文件
 
-> **nebula-load-tester · Control Plane MVP**
+> **pLoadtesting · Control Plane MVP**
 > 技術棧：Python Django + Django REST Framework · SQLite (MVP) · Celery + Redis
 > 文件版本：1.0.0 · Phase 4 架構藍圖
 
@@ -8,7 +8,7 @@
 
 ## 一、系統定位
 
-Control Plane 是 nebula-load-tester 生態系統的「神經中樞」，負責：
+Control Plane 是 pLoadtesting 生態系統的「神經中樞」，負責：
 
 1. **任務管理**：接收使用者建立的壓測任務，選擇引擎腳本與目標 URL
 2. **Worker 調度**：將任務派發至可用的 Worker 節點執行

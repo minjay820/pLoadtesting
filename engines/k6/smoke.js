@@ -1,5 +1,5 @@
 /**
- * nebula-load-tester — k6 Smoke Test
+ * pLoadtesting — k6 Smoke Test
  * ====================================
  * 目標端點：GET /api/health
  * 目的：輕量確認服務存活，作為所有正式壓測前的 pre-flight 檢查。

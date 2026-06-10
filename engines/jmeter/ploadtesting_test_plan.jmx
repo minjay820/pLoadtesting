@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
   <hashTree>
-    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="nebula-load-tester Test Plan">
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="pLoadtesting Test Plan">
       <stringProp name="TestPlan.comments">
-        多情境壓測計畫，對應 nebula-load-tester Target App 的四個 Endpoint。
+        多情境壓測計畫，對應 pLoadtesting Target App 的四個 Endpoint。
         執行前請確認 TARGET_HOST / TARGET_PORT 變數正確指向靶機。
       </stringProp>
       <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>

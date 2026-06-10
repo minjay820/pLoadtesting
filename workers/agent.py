@@ -199,7 +199,7 @@ def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    logger.info("Starting Nebula Worker Agent (FastAPI)...")
+    logger.info("Starting pLoadtesting Worker Agent (FastAPI)...")
     psutil.cpu_percent(interval=None) # Initialize
     
     worker_state["worker_id"] = register_worker()

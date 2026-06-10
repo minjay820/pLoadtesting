@@ -1,16 +1,17 @@
-# Third-Party Notices
+# Third-Party Notices and Trademark Disclaimers
 
-pLoadtesting may integrate with third-party load testing engines and observability tools. These tools are not owned by pLoadtesting and are governed by their own licenses or vendor terms.
+`pLoadtesting` may integrate with or adapt to third-party load testing engines, databases, and observability tools. These external technologies are not owned or distributed by `pLoadtesting`, and each is governed by its own independent licenses, terms of service, and proprietary copyrights.
 
-| Tool                             | Usage in pLoadtesting                                                             | License / Terms                               |
-| -------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------- |
-| Apache JMeter                    | External load testing engine, `.jmx` test plans, HTML reports, JTL artifacts      | Apache License 2.0                            |
-| k6                               | External load testing engine, JavaScript test scripts, CLI or container execution | GNU Affero General Public License v3.0        |
-| LoadRunner / OpenText LoadRunner | Optional external commercial load testing engine integration                      | OpenText / Micro Focus software license terms |
-| Prometheus                       | Metrics collection integration                                                    | See upstream project license                  |
-| Grafana                          | Dashboard and visualization integration                                           | See upstream project license                  |
-| InfluxDB                         | Time-series result storage integration                                            | See upstream project license                  |
+## ⚖️ Third-Party Notices & Licenses
 
-pLoadtesting does not redistribute modified versions of these tools unless explicitly stated.
+* **Apache JMeter**: Developed and maintained by the Apache Software Foundation. Licensed separately under the Apache License, Version 2.0.
+* **k6**: Developed and maintained by Grafana Labs. Licensed separately under the GNU Affero General Public License v3.0 (AGPL-3.0) and other upstream licenses.
+* **OpenText LoadRunner / LoadRunner**: Proprietary commercial software owned by OpenText or its affiliates. `pLoadtesting` does not bundle, redistribute, sublicense, include, or modify any LoadRunner binaries, proprietary libraries, wrappers, or commercial assets. Any integration points are optional, future-facing, and entirely dependent on user-provided licensed installations of the commercial software.
 
-When using third-party Docker images, binaries, plugins, extensions, or commercial tools, users are responsible for reviewing and complying with the applicable upstream licenses and vendor terms.
+---
+
+## 🏷️ Trademark & Association Disclaimers
+
+* **Trademarks**: All product names, logos, brands, and registered trademarks (such as Apache JMeter™, k6™, LoadRunner®, Prometheus®, Grafana®, InfluxDB®) are the property of their respective owners. 
+* **No Affiliation**: The use of these names and trademarks in this repository is solely for descriptive purposes to indicate compatibility or future integration plans. It does not imply any affiliation, sponsorship, official partnership, endorsement, or cooperation between `pLoadtesting` and the owners of these trademarks.
+* **User Responsibility**: Users of `pLoadtesting` are solely responsible for obtaining appropriate licensing, permissions, and compliance coverage for all third-party engines and tools configured within their testing environments.

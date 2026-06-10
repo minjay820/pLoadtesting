@@ -1,6 +1,6 @@
 # ⚙️ engines/jmeter — JMeter 壓測引擎
 
-本目錄存放 nebula-load-tester 的 **Apache JMeter** 測試計畫，
+本目錄存放 pLoadtesting 的 **Apache JMeter** 測試計畫，
 對應 Target App 的四個 Endpoint，涵蓋健康檢查、CPU 壓力、I/O 壓力與資料序列化四種情境。
 
 ---
@@ -9,7 +9,7 @@
 
 ```
 engines/jmeter/
-├── nebula_test_plan.jmx   ← 主測試計畫（JMeter 5.5+ 相容）
+├── ploadtesting_test_plan.jmx   ← 主測試計畫（JMeter 5.5+ 相容）
 ├── reports/               ← 執行後自動產生（.gitignore 排除）
 │   ├── results.jtl        ←   原始量測資料（CSV 格式）
 │   └── html/              ←   HTML 視覺化報告
@@ -59,7 +59,7 @@ mkdir -p reports/html
 # 執行全部 Thread Groups，產出 JTL + HTML 報告
 jmeter \
   -n \
-  -t nebula_test_plan.jmx \
+  -t ploadtesting_test_plan.jmx \
   -l reports/results.jtl \
   -e \
   -o reports/html
@@ -90,7 +90,7 @@ xdg-open reports/html/index.html   # Linux
 
 ```bash
 jmeter -n \
-  -t nebula_test_plan.jmx \
+  -t ploadtesting_test_plan.jmx \
   -l reports/results.jtl \
   -e -o reports/html \
   -JTARGET_HOST=192.168.1.100 \
@@ -106,7 +106,7 @@ jmeter -n \
 
 ```bash
 # 範例：只執行 TG1 Smoke Test（先在 GUI 停用 TG2~TG4，存檔後執行）
-jmeter -n -t nebula_test_plan_smoke_only.jmx -l reports/smoke.jtl
+jmeter -n -t ploadtesting_test_plan_smoke_only.jmx -l reports/smoke.jtl
 ```
 
 ---
@@ -121,7 +121,7 @@ docker run --rm \
   --network host \
   justb4/jmeter:5.5 \
   -n \
-  -t nebula_test_plan.jmx \
+  -t ploadtesting_test_plan.jmx \
   -l reports/results.jtl \
   -e -o reports/html
 ```

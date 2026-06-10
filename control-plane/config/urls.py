@@ -1,5 +1,5 @@
 """
-URL configuration for nebula-load-tester Control Plane.
+URL configuration for pLoadtesting Control Plane.
 """
 
 from django.contrib import admin

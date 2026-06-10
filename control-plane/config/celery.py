@@ -5,7 +5,7 @@ from celery.schedules import crontab
 # 設置 Django 默認的 settings 模組
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 
-app = Celery('nebula_control_plane')
+app = Celery('ploadtesting_control_plane')
 
 # 從 Django 的 settings 中讀取配置，所有 Celery 相關的設定鍵值都要以 CELERY_ 開頭
 app.config_from_object('django.conf:settings', namespace='CELERY')

@@ -1,0 +1,2 @@
+# Dev dependencies for target-app
+pytest==8.3.4

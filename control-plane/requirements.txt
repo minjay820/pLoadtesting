@@ -1,4 +1,4 @@
-# nebula-load-tester · Control Plane — Python Dependencies
+# pLoadtesting · Control Plane — Python Dependencies
 # ----------------------------------------------------------
 # Django 5.x + DRF + Celery + Redis
 
