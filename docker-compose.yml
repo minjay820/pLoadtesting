@@ -104,16 +104,22 @@ services:
       - ./control-plane:/app
 
   # ---------------------------------------------------------------------------
-  # worker  🔜 Phase 3 — 尚未實作
-  # 遠端 Worker Agent：執行壓測引擎，串流結果回中控台。
+  # worker  🔜 Phase 3 (MVP)
+  # 遠端 Worker Agent：負責與 Control Plane 註冊並維持心跳。
   # ---------------------------------------------------------------------------
-  # worker:
-  #   build: ./workers
-  #   container_name: nebula-worker
-  #   networks:
-  #     - nebula-net
-  #   depends_on:
-  #     - control-plane-web
+  worker-agent-1:
+    build:
+      context: ./workers
+      dockerfile: Dockerfile
+    container_name: nebula-worker-agent-1
+    networks:
+      - nebula-net
+    depends_on:
+      control-plane-web:
+        condition: service_started
+    environment:
+      - CONTROL_PLANE_URL=http://control-plane-web:9000
+      - WORKER_NAME=worker-agent-1
 
 networks:
   nebula-net:
