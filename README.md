@@ -151,8 +151,8 @@ nebula-load-tester/
 |:---:|---|---|:---:|
 | **Phase 0** | 專案鷹架 (Scaffolding) | 建立目錄結構、架構文件、docker-compose 外框 | ✅ 完成 |
 | **Phase 1** | Target App | 實作靶機 API，提供 `/health`、`/api/*` 端點，內建 metrics | ✅ 完成 |
-| **Phase 2** | 引擎整合 (Engines) | 撰寫 k6 基礎場景腳本，驗證端對端壓測可行性 | 🔜 **當前** |
-| **Phase 3** | Worker Agent | 實作 Worker 服務，支援本地執行 k6 並輸出結構化結果 | 🔜 |
+| **Phase 2** | 引擎整合 (Engines) | 撰寫 k6 基礎場景腳本，驗證端對端壓測可行性 | ✅ 完成 |
+| **Phase 3** | Worker Agent | 實作 Worker 服務，支援本地執行 k6 並輸出結構化結果 | 🔜 **當前** |
 | **Phase 4** | Control Plane MVP | 實作基礎 Web UI：任務建立、Worker 列表、結果查看 | 🔜 |
 | **Phase 5** | 多引擎擴充 | 將 JMeter、LoadRunner 引擎納入 Worker 執行能力 | 🔜 |
 | **Phase 6** | 可觀測性整合 | 串接 InfluxDB + Grafana，提供即時監控儀表板 | 🔜 |
