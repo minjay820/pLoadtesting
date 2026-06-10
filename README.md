@@ -58,12 +58,24 @@ nebula-load-tester/
 
 **用途**：提供一個可部署的「靶機」API 服務，作為所有壓測引擎的統一打靶目標。
 
-| 規劃內容 | 說明 |
+| 項目 | 說明 |
 |---|---|
-| 技術選型 | Node.js / FastAPI / Go（待定） |
-| 端點設計 | `/health`、`/api/users`、`/api/orders` 等模擬真實業務場景的 endpoint |
-| 可觀測性 | 內建 Prometheus metrics export (`/metrics`) |
-| 部署方式 | Docker 容器，透過 `docker-compose` 一鍵啟動 |
+| 技術選型 | **Python 3.11 + FastAPI + Uvicorn (uvloop)** |
+| 部署方式 | Docker 多階段建構，透過 `docker-compose up target-app` 一鍵啟動，Port 8000 |
+| 互動文件 | Swagger UI：`http://localhost:8000/docs` |
+
+**已實作 Endpoints**
+
+| Endpoint | 類型 | 說明 |
+|---|---|---|
+| `GET /api/health` | 健康檢查 | 回傳 `{"status": "ok"}`，供壓測工具 pre-flight 確認 |
+| `GET /api/cpu-bound?n=1000000` | CPU 密集 | 執行 n 次浮點乘累加迴圈（`acc = acc * 1.000001 + i * 0.000001`），預設 ~100ms；使用 `asyncio.to_thread` 確保 Event Loop 不阻塞 |
+| `GET /api/io-bound?delay=2.0` | I/O 密集 | `asyncio.sleep` 非同步等待，零 Thread 消耗，支援極高並發 |
+| `POST /api/data` | 資料回傳 | 接收 `{"id": int, "payload": str}`，回傳 100 筆模擬資料（≈ 8–12 KB），測試序列化與網路頻寬 |
+
+> **CPU 模擬策略說明**：原始設計使用費氏數列，但 `fib(35000)` 結果有 ~7300 位數，
+> 超過 Python 3.11 內建的 4300 位整數序列化安全限制，導致 JSON 回傳時拋出 `ValueError`。
+> 最終改用浮點乘累加迴圈，結果恆為小浮點數，完全規避此限制，同時保有線性可控的 CPU 負載。
 
 ---
 
@@ -137,9 +149,9 @@ nebula-load-tester/
 
 | 階段 | 名稱 | 目標 | 狀態 |
 |:---:|---|---|:---:|
-| **Phase 0** | 專案鷹架 (Scaffolding) | 建立目錄結構、架構文件、docker-compose 外框 | ✅ **當前** |
-| **Phase 1** | Target App | 實作靶機 API，提供 `/health`、`/api/*` 端點，內建 metrics | 🔜 |
-| **Phase 2** | 引擎整合 (Engines) | 撰寫 k6 基礎場景腳本，驗證端對端壓測可行性 | 🔜 |
+| **Phase 0** | 專案鷹架 (Scaffolding) | 建立目錄結構、架構文件、docker-compose 外框 | ✅ 完成 |
+| **Phase 1** | Target App | 實作靶機 API，提供 `/health`、`/api/*` 端點，內建 metrics | ✅ 完成 |
+| **Phase 2** | 引擎整合 (Engines) | 撰寫 k6 基礎場景腳本，驗證端對端壓測可行性 | 🔜 **當前** |
 | **Phase 3** | Worker Agent | 實作 Worker 服務，支援本地執行 k6 並輸出結構化結果 | 🔜 |
 | **Phase 4** | Control Plane MVP | 實作基礎 Web UI：任務建立、Worker 列表、結果查看 | 🔜 |
 | **Phase 5** | 多引擎擴充 | 將 JMeter、LoadRunner 引擎納入 Worker 執行能力 | 🔜 |
@@ -151,18 +163,27 @@ nebula-load-tester/
 
 ## 🛠️ 快速開始 (Quick Start)
 
-> ⚠️ **Phase 0 注意**：目前僅有目錄骨架，尚無可執行服務。
-
 ```bash
 # 1. Clone 專案
 git clone <repo-url> nebula-load-tester
 cd nebula-load-tester
 
-# 2. （未來）啟動完整生態系統
-docker-compose up -d
+# 2. 啟動靶機（Phase 1 已可用）
+docker compose up target-app -d
 
-# 3. （未來）僅啟動靶機
-docker-compose up target-app
+# 3. 測試各 Endpoints
+curl http://localhost:8000/api/health
+curl "http://localhost:8000/api/cpu-bound?n=1000000"
+curl "http://localhost:8000/api/io-bound?delay=1.0"
+curl -X POST http://localhost:8000/api/data \
+     -H "Content-Type: application/json" \
+     -d '{"id": 1, "payload": "test"}'
+
+# 4. Swagger 互動文件
+open http://localhost:8000/docs
+
+# 5. （未來）啟動完整生態系統
+docker compose up -d
 ```
 
 ---
