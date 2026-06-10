@@ -1,0 +1,46 @@
+# =============================================================================
+# nebula-load-tester — Docker Compose Skeleton
+# =============================================================================
+# Phase 0: Directory structure placeholder only.
+# Services will be filled in progressively as each module is implemented.
+# =============================================================================
+
+version: "3.9"
+
+services:
+  # ---------------------------------------------------------------------------
+  # target-app
+  # The dummy/reference API server used as the load-test target.
+  # ---------------------------------------------------------------------------
+  # target-app:
+  #   build: ./target-app
+  #   ports:
+  #     - "3000:3000"
+
+  # ---------------------------------------------------------------------------
+  # control-plane
+  # Web-based Control Plane: dispatches tasks, collects reports.
+  # ---------------------------------------------------------------------------
+  # control-plane:
+  #   build: ./control-plane
+  #   ports:
+  #     - "8080:8080"
+  #   depends_on:
+  #     - target-app
+
+  # ---------------------------------------------------------------------------
+  # worker
+  # Remote worker node: receives instructions from control-plane,
+  # executes stress engines, and streams results back.
+  # ---------------------------------------------------------------------------
+  # worker:
+  #   build: ./workers
+  #   depends_on:
+  #     - control-plane
+
+networks:
+  nebula-net:
+    driver: bridge
+
+volumes:
+  reports:
