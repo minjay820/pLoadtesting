@@ -199,4 +199,12 @@ docker compose up -d
 
 ## 📄 授權 (License)
 
-MIT License © 2026 nebula-load-tester contributors
+This project is licensed under the MIT License.
+
+Copyright (c) 2026 pLoadtesting contributors.
+
+本專案原始碼以 MIT License 授權。
+本專案可能與 Apache JMeter、k6、LoadRunner、Prometheus、Grafana 等第三方工具整合，但這些工具各自受其原始專案或供應商授權條款約束。
+
+pLoadtesting does not claim ownership of third-party load testing engines or observability tools.
+Please review `THIRD_PARTY_NOTICES.md` before redistributing Docker images, bundled binaries, sample scripts, or packaged releases.
