@@ -7,6 +7,8 @@ import psutil
 import asyncio
 import subprocess
 import json
+import csv
+from urllib.parse import urlparse
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
@@ -56,7 +58,7 @@ def register_worker() -> str:
         "name": WORKER_NAME,
         "ip_address": ip_addr,
         "port": WORKER_PORT,
-        "capabilities": ["k6"]
+        "capabilities": ["k6", "jmeter"]
     }
     
     while True:
@@ -157,6 +159,72 @@ def calculate_k6_summary(json_file_path: str):
             "raw_report": {"error": str(e)}
         }
 
+def calculate_jmeter_summary(jtl_file_path: str):
+    """從 JMeter 的 JTL (CSV) 輸出中計算出 Control Plane 需要的摘要指標"""
+    response_times = []
+    total_reqs = 0
+    failed_reqs = 0
+    
+    start_time = None
+    end_time = None
+
+    try:
+        if os.path.exists(jtl_file_path):
+            with open(jtl_file_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    try:
+                        ts = int(row['timeStamp'])
+                        elapsed = int(row['elapsed'])
+                        success = row['success'].lower() == 'true'
+
+                        if start_time is None or ts < start_time:
+                            start_time = ts
+                        if end_time is None or ts > end_time:
+                            end_time = ts
+
+                        response_times.append(elapsed)
+                        total_reqs += 1
+                        if not success:
+                            failed_reqs += 1
+                    except (KeyError, ValueError):
+                        continue
+
+        avg_response_ms = 0.0
+        p95_response_ms = 0.0
+        throughput_rps = 0.0
+
+        if response_times:
+            avg_response_ms = sum(response_times) / len(response_times)
+            response_times.sort()
+            p95_index = int(len(response_times) * 0.95)
+            p95_index = min(p95_index, len(response_times) - 1)
+            p95_response_ms = response_times[p95_index]
+
+        if start_time and end_time and end_time > start_time:
+            duration_s = (end_time - start_time) / 1000.0
+            if duration_s > 0:
+                throughput_rps = total_reqs / duration_s
+
+        return {
+            "avg_response_ms": avg_response_ms,
+            "p95_response_ms": p95_response_ms,
+            "throughput_rps": throughput_rps,
+            "raw_report": {
+                "message": "JMeter execution finished successfully",
+                "total_requests": total_reqs,
+                "failed_requests": failed_reqs
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error parsing JMeter results: {e}")
+        return {
+            "avg_response_ms": 0.0,
+            "p95_response_ms": 0.0,
+            "throughput_rps": 0.0,
+            "raw_report": {"error": str(e)}
+        }
+
 def post_task_result(task_id: str, payload: dict):
     """Post task execution results back to the Control Plane."""
     url = f"{CONTROL_PLANE_URL}/api/tasks/{task_id}/results/"
@@ -197,6 +265,47 @@ def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
                 logger.error(f"k6 execution failed: {process.stderr}")
                 summary["execution_status"] = "failed"
                 summary["error_message"] = process.stderr or f"k6 exited with code {process.returncode}"
+            else:
+                summary["execution_status"] = "completed"
+            
+            try:
+                post_task_result(task_id, summary)
+                logger.info(f"Successfully posted results for task {task_id}")
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Failed to post results for task {task_id}: {e}")
+                
+        elif engine == "jmeter":
+            output_jtl = f"/tmp/jmeter_{task_id}.jtl"
+            output_log = f"/tmp/jmeter_{task_id}.log"
+            cmd = ["jmeter", "-n", "-t", full_script_path, "-l", output_jtl, "-j", output_log]
+            
+            target_url = parameters.get("target_url")
+            if target_url:
+                parsed = urlparse(target_url)
+                host = parsed.hostname
+                port = parsed.port if parsed.port else (443 if parsed.scheme == "https" else 80)
+                cmd.extend(["-JTARGET_HOST=" + str(host), "-JTARGET_PORT=" + str(port)])
+                
+            env = os.environ.copy()
+            if parameters:
+                for k, v in parameters.items():
+                    if k != "target_url":
+                        env[k] = str(v)
+            
+            logger.info(f"Running command: {' '.join(cmd)}")
+            process = subprocess.run(cmd, env=env, capture_output=True, text=True)
+            logger.info(f"Task {task_id} exited with {process.returncode}")
+            
+            summary = calculate_jmeter_summary(output_jtl)
+            summary["raw_report"].update({
+                "stdout": process.stdout,
+                "stderr": process.stderr,
+                "exit_code": process.returncode,
+            })
+            if process.returncode != 0:
+                logger.error(f"JMeter execution failed: {process.stderr}")
+                summary["execution_status"] = "failed"
+                summary["error_message"] = process.stderr or f"JMeter exited with code {process.returncode}"
             else:
                 summary["execution_status"] = "completed"
             
