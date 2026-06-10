@@ -12,6 +12,13 @@
 
 ## 🚦 專案狀態 (Project Status & Roadmap)
 
+> [!WARNING]
+> **Important Disclaimers:**
+> * This project is an early-stage preview.
+> * The Control Plane and Worker Agent are **not production-ready yet**.
+> * **Do not expose** any Control Plane or Worker endpoint to the public internet without authentication, authorization, network isolation, and rate limiting.
+> * Use this project **only** for authorized performance testing against systems you own or have explicit permission to test.
+
 ### 📌 Project Status
 Currently, this project is in an **early-stage / v0.1.0 preparation** phase. It is actively being structured for open-source contribution and initial feature stabilization.
 
@@ -21,12 +28,17 @@ Currently, this project is in an **early-stage / v0.1.0 preparation** phase. It 
 * **Initial Engine Scripts**: Initial configuration and scripts for k6 and JMeter.
 * **Docker Compose Skeleton**: Basic orchestration container setup for local validation of target-app.
 
-### 🔮 Planned
+### 🔮 Planned Features
 * **Control Plane**: Task scheduler, worker dispatch queues, and Django-based REST API for managing load tests.
 * **Worker Agent**: Dynamic orchestration agents (Go/NodeJS-based) capable of launching local engines and streaming stdout logs/metrics back to the control plane.
 * **Dashboard / Web UI**: Interactive frontend for creating load-test tasks, viewing worker nodes status, and displaying reports.
 * **Distributed Execution**: Orchestrated execution over multiple distributed load testing nodes.
 * **Report Collection & Observability**: Centralized report aggregation and real-time visualization with InfluxDB/Prometheus and Grafana.
+
+### ⚠️ Not Production-Ready Yet
+* **Authentication & Authorization**: Currently there are no API keys or access controls implemented.
+* **Worker Security**: Worker Agent orchestration and registration tokens are planned but not yet implemented.
+* **Secure Networking**: Do not expose this project directly to the public internet.
 
 ---
 
@@ -40,12 +52,12 @@ Currently, this project is in an **early-stage / v0.1.0 preparation** phase. It 
                          │  └──────┬───────┘  └────────┬─────────┘ │
                          └─────────┼────────────────────┼───────────┘
                                    │  dispatch           │  results
-                    ┌──────────────┼──────────────────────┼────────────────┐
-                    ▼              ▼                       ▼                ▼
-             ┌──────────┐  ┌──────────┐           ┌──────────┐    ┌──────────┐
-             │ Worker 1 │  │ Worker 2 │    ...     │ Worker N │    │  Worker  │
-             │  (k6)    │  │(JMeter)  │            │  (LR)    │    │ (custom) │
-             └────┬─────┘  └────┬─────┘           └────┬─────┘    └────┬─────┘
+                     ┌──────────────┼──────────────────────┼────────────────┐
+                     ▼              ▼                       ▼                ▼
+              ┌──────────┐  ┌──────────┐           ┌──────────┐    ┌──────────┐
+              │ Worker 1 │  │ Worker 2 │    ...     │ Worker N │    │  Worker  │
+              │  (k6)    │  │(JMeter)  │            │ (Future) │    │ (custom) │
+              └────┬─────┘  └────┬─────┘           └────┬─────┘    └────┬─────┘
                   │              │                       │               │
                   └──────────────┴───────────────────────┴───────────────┘
                                              │
@@ -127,14 +139,17 @@ nebula-load-tester/
 | 分散式執行 | JMeter Master-Slave 模式設定 |
 | 報表輸出 | HTML Report / JTL → Grafana |
 
-#### `engines/loadrunner/`
+#### `engines/loadrunner/` (Optional Future Integration)
 
-**用途**：存放 [LoadRunner](https://www.microfocus.com/loadrunner) / LoadRunner Community Edition 腳本。
+**用途**：提供與商業壓測工具 [LoadRunner](https://www.microfocus.com/loadrunner) 相容的腳本放置與選用配置。
+
+> [!NOTE]
+> LoadRunner (OpenText LoadRunner) is a commercial product owned by OpenText or its affiliates. pLoadtesting does not bundle, distribute, or modify any proprietary LoadRunner libraries or binaries. This integration is planned as an optional future adapter and requires users to provide their own licensed installations of LoadRunner.
 
 | 規劃內容 | 說明 |
 |---|---|
-| 腳本格式 | C-based VUser Scripts |
-| 整合方式 | CLI 執行（`lr_start_scenario`）或 REST API 觸發 |
+| 腳本格式 | C-based VUser Scripts (由使用者自行提供) |
+| 整合方式 | 未來選用適配器 CLI 執行（`lr_start_scenario`）或 REST API 觸發 |
 | 報表格式 | Analysis Summary / SLA 報告 |
 
 ---
@@ -160,7 +175,7 @@ nebula-load-tester/
 | 功能模塊 | 說明 |
 |---|---|
 | 指令接收 | 監聽 Control Plane 的任務下發（WebSocket / HTTP Long-poll / gRPC） |
-| 引擎執行 | 動態呼叫 k6 / JMeter / LoadRunner 執行對應腳本 |
+| 引擎執行 | 動態呼叫 k6 / JMeter / (未來選配) LoadRunner 執行對應腳本 |
 | 結果回傳 | 即時串流日誌與最終報表 JSON 回中控台 |
 | 自我健康回報 | 定期心跳（heartbeat）回報節點可用狀態 |
 | 技術選型 | Go / Node.js（待定） |
