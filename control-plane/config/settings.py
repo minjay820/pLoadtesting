@@ -43,7 +43,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'django_celery_beat',
 
-    # nebula-load-tester apps
+    # pLoadtesting apps
     'apps.workers',
     'apps.tasks',
     'apps.results',

@@ -1,5 +1,5 @@
 # =============================================================================
-# nebula-load-tester · Target App — Dockerfile
+# pLoadtesting · Target App — Dockerfile
 # =============================================================================
 # 使用多階段建構 (Multi-stage Build)：
 #   Stage 1 (builder)  ─ 安裝依賴，隔離建構環境

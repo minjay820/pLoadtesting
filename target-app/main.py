@@ -1,6 +1,6 @@
 """
-nebula-load-tester — Target Application
-========================================
+pLoadtesting — Target Application
+=================================
 壓測靶機：提供四個模擬真實業務情境的 API Endpoint。
 
 Endpoints
@@ -27,7 +27,7 @@ from pydantic import BaseModel, Field
 # ---------------------------------------------------------------------------
 
 app = FastAPI(
-    title="nebula-load-tester · Target App",
+    title="pLoadtesting · Target App",
     description="壓測靶機：提供 CPU-bound、I/O-bound、資料回傳等模擬情境",
     version="1.0.0",
 )

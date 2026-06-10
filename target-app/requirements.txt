@@ -1,4 +1,4 @@
-# nebula-load-tester · Target App — Python Dependencies
+# pLoadtesting · Target App — Python Dependencies
 # -------------------------------------------------------
 # 固定版本號確保環境可重現性 (reproducible builds)
 

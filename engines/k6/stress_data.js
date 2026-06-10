@@ -1,5 +1,5 @@
 /**
- * nebula-load-tester — k6 Data API Stress Test
+ * pLoadtesting — k6 Data API Stress Test
  * ===============================================
  * 目標端點：POST /api/data
  * 目的：模擬高並發 JSON 序列化與網路頻寬壓力。

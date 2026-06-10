@@ -1,30 +1,30 @@
 # =============================================================================
-# nebula-load-tester — Docker Compose
+# pLoadtesting — Docker Compose
 # =============================================================================
-# Phase 1: target-app 服務已啟用。
-# 其餘服務（control-plane、worker）保留為註解，待後續 Phase 逐步開啟。
+# Phase 1: target-app service enabled.
+# Other services (control-plane, worker) are currently placeholder setups.
 # =============================================================================
 
 version: "3.9"
 
 services:
   # ---------------------------------------------------------------------------
-  # target-app  ✅ Phase 1 — 已啟用
-  # 壓測靶機：FastAPI + Uvicorn，提供 CPU/IO-bound 與資料回傳 API。
-  # Host 存取：http://localhost:8000
-  # Swagger UI：http://localhost:8000/docs
+  # target-app  ✅ Phase 1 — Enabled
+  # Target app: FastAPI + Uvicorn, providing CPU/IO-bound and data return APIs.
+  # Host access: http://localhost:8000
+  # Swagger UI: http://localhost:8000/docs
   # ---------------------------------------------------------------------------
   target-app:
     build:
       context: ./target-app
       dockerfile: Dockerfile
-    container_name: nebula-target-app
+    container_name: ploadtesting-target-app
     ports:
       - "8000:8000"
     networks:
-      - nebula-net
+      - ploadtesting-net
     restart: unless-stopped
-    # 健康檢查：與 Dockerfile HEALTHCHECK 一致，讓 depends_on 可等待就緒
+    # Health check: aligns with Dockerfile HEALTHCHECK, allowing depends_on to wait
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
@@ -32,30 +32,30 @@ services:
       timeout: 5s
       start_period: 15s
       retries: 3
-    # 資源限制：防止單一容器耗盡宿主機資源，確保壓測數據的隔離性
+    # Resource limits: prevent container from exhausting host resources
     deploy:
       resources:
         limits:
-          cpus: "2.0"       # 最多使用 2 顆 vCPU
-          memory: "512M"    # 最多使用 512 MB RAM
+          cpus: "2.0"       # max 2 vCPUs
+          memory: "512M"    # max 512 MB RAM
         reservations:
           cpus: "0.5"
           memory: "128M"
     environment:
-      # 明確設定 Python unbuffered，確保 log 即時輸出
+      # Ensure Python unbuffered log output
       - PYTHONUNBUFFERED=1
 
   # ---------------------------------------------------------------------------
   # Redis
-  # 作為 Celery 的 Broker
+  # Broker for Celery tasks
   # ---------------------------------------------------------------------------
   redis:
     image: redis:7-alpine
-    container_name: nebula-redis
+    container_name: ploadtesting-redis
     ports:
       - "6379:6379"
     networks:
-      - nebula-net
+      - ploadtesting-net
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -65,18 +65,18 @@ services:
 
   # ---------------------------------------------------------------------------
   # control-plane-web  🔜 Phase 4 (MVP)
-  # Web 中控平台：任務調度、Worker 管理、報告彙整。
+  # Web Control Plane: task scheduling, worker management, report aggregation.
   # ---------------------------------------------------------------------------
   control-plane-web:
     build:
       context: ./control-plane
       dockerfile: Dockerfile
-    container_name: nebula-control-plane-web
+    container_name: ploadtesting-control-plane-web
     command: python manage.py runserver 0.0.0.0:9000
     ports:
       - "9000:9000"
     networks:
-      - nebula-net
+      - ploadtesting-net
     depends_on:
       redis:
         condition: service_healthy
@@ -87,16 +87,16 @@ services:
 
   # ---------------------------------------------------------------------------
   # control-plane-celery  🔜 Phase 4 (MVP)
-  # 處理非同步任務排程
+  # Background task scheduler
   # ---------------------------------------------------------------------------
   control-plane-celery:
     build:
       context: ./control-plane
       dockerfile: Dockerfile
-    container_name: nebula-control-plane-celery
+    container_name: ploadtesting-control-plane-celery
     command: celery -A config worker --beat -l info
     networks:
-      - nebula-net
+      - ploadtesting-net
     depends_on:
       redis:
         condition: service_healthy
@@ -105,15 +105,15 @@ services:
 
   # ---------------------------------------------------------------------------
   # worker  🔜 Phase 3 (MVP)
-  # 遠端 Worker Agent：負責與 Control Plane 註冊並維持心跳。
+  # Remote Worker Agent: registers with Control Plane and sends heartbeats.
   # ---------------------------------------------------------------------------
   worker-agent-1:
     build:
       context: ./workers
       dockerfile: Dockerfile
-    container_name: nebula-worker-agent-1
+    container_name: ploadtesting-worker-agent-1
     networks:
-      - nebula-net
+      - ploadtesting-net
     depends_on:
       control-plane-web:
         condition: service_started
@@ -124,10 +124,10 @@ services:
       - ./engines:/app/engines
 
 networks:
-  nebula-net:
+  ploadtesting-net:
     driver: bridge
 
 volumes:
   reports:
-    # 未來用於儲存壓測報告的持久化 Volume
+    # Future volume for storing load testing reports
 

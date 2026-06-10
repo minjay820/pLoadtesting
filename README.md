@@ -1,8 +1,6 @@
 # 🌌 pLoadtesting
 
-> **多引擎自動化壓測生態系統 (Multi-Engine Automated Load Testing Ecosystem)**
->
-> Multi-engine automated load testing ecosystem for k6, JMeter, worker agents, control plane orchestration, and reproducible performance reports.
+> **Multi-engine automated load testing ecosystem for k6, JMeter, worker agents, control plane orchestration, and reproducible performance reports.**
 
 [![Phase](https://img.shields.io/badge/Phase-0%20Scaffolding-blueviolet)]()
 [![Status](https://img.shields.io/badge/Status-In%20Development-yellow)]()
@@ -10,56 +8,34 @@
 
 ---
 
-## 🚦 專案狀態 (Project Status & Roadmap)
-
 > [!WARNING]
-> **Important Disclaimers:**
+> **Safety & Production Readiness Warnings:**
 > * This project is an early-stage preview.
-> * The Control Plane and Worker Agent are **not production-ready yet**.
-> * **Do not expose** any Control Plane or Worker endpoint to the public internet without authentication, authorization, network isolation, and rate limiting.
 > * Use this project **only** for authorized performance testing against systems you own or have explicit permission to test.
-
-### 📌 Project Status
-Currently, this project is in an **early-stage / v0.1.0 preparation** phase. It is actively being structured for open-source contribution and initial feature stabilization.
-
-### ✅ What Works Today
-* **Target App**: Reference Python/FastAPI target server with health check, CPU-bound tasks, async I/O-bound tasks, and high-volume data serialization endpoints.
-* **Basic Endpoints**: Tested `/api/health`, `/api/cpu-bound`, `/api/io-bound`, and `/api/data` endpoints.
-* **Initial Engine Scripts**: Initial configuration and scripts for k6 and JMeter.
-* **Docker Compose Skeleton**: Basic orchestration container setup for local validation of target-app.
-
-### 🔮 Planned Features
-* **Control Plane**: Task scheduler, worker dispatch queues, and Django-based REST API for managing load tests.
-* **Worker Agent**: Dynamic orchestration agents (Go/NodeJS-based) capable of launching local engines and streaming stdout logs/metrics back to the control plane.
-* **Dashboard / Web UI**: Interactive frontend for creating load-test tasks, viewing worker nodes status, and displaying reports.
-* **Distributed Execution**: Orchestrated execution over multiple distributed load testing nodes.
-* **Report Collection & Observability**: Centralized report aggregation and real-time visualization with InfluxDB/Prometheus and Grafana.
-
-### ⚠️ Not Production-Ready Yet
-* **Authentication & Authorization**: Currently there are no API keys or access controls implemented.
-* **Worker Security**: Worker Agent orchestration and registration tokens are planned but not yet implemented.
-* **Secure Networking**: Do not expose this project directly to the public internet.
+> * Do not test systems you do not own or do not have explicit permission to test.
+> * **Do not expose** Control Plane or Worker endpoints to the public internet without authentication, authorization, network isolation, and rate limiting.
+> * The Control Plane and Worker Agent components are **not production-ready yet**.
 
 ---
 
-## 📐 架構藍圖 (Architecture Blueprint)
+## 📐 Architecture Blueprint
 
 ```
-                         ┌─────────────────────────────────────────┐
-                         │           Control Plane (Web UI)         │
-                         │  ┌──────────────┐  ┌──────────────────┐ │
-                         │  │  Task Queue  │  │  Report Collector│ │
-                         │  └──────┬───────┘  └────────┬─────────┘ │
-                         └─────────┼────────────────────┼───────────┘
-                                   │  dispatch           │  results
-                     ┌──────────────┼──────────────────────┼────────────────┐
-                     ▼              ▼                       ▼                ▼
+                          ┌─────────────────────────────────────────┐
+                          │           Control Plane (Web UI)         │
+                          │  ┌──────────────┐  ┌──────────────────┐ │
+                          │  │  Task Queue  │  │  Report Collector│ │
+                          │  └──────┬───────┘  └────────┬─────────┘ │
+                          └─────────┼────────────────────┼───────────┘
+                                    │  dispatch           │  results
+                    ┌──────────────┼──────────────────────┼────────────────┐
+                    ▼              ▼                       ▼                ▼
               ┌──────────┐  ┌──────────┐           ┌──────────┐    ┌──────────┐
               │ Worker 1 │  │ Worker 2 │    ...     │ Worker N │    │  Worker  │
               │  (k6)    │  │(JMeter)  │            │ (Future) │    │ (custom) │
               └────┬─────┘  └────┬─────┘           └────┬─────┘    └────┬─────┘
-                  │              │                       │               │
-                  └──────────────┴───────────────────────┴───────────────┘
+                   │              │                       │               │
+                   └──────────────┴───────────────────────┴───────────────┘
                                              │
                                     HTTP / gRPC / WS
                                              │
@@ -71,145 +47,106 @@ Currently, this project is in an **early-stage / v0.1.0 preparation** phase. It 
 
 ---
 
-## 🗂️ 目錄結構說明 (Directory Structure)
+## 🗂️ Directory Structure
 
 ```
-nebula-load-tester/
+pLoadtesting/
 │
-├── target-app/               # 靶機應用程式
-├── engines/                  # 壓測引擎腳本區
-│   ├── k6/                   # k6 壓測腳本
-│   ├── jmeter/               # JMeter 測試計畫
-│   └── loadrunner/           # LoadRunner 腳本
+├── target-app/               # Reference API server used as a load testing target
+├── engines/                  # Load testing scripts and scenario assets
+│   ├── k6/                   # k6 test scripts
+│   ├── jmeter/               # JMeter test plans
+│   └── loadrunner/           # Optional future enterprise engine adapter
 │
-├── control-plane/            # Web 中控平台
-├── workers/                  # 遠端工作節點
-├── docker-compose.yml        # 容器編排設定
-└── README.md                 # 本文件
+├── control-plane/            # Planned orchestration API and web console
+├── workers/                  # Planned remote execution agents
+├── docker-compose.yml        # Container orchestration configuration
+└── README.md                 # This file
 ```
+
+---
 
 ### 📦 target-app/
 
-**用途**：提供一個可部署的「靶機」API 服務，作為所有壓測引擎的統一打靶目標。
+**Purpose**: A standardized, deployable reference target API service used as the payload destination for all test engines.
 
-| 項目 | 說明 |
+| Item | Details |
 |---|---|
-| 技術選型 | **Python 3.11 + FastAPI + Uvicorn (uvloop)** |
-| 部署方式 | Docker 多階段建構，透過 `docker-compose up target-app` 一鍵啟動，Port 8000 |
-| 互動文件 | Swagger UI：`http://localhost:8000/docs` |
+| Tech Stack | **Python 3.11 + FastAPI + Uvicorn (uvloop)** |
+| Deployment | Dockerized, launch via `docker compose up target-app` (Port 8000) |
+| Interactive Spec | Swagger UI available at `http://localhost:8000/docs` |
 
-**已實作 Endpoints**
+**Available Endpoints**
 
-| Endpoint | 類型 | 說明 |
+| Endpoint | Type | Description |
 |---|---|---|
-| `GET /api/health` | 健康檢查 | 回傳 `{"status": "ok"}`，供壓測工具 pre-flight 確認 |
-| `GET /api/cpu-bound?n=1000000` | CPU 密集 | 執行 n 次浮點乘累加迴圈（`acc = acc * 1.000001 + i * 0.000001`），預設 ~100ms；使用 `asyncio.to_thread` 確保 Event Loop 不阻塞 |
-| `GET /api/io-bound?delay=2.0` | I/O 密集 | `asyncio.sleep` 非同步等待，零 Thread 消耗，支援極高並發 |
-| `POST /api/data` | 資料回傳 | 接收 `{"id": int, "payload": str}`，回傳 100 筆模擬資料（≈ 8–12 KB），測試序列化與網路頻寬 |
-
-> **CPU 模擬策略說明**：原始設計使用費氏數列，但 `fib(35000)` 結果有 ~7300 位數，
-> 超過 Python 3.11 內建的 4300 位整數序列化安全限制，導致 JSON 回傳時拋出 `ValueError`。
-> 最終改用浮點乘累加迴圈，結果恆為小浮點數，完全規避此限制，同時保有線性可控的 CPU 負載。
+| `GET /api/health` | Utility | Returns `{"status": "ok"}` for pre-flight checks. |
+| `GET /api/cpu-bound?n=1000000` | Scenario | Loops `n` times doing float calculations (~100ms CPU work). Uses threads to avoid blocking Event Loop. |
+| `GET /api/io-bound?delay=2.0` | Scenario | Non-blocking async sleep simulating external DB/network waits. |
+| `POST /api/data` | Scenario | Accepts request body and returns 100 generated items (8-12 KB payload) to test network bandwidth and serialization speed. |
 
 ---
 
 ### ⚙️ engines/
 
-壓測腳本的核心倉庫，依引擎分類管理，每個子目錄自成一個獨立執行單元。
+Core script warehouse organized by engine types. Each subdirectory represents an executable context.
 
 #### `engines/k6/`
-
-**用途**：存放所有 [k6](https://k6.io) 壓測腳本（JavaScript）。
-
-| 規劃內容 | 說明 |
-|---|---|
-| 腳本格式 | `.js` ES Modules |
-| 情境分類 | `smoke/`、`load/`、`stress/`、`soak/`、`spike/` |
-| 輸出整合 | k6 Cloud / InfluxDB + Grafana |
-| 執行方式 | `k6 run engines/k6/<scenario>.js` |
+* **Purpose**: Houses JavaScript-based test scenarios for [k6](https://k6.io).
+* **Scenarios**: `smoke.js`, `stress_cpu.js`, `stress_io.js`, `stress_data.js`.
+* **Execution**: `k6 run engines/k6/<scenario>.js`
 
 #### `engines/jmeter/`
-
-**用途**：存放 [Apache JMeter](https://jmeter.apache.org) 測試計畫（`.jmx`）與相關資源。
-
-| 規劃內容 | 說明 |
-|---|---|
-| 腳本格式 | `.jmx` XML 測試計畫 |
-| 參數化 | Properties files / CSV Data Sets |
-| 分散式執行 | JMeter Master-Slave 模式設定 |
-| 報表輸出 | HTML Report / JTL → Grafana |
+* **Purpose**: Houses Apache JMeter `.jmx` test plans.
+* **Scenarios**: `ploadtesting_test_plan.jmx`.
+* **Execution**: `jmeter -n -t ploadtesting_test_plan.jmx -l results.jtl`
 
 #### `engines/loadrunner/` (Optional Future Integration)
-
-**用途**：提供與商業壓測工具 [LoadRunner](https://www.microfocus.com/loadrunner) 相容的腳本放置與選用配置。
-
-> [!NOTE]
-> LoadRunner (OpenText LoadRunner) is a commercial product owned by OpenText or its affiliates. pLoadtesting does not bundle, distribute, or modify any proprietary LoadRunner libraries or binaries. This integration is planned as an optional future adapter and requires users to provide their own licensed installations of LoadRunner.
-
-| 規劃內容 | 說明 |
-|---|---|
-| 腳本格式 | C-based VUser Scripts (由使用者自行提供) |
-| 整合方式 | 未來選用適配器 CLI 執行（`lr_start_scenario`）或 REST API 觸發 |
-| 報表格式 | Analysis Summary / SLA 報告 |
+* **Purpose**: Optional future enterprise integration points for commercial testing workflows.
+* **Licensing**: LoadRunner is proprietary software owned by OpenText or its affiliates. `pLoadtesting` does not include, redistribute, sublicense, or modify LoadRunner binaries, proprietary libraries, or commercial assets. This future adapter requires a user-provided licensed installation of LoadRunner.
 
 ---
 
 ### 🖥️ control-plane/
-
-**用途**：提供 Web 介面的「中控台」，負責任務調度、Workers 管理及壓測結果彙整。
-
-| 功能模塊 | 說明 |
-|---|---|
-| 任務調度 (Task Dispatcher) | 建立壓測任務、選擇引擎與場景、指派 Worker |
-| Worker 管理 | 顯示在線節點、健康狀態、資源使用率 |
-| 報告中心 | 彙整各 Worker 回傳的結果，產生統一視圖 |
-| 設定管理 | Target App URL、通知設定（Slack / Email）、SLA 閾值 |
-| 技術選型 | Next.js / React + Node.js API（待定） |
+* **Purpose**: Central command API for scheduling runs, tracking worker nodes status, and parsing result payloads.
+* **Tech Stack**: Django, Django REST Framework, Celery, Redis.
 
 ---
 
 ### 🤖 workers/
-
-**用途**：部署於各測試節點的 Agent，接收來自 Control Plane 的指令，在本地執行對應的壓測引擎，並將結果串流回中控台。
-
-| 功能模塊 | 說明 |
-|---|---|
-| 指令接收 | 監聽 Control Plane 的任務下發（WebSocket / HTTP Long-poll / gRPC） |
-| 引擎執行 | 動態呼叫 k6 / JMeter / (未來選配) LoadRunner 執行對應腳本 |
-| 結果回傳 | 即時串流日誌與最終報表 JSON 回中控台 |
-| 自我健康回報 | 定期心跳（heartbeat）回報節點可用狀態 |
-| 技術選型 | Go / Node.js（待定） |
+* **Purpose**: Remote agent nodes listening for commands from the Control Plane to execute testing scripts locally and stream metrics.
+* **Tech Stack**: Go / NodeJS.
 
 ---
 
-## 🗓️ 開發階段規劃 (Development Phases)
+## 🚦 Project Status & Roadmap
 
-| 階段 | 名稱 | 目標 | 狀態 |
-|:---:|---|---|:---:|
-| **Phase 0** | 專案鷹架 (Scaffolding) | 建立目錄結構、架構文件、docker-compose 外框 | ✅ 完成 |
-| **Phase 1** | Target App | 實作靶機 API，提供 `/health`、`/api/*` 端點，內建 metrics | ✅ 完成 |
-| **Phase 2** | 引擎整合 (Engines) | 撰寫 k6 / JMeter 壓測腳本，驗證端對端壓測可行性 | ✅ 完成 |
-| **Phase 3** | Control Plane MVP | Django + DRF 後端：WorkerNode / LoadTestTask / TestResult 資料模型與 REST API；Celery 任務派發 | 🔜 **當前** |
-| **Phase 4** | Worker Agent | 實作 Worker 服務，接收 Control Plane 指令，執行 k6 / JMeter 並回傳結構化結果 | 🔜 |
-| **Phase 5** | Web Dashboard | Control Plane 前端 UI：任務建立、Worker 列表、結果圖表 | 🔜 |
-| **Phase 6** | 多引擎擴充 | 將 JMeter、LoadRunner 引擎納入 Worker 執行能力 | 🔜 |
-| **Phase 7** | 可觀測性整合 | 串接 InfluxDB + Grafana，提供即時監控儀表板 | 🔜 |
-| **Phase 8** | 分散式 Workers | 支援多節點水平擴展，Control Plane 實現負載均衡調度 | 🔜 |
-| **Phase 9** | 生產強化 | CI/CD 整合、SLA 告警、完整 E2E 測試覆蓋 | 🔜 |
+### 📌 Project Status
+`pLoadtesting` is currently in an **early-stage preview / v0.1.0 preparation** phase. Core contracts and target verification are being stabilized.
+
+### ✅ What Works Today
+* **Target App**: Fully functioning target server with endpoints testing CPU bounds, async I/O waits, and data serialization.
+* **Initial Engine Scripts**: Basic scripts and test plans for k6 and JMeter.
+* **Docker Compose Skeleton**: Basic orchestration container setup for local validation of target-app.
+
+### 🔮 Planned Features
+* **Control Plane API MVP**: Basic Django REST APIs for registration, worker coordination, and scheduling.
+* **Worker Agent MVP**: Lightweight agent daemon running scripts locally and notifying task completions.
+* **Observability Integrations**: Collecting reports and outputting time-series metrics.
 
 ---
 
-## 🛠️ 快速開始 (Quick Start)
+## 🛠️ Quick Start
 
 ```bash
-# 1. Clone 專案
+# 1. Clone the repository
 git clone <repo-url> pLoadtesting
 cd pLoadtesting
 
-# 2. 啟動靶機（Phase 1 已可用）
+# 2. Spin up target-app
 docker compose up target-app -d
 
-# 3. 測試各 Endpoints
+# 3. Verify target endpoints
 curl http://localhost:8000/api/health
 curl "http://localhost:8000/api/cpu-bound?n=1000000"
 curl "http://localhost:8000/api/io-bound?delay=1.0"
@@ -217,31 +154,21 @@ curl -X POST http://localhost:8000/api/data \
      -H "Content-Type: application/json" \
      -d '{"id": 1, "payload": "test"}'
 
-# 4. Swagger 互動文件
+# 4. View OpenAPI Docs
 open http://localhost:8000/docs
-
-# 5. （未來）啟動完整生態系統
-docker compose up -d
 ```
 
 ---
 
-## 🤝 貢獻指南 (Contributing)
-
-- 每個 Phase 以獨立 Feature Branch 開發（`feat/phase-1-target-app`）
-- 提交 PR 前請確保 `docker-compose up` 可正常啟動相關服務
-- 壓測腳本請附上對應的 `README.md` 說明執行方式與預期 SLA 基準
+## 🤝 Contributing
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for environment configuration requirements, branch naming guidelines, and Pull Request workflows.
 
 ---
 
-## 📄 授權 (License)
+## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
 
 Copyright (c) 2026 pLoadtesting contributors.
 
-本專案原始碼以 [MIT License](LICENSE) 授權。
-本專案可能與 Apache JMeter、k6、LoadRunner、Prometheus、Grafana 等第三方工具整合，但這些工具各自受其原始專案或供應商授權條款約束。
-
-pLoadtesting does not claim ownership of third-party load testing engines or observability tools.
-Please review [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) before redistributing Docker images, bundled binaries, sample scripts, or packaged releases.
+Please review [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) before redistributing sample scripts, container assets, or packaged releases.
