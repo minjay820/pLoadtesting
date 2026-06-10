@@ -1,0 +1,13 @@
+# nebula-load-tester · Target App — Python Dependencies
+# -------------------------------------------------------
+# 固定版本號確保環境可重現性 (reproducible builds)
+
+# Web framework & ASGI server
+fastapi==0.115.12
+uvicorn[standard]==0.34.3
+
+# Data validation (FastAPI 依賴，明確鎖版本)
+pydantic==2.11.5
+
+# HTTP client (供未來 I/O-bound 擴充使用，例如呼叫外部服務)
+httpx==0.28.1

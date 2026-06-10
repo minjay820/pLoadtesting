@@ -1,40 +1,74 @@
 # =============================================================================
-# nebula-load-tester — Docker Compose Skeleton
+# nebula-load-tester — Docker Compose
 # =============================================================================
-# Phase 0: Directory structure placeholder only.
-# Services will be filled in progressively as each module is implemented.
+# Phase 1: target-app 服務已啟用。
+# 其餘服務（control-plane、worker）保留為註解，待後續 Phase 逐步開啟。
 # =============================================================================
 
 version: "3.9"
 
 services:
   # ---------------------------------------------------------------------------
-  # target-app
-  # The dummy/reference API server used as the load-test target.
+  # target-app  ✅ Phase 1 — 已啟用
+  # 壓測靶機：FastAPI + Uvicorn，提供 CPU/IO-bound 與資料回傳 API。
+  # Host 存取：http://localhost:8000
+  # Swagger UI：http://localhost:8000/docs
   # ---------------------------------------------------------------------------
-  # target-app:
-  #   build: ./target-app
-  #   ports:
-  #     - "3000:3000"
+  target-app:
+    build:
+      context: ./target-app
+      dockerfile: Dockerfile
+    container_name: nebula-target-app
+    ports:
+      - "8000:8000"
+    networks:
+      - nebula-net
+    restart: unless-stopped
+    # 健康檢查：與 Dockerfile HEALTHCHECK 一致，讓 depends_on 可等待就緒
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    # 資源限制：防止單一容器耗盡宿主機資源，確保壓測數據的隔離性
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"       # 最多使用 2 顆 vCPU
+          memory: "512M"    # 最多使用 512 MB RAM
+        reservations:
+          cpus: "0.5"
+          memory: "128M"
+    environment:
+      # 明確設定 Python unbuffered，確保 log 即時輸出
+      - PYTHONUNBUFFERED=1
 
   # ---------------------------------------------------------------------------
-  # control-plane
-  # Web-based Control Plane: dispatches tasks, collects reports.
+  # control-plane  🔜 Phase 4 — 尚未實作
+  # Web 中控平台：任務調度、Worker 管理、報告彙整。
   # ---------------------------------------------------------------------------
   # control-plane:
   #   build: ./control-plane
+  #   container_name: nebula-control-plane
   #   ports:
   #     - "8080:8080"
+  #   networks:
+  #     - nebula-net
   #   depends_on:
-  #     - target-app
+  #     target-app:
+  #       condition: service_healthy
 
   # ---------------------------------------------------------------------------
-  # worker
-  # Remote worker node: receives instructions from control-plane,
-  # executes stress engines, and streams results back.
+  # worker  🔜 Phase 3 — 尚未實作
+  # 遠端 Worker Agent：執行壓測引擎，串流結果回中控台。
   # ---------------------------------------------------------------------------
   # worker:
   #   build: ./workers
+  #   container_name: nebula-worker
+  #   networks:
+  #     - nebula-net
   #   depends_on:
   #     - control-plane
 
@@ -44,3 +78,5 @@ networks:
 
 volumes:
   reports:
+    # 未來用於儲存壓測報告的持久化 Volume
+
