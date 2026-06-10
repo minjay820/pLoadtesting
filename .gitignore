@@ -15,3 +15,7 @@ htmlcov/
 tmp/
 *.report
 *.jtl
+*.sqlite3
+*.db
+*.sqlite3-journal
+*.db-journal
