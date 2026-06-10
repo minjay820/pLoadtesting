@@ -102,7 +102,7 @@ Core script warehouse organized by engine types. Each subdirectory represents an
 * **Execution**: `jmeter -n -t ploadtesting_test_plan.jmx -l results.jtl`
 
 #### `engines/loadrunner/` (Optional Future Integration)
-* **Purpose**: Optional future enterprise integration points for commercial testing workflows.
+* **Purpose**: Houses optional future enterprise integration points for commercial testing workflows.
 * **Licensing**: LoadRunner is proprietary software owned by OpenText or its affiliates. `pLoadtesting` does not include, redistribute, sublicense, or modify LoadRunner binaries, proprietary libraries, or commercial assets. This future adapter requires a user-provided licensed installation of LoadRunner.
 
 ---
