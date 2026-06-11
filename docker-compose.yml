@@ -1,8 +1,14 @@
 # =============================================================================
 # pLoadtesting — Docker Compose
 # =============================================================================
-# Phase 1: target-app service enabled.
-# Other services (control-plane, worker) are currently placeholder setups.
+# Services:
+#   target-app          ✅ Phase 1  — FastAPI load test target
+#   redis               ✅ Phase 4  — Celery broker
+#   control-plane-web   ✅ Phase 4  — Django orchestration API
+#   control-plane-celery✅ Phase 4  — Celery worker + beat
+#   worker-agent-1      ✅ Phase 3  — k6 / JMeter execution node
+#   influxdb            ✅ Phase 6  — Time-series metrics store
+#   grafana             ✅ Phase 6  — Real-time visualization dashboard
 # =============================================================================
 
 version: "3.9"
@@ -24,7 +30,6 @@ services:
     networks:
       - ploadtesting-net
     restart: unless-stopped
-    # Health check: aligns with Dockerfile HEALTHCHECK, allowing depends_on to wait
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
@@ -32,21 +37,19 @@ services:
       timeout: 5s
       start_period: 15s
       retries: 3
-    # Resource limits: prevent container from exhausting host resources
     deploy:
       resources:
         limits:
-          cpus: "2.0"       # max 2 vCPUs
-          memory: "512M"    # max 512 MB RAM
+          cpus: "2.0"
+          memory: "512M"
         reservations:
           cpus: "0.5"
           memory: "128M"
     environment:
-      # Ensure Python unbuffered log output
       - PYTHONUNBUFFERED=1
 
   # ---------------------------------------------------------------------------
-  # Redis
+  # Redis  ✅ Phase 4
   # Broker for Celery tasks
   # ---------------------------------------------------------------------------
   redis:
@@ -64,8 +67,9 @@ services:
       retries: 5
 
   # ---------------------------------------------------------------------------
-  # control-plane-web  🔜 Phase 4 (MVP)
+  # control-plane-web  ✅ Phase 4
   # Web Control Plane: task scheduling, worker management, report aggregation.
+  # Host access: http://localhost:9000
   # ---------------------------------------------------------------------------
   control-plane-web:
     build:
@@ -90,8 +94,8 @@ services:
       - ./control-plane:/app
 
   # ---------------------------------------------------------------------------
-  # control-plane-celery  🔜 Phase 4 (MVP)
-  # Background task scheduler
+  # control-plane-celery  ✅ Phase 4
+  # Background task scheduler: dispatch_pending_tasks + mark_stale_workers
   # ---------------------------------------------------------------------------
   control-plane-celery:
     build:
@@ -112,8 +116,9 @@ services:
       - ./control-plane:/app
 
   # ---------------------------------------------------------------------------
-  # worker  🔜 Phase 3 (MVP)
-  # Remote Worker Agent: registers with Control Plane and sends heartbeats.
+  # worker-agent-1  ✅ Phase 3
+  # Remote Worker Agent: registers with Control Plane, sends heartbeats,
+  # executes k6 and JMeter load tests, streams metrics to InfluxDB.
   # ---------------------------------------------------------------------------
   worker-agent-1:
     build:
@@ -125,18 +130,100 @@ services:
     depends_on:
       control-plane-web:
         condition: service_started
+      influxdb:
+        condition: service_healthy
     environment:
       - CONTROL_PLANE_URL=http://control-plane-web:9000
       - WORKER_NAME=worker-agent-1
       - PLOADTESTING_API_TOKEN=${PLOADTESTING_API_TOKEN:-dev-api-token-change-me}
+      # ── InfluxDB v2 Observability ──────────────────────────────────────────
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-ploadtesting-dev-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-ploadtesting}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-load_tests}
     volumes:
       - ./engines:/app/engines
+
+  # ---------------------------------------------------------------------------
+  # influxdb  ✅ Phase 6 — Time-Series Metrics Store
+  # InfluxDB v2 with v1 compatibility API enabled.
+  # Host access: http://localhost:8086
+  # UI: http://localhost:8086 (admin / ploadtesting-admin)
+  # ---------------------------------------------------------------------------
+  influxdb:
+    image: influxdb:2.7-alpine
+    container_name: ploadtesting-influxdb
+    ports:
+      - "8086:8086"
+    networks:
+      - ploadtesting-net
+    restart: unless-stopped
+    environment:
+      # Initial setup (only runs on first boot when data volume is empty)
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_ADMIN_PASSWORD:-ploadtesting-admin}
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG:-ploadtesting}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET:-load_tests}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN:-ploadtesting-dev-token}
+      # Retain data for 30 days (0 = unlimited)
+      - DOCKER_INFLUXDB_INIT_RETENTION=720h
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # grafana  ✅ Phase 6 — Real-Time Visualization Dashboard
+  # Auto-provisioned with InfluxDB datasource and pLoadtesting dashboard.
+  # Host access: http://localhost:3000 (admin / admin)
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana-oss:11.6.0
+    container_name: ploadtesting-grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - ploadtesting-net
+    restart: unless-stopped
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      # Allow embedding in iframes (for future Web UI integration)
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      # Anonymous access (read-only) — disable in production
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      # Inject InfluxDB token into provisioning via env var
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-ploadtesting-dev-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-ploadtesting}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-load_tests}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health | grep -q ok"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
 
 networks:
   ploadtesting-net:
     driver: bridge
 
 volumes:
+  influxdb-data:
+    # Time-series metrics from k6 / JMeter load tests
+  grafana-data:
+    # Grafana dashboard configurations and user data
   reports:
     # Future volume for storing load testing reports
-

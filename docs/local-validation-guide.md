@@ -14,6 +14,8 @@
 | `control-plane-web` | `ploadtesting-control-plane-web` | `9000` | 中控 Web API（Django） |
 | `control-plane-celery` | `ploadtesting-control-plane-celery` | — | Celery Worker + Beat |
 | `worker-agent-1` | `ploadtesting-worker-agent-1` | — | 壓測執行節點（FastAPI :8100 內部） |
+| `influxdb` | `ploadtesting-influxdb` | `8086` | 時序資料庫（Phase 6） |
+| `grafana` | `ploadtesting-grafana` | `3000` | 即時監控儀表板（Phase 6） |
 
 ---
 
@@ -55,6 +57,8 @@ ploadtesting-redis                    redis:7-alpine           Up (healthy)
 ploadtesting-control-plane-web        ploadtesting-control-...  Up
 ploadtesting-control-plane-celery     ploadtesting-control-...  Up
 ploadtesting-worker-agent-1           ploadtesting-worker-...  Up
+ploadtesting-influxdb                 influxdb:2.7-alpine      Up (healthy)
+ploadtesting-grafana                  grafana/grafana-oss:...  Up (healthy)
 ```
 
 ---
@@ -111,6 +115,31 @@ open http://localhost:9000/admin/
 curl -s http://localhost:9000/api/workers/ \
   -H "X-PLoadtesting-Api-Token: ${API_TOKEN}" | python3 -m json.tool
 # 預期：worker-agent-1 status=online，last_heartbeat_at 為近期時間戳
+```
+
+### 4. InfluxDB（Phase 6）
+
+```bash
+# InfluxDB 健康確認
+curl -s http://localhost:8086/health
+# 預期：{"checks":[...],"message":"ready for queries and writes","status":"pass",...}
+
+# InfluxDB UI（瀏覽器）
+open http://localhost:8086
+# 帳號：admin / ploadtesting-admin
+```
+
+### 5. Grafana（Phase 6）
+
+```bash
+# Grafana 健康確認
+curl -s http://localhost:3000/api/health
+# 預期：{"commit":"...","database":"ok","version":"..."}
+
+# Grafana Dashboard（瀏覽器）
+open http://localhost:3000
+# 帳號：admin / admin
+# 路徑：Dashboards → pLoadtesting — Load Test Monitor
 ```
 
 ---
@@ -312,4 +341,34 @@ docker stats --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}"
 # control-plane-web:       < 1% CPU, ~120-180MB RAM
 # control-plane-celery:    < 1% CPU, ~120-180MB RAM
 # worker-agent-1:          < 1% CPU, ~50-80MB RAM
+# influxdb:                < 1% CPU, ~80-150MB RAM
+# grafana:                 < 1% CPU, ~80-120MB RAM
 ```
+
+---
+
+## ❌ 問題 6：InfluxDB 初始化失敗 / Token 變更後無法啟動
+
+**症狀**：`influxdb` 容器持續 Restart，或 Grafana 顯示「datasource connection error」
+
+**原因**：更改了 `INFLUXDB_TOKEN` 環境變數，但 Volume 中已有舊的 token 資料。
+
+**解決方式**：
+```bash
+# 停止並移除 InfluxDB Volume（會清除所有歷史數據）
+docker compose down
+docker volume rm ploadtesting_influxdb-data
+docker compose up -d
+
+# 重新啟動後，InfluxDB 會以新 token 重新初始化
+```
+
+> **注意**：移除 Volume 會清除所有已寫入的壓測指標。正式環境請先備份再操作。
+
+---
+
+## 相關文件
+
+- [Observability Guide](./observability-guide.md) — InfluxDB + Grafana 詳細說明
+- [k6 Smoke Test Guide](./k6-smoke-test-guide.md)
+- [Architecture Interaction](./architecture-interaction.md)

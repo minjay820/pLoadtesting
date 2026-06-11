@@ -14,6 +14,14 @@ from fastapi import FastAPI, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
 import uvicorn
 
+# ── InfluxDB v2 Client（可選，僅在環境變數存在時啟用）───────────────────────
+try:
+    from influxdb_client import InfluxDBClient, Point, WritePrecision
+    from influxdb_client.client.write_api import SYNCHRONOUS
+    _INFLUXDB_AVAILABLE = True
+except ImportError:
+    _INFLUXDB_AVAILABLE = False
+
 # ── 設定日誌 ─────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
@@ -27,6 +35,16 @@ CONTROL_PLANE_URL = os.getenv("CONTROL_PLANE_URL", "http://localhost:9000")
 WORKER_NAME       = os.getenv("WORKER_NAME", "worker-local-01")
 WORKER_PORT       = 8100  # 預設，後續可以依據真實起 API server 改動
 API_TOKEN         = os.getenv("PLOADTESTING_API_TOKEN", "dev-api-token-change-me")
+
+# ── InfluxDB v2 Observability 環境變數 ───────────────────────────────────
+INFLUXDB_URL    = os.getenv("INFLUXDB_URL", "")      # e.g. http://influxdb:8086
+INFLUXDB_TOKEN  = os.getenv("INFLUXDB_TOKEN", "")    # Admin token
+INFLUXDB_ORG    = os.getenv("INFLUXDB_ORG", "ploadtesting")
+INFLUXDB_BUCKET = os.getenv("INFLUXDB_BUCKET", "load_tests")
+
+# InfluxDB v1 compatibility URL for k6 --out influxdb (line protocol)
+# k6 v0.51 uses v1 line protocol; InfluxDB v2 provides /write compatibility endpoint
+INFLUXDB_V1_URL = f"{INFLUXDB_URL}/api/v1/write" if INFLUXDB_URL else ""
 
 worker_state = {
     "worker_id": None,
@@ -232,6 +250,60 @@ def post_task_result(task_id: str, payload: dict):
     resp.raise_for_status()
 
 
+def push_summary_to_influxdb(task_id: str, engine: str, summary: dict, target_url: str = ""):
+    """壓測完成後，將彙總指標寫入 InfluxDB v2。
+
+    這是 k6/JMeter 即時串流之外的補充路徑，確保即使串流失敗，
+    最終聚合結果（avg, p95, rps, status）仍會保存至 InfluxDB。
+
+    Measurement: task_summary
+    Tags:  task_id, engine, worker, status
+    Fields: avg_response_ms, p95_response_ms, throughput_rps, error_rate
+    """
+    if not _INFLUXDB_AVAILABLE:
+        logger.warning("influxdb-client not installed, skipping InfluxDB summary push")
+        return
+    if not INFLUXDB_URL or not INFLUXDB_TOKEN:
+        logger.debug("InfluxDB not configured (INFLUXDB_URL/TOKEN missing), skipping summary push")
+        return
+
+    try:
+        client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
+        write_api = client.write_api(write_options=SYNCHRONOUS)
+
+        status = summary.get("execution_status", "unknown")
+        avg_ms  = float(summary.get("avg_response_ms", 0.0))
+        p95_ms  = float(summary.get("p95_response_ms", 0.0))
+        rps     = float(summary.get("throughput_rps", 0.0))
+        raw     = summary.get("raw_report", {})
+        total   = int(raw.get("total_requests", 0))
+        failed  = int(raw.get("failed_requests", 0))
+        error_rate = (failed / total * 100.0) if total > 0 else 0.0
+
+        point = (
+            Point("task_summary")
+            .tag("task_id", str(task_id))
+            .tag("engine", engine)
+            .tag("worker", WORKER_NAME)
+            .tag("status", status)
+            .tag("target_url", target_url or "")
+            .field("avg_response_ms", avg_ms)
+            .field("p95_response_ms", p95_ms)
+            .field("throughput_rps", rps)
+            .field("error_rate_pct", error_rate)
+            .field("total_requests", total)
+            .field("failed_requests", failed)
+        )
+
+        write_api.write(bucket=INFLUXDB_BUCKET, record=point)
+        client.close()
+        logger.info(f"[InfluxDB] Summary pushed for task {task_id}: "
+                    f"rps={rps:.1f}, p95={p95_ms:.1f}ms, status={status}")
+    except Exception as e:
+        # 非關鍵路徑：寫入失敗不影響主流程
+        logger.error(f"[InfluxDB] Failed to push summary for task {task_id}: {e}")
+
+
 def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
     worker_state["active_task_count"] += 1
     logger.info(f"Starting execution for task {task_id} with script {script_path}")
@@ -244,7 +316,20 @@ def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
     
     try:
         if engine == "k6":
-            cmd = ["k6", "run", "--out", f"json={output_file}", full_script_path]
+            cmd = ["k6", "run", "--out", f"json={output_file}"]
+            # Phase 6：若 InfluxDB 已設定，自動加入即時串流輸出
+            # k6 v0.51+ 的 InfluxDB output 使用 v1 line protocol
+            # InfluxDB v2 透過 /api/v1/write 相容端點接收
+            if INFLUXDB_URL and INFLUXDB_TOKEN:
+                influx_out = (
+                    f"influxdb={INFLUXDB_URL}"
+                    f"?org={INFLUXDB_ORG}"
+                    f"&bucket={INFLUXDB_BUCKET}"
+                    f"&token={INFLUXDB_TOKEN}"
+                )
+                cmd += ["--out", influx_out]
+                logger.info(f"[InfluxDB] k6 real-time streaming enabled → {INFLUXDB_URL}")
+            cmd += [full_script_path]
             
             env = os.environ.copy()
             if parameters:
@@ -273,6 +358,14 @@ def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
                 logger.info(f"Successfully posted results for task {task_id}")
             except requests.exceptions.RequestException as e:
                 logger.error(f"Failed to post results for task {task_id}: {e}")
+
+            # Phase 6：壓測完成後推送彙總指標至 InfluxDB（補充路徑）
+            push_summary_to_influxdb(
+                task_id=task_id,
+                engine="k6",
+                summary=summary,
+                target_url=parameters.get("target_url", "")
+            )
                 
         elif engine == "jmeter":
             output_jtl = f"/tmp/jmeter_{task_id}.jtl"
@@ -314,7 +407,15 @@ def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
                 logger.info(f"Successfully posted results for task {task_id}")
             except requests.exceptions.RequestException as e:
                 logger.error(f"Failed to post results for task {task_id}: {e}")
-                
+
+            # Phase 6：壓測完成後推送彙總指標至 InfluxDB（補充路徑）
+            push_summary_to_influxdb(
+                task_id=task_id,
+                engine="jmeter",
+                summary=summary,
+                target_url=parameters.get("target_url", "")
+            )
+
         else:
             logger.warning(f"Unsupported engine: {engine}")
             try:

@@ -50,6 +50,8 @@
 | **Control Plane** | Django 5 + DRF + Celery + Redis | `9000` |
 | **Worker Agent** | FastAPI + k6 + JMeter 5.6.3 | `8100` (internal) |
 | **Message Broker** | Redis 7 | `6379` (internal) |
+| **Metrics Store** | InfluxDB v2.7 | `8086` |
+| **Dashboard** | Grafana OSS 11.6 | `3000` |
 
 ---
 
@@ -153,7 +155,7 @@ Remote agent nodes that execute load test scripts and report results.
 | Celery Task Dispatch | ✅ Complete |
 | API Token Authentication | ✅ Complete |
 | Docker Compose Full Stack | ✅ Complete |
-| Grafana + InfluxDB Observability | 🔜 Planned (Phase 6) |
+| Grafana + InfluxDB Observability | ✅ Complete (Phase 6) |
 | Web UI Dashboard | 🔜 Planned (Phase 7) |
 
 ---
@@ -197,6 +199,7 @@ For full local validation steps, troubleshooting, and end-to-end test flows, see
 | [docs/architecture-interaction.md](docs/architecture-interaction.md) | Mermaid interaction & state machine diagrams |
 | [docs/k6-smoke-test-guide.md](docs/k6-smoke-test-guide.md) | k6 smoke test usage guide & expected output |
 | [docs/local-validation-guide.md](docs/local-validation-guide.md) | Docker Compose debugging & validation guide |
+| [docs/observability-guide.md](docs/observability-guide.md) | InfluxDB v2 + Grafana 快速啟動與 Dashboard 說明 |
 | [docs/oss-readiness-checklist.md](docs/oss-readiness-checklist.md) | OSS release checklist |
 | [control-plane/ARCHITECTURE.md](control-plane/ARCHITECTURE.md) | Control Plane detailed design |
 | [ROADMAP.md](ROADMAP.md) | Project roadmap & milestones |
