@@ -56,7 +56,7 @@ class LoadTestTask(models.Model):
     )
 
     # ── 打擊目標 ───────────────────────────────────────────────────────
-    target_url = models.URLField(
+    target_url = models.CharField(
         max_length=512,
         help_text="靶機 Base URL，e.g. http://localhost:8000",
     )
