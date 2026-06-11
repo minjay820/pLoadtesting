@@ -2,12 +2,14 @@ name: CI
 
 on:
   push:
-    branches: [ main, 'chore/**', 'feat/**', 'fix/**' ]
+    branches: [ main, 'chore/**', 'feat/**', 'fix/**', 'docs/**' ]
   pull_request:
     branches: [ main ]
 
 jobs:
+  # ── Job 1: Target App Tests ─────────────────────────────────────────────────
   test-target-app:
+    name: "🎯 Target App Tests"
     runs-on: ubuntu-latest
 
     steps:
@@ -28,4 +30,57 @@ jobs:
 
     - name: Run pytest
       run: |
-        pytest target-app/
+        pytest target-app/ -v
+
+  # ── Job 2: Control Plane Tests ─────────────────────────────────────────────
+  test-control-plane:
+    name: "🖥️ Control Plane Tests"
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install Control Plane dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r control-plane/requirements.txt
+
+    - name: Run Django tests
+      run: |
+        cd control-plane
+        python manage.py test apps/ --verbosity=2
+      env:
+        DJANGO_SETTINGS_MODULE: config.settings.development
+        PLOADTESTING_API_TOKEN: ci-test-token
+
+  # ── Job 3: Worker Agent Lint ────────────────────────────────────────────────
+  lint-worker-agent:
+    name: "🤖 Worker Agent Lint"
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install Worker dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r workers/requirements.txt
+        pip install pyflakes
+
+    - name: Lint Worker Agent
+      run: |
+        python -m pyflakes workers/agent.py

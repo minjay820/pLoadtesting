@@ -5,7 +5,7 @@ This checklist is used to evaluate the readiness of the `pLoadtesting` repositor
 ## 📋 Repository Checklist
 
 - [x] **License**: Project uses a standard open-source license (`LICENSE` containing the MIT License text).
-- [x] **README**: Updated with clear naming, tagline, current features, roadmap status, and links to licenses.
+- [x] **README**: Updated with clear naming, tagline, current full architecture (Control Plane + Worker Agent + dual engine), feature status table, documentation links, and quick start.
 - [x] **CONTRIBUTING**: Defined local environment setup, branching, commit, scenario integration, and licensing rules.
 - [x] **ROADMAP**: Clearly separated version scopes, goals, and non-goals from v0.1.0 to v1.0.0.
 - [x] **SECURITY**: Established a policy on reporting vulnerabilities, handling credentials, and load-test authorizations.
@@ -16,8 +16,33 @@ This checklist is used to evaluate the readiness of the `pLoadtesting` repositor
   - [x] Issue template for Engine Integration
   - [x] Issue template for Documentation
   - [x] Pull Request template
-- [x] **GitHub Actions CI**: Automated lint/import checks and unit test executions on push/PR.
-- [x] **Test Coverage**: Basic endpoints `/api/health`, `/api/cpu-bound`, `/api/io-bound`, and `/api/data` covered by automated tests.
+- [x] **GitHub Actions CI**: Three-job pipeline covering Target App tests, Control Plane Django tests, and Worker Agent lint.
+- [x] **Test Coverage**: Target App endpoints covered by automated tests; Control Plane dispatch and result handling covered by Django unit tests.
+
+---
+
+## 📁 Documentation Checklist
+
+- [x] **Architecture Interaction Diagrams** (`docs/architecture-interaction.md`):
+  - [x] Heartbeat sequence diagram (Worker → Control Plane, Celery Beat stale check)
+  - [x] Task dispatch sequence diagram (9-step full lifecycle)
+  - [x] Task execution & result collection diagram (k6 / JMeter parsing)
+  - [x] LoadTestTask state machine diagram
+  - [x] System topology overview (Docker network)
+- [x] **k6 Smoke Test Guide** (`docs/k6-smoke-test-guide.md`):
+  - [x] Prerequisites and installation instructions
+  - [x] Local execution commands (direct & via Worker Agent)
+  - [x] Full expected output with annotated metrics
+  - [x] Key metrics interpretation table
+  - [x] Common error troubleshooting (5 scenarios)
+- [x] **Local Validation Guide** (`docs/local-validation-guide.md`):
+  - [x] Service overview table
+  - [x] Step-by-step startup guide
+  - [x] Endpoint health verification commands
+  - [x] End-to-end test flow script
+  - [x] Common service management commands
+  - [x] FAQ troubleshooting (5 common issues)
+  - [x] Resource monitoring guidance
 
 ---
 
@@ -29,3 +54,4 @@ This checklist is used to evaluate the readiness of the `pLoadtesting` repositor
 - [ ] Update GitHub About metadata:
   - **Description**: Multi-engine automated load testing ecosystem for k6, JMeter, worker agents, control plane orchestration, and reproducible performance reports.
   - **Topics**: `load-testing`, `performance-testing`, `k6`, `jmeter`, `fastapi`, `distributed-systems`, `devops`, `sre`.
+- [ ] Create GitHub Release with release notes summarizing v0.1.0 changes.
