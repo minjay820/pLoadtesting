@@ -7,6 +7,8 @@ Use this runbook when a JMeter task appears to finish in the Control Plane but G
 - The JMeter plan now resolves `TARGET_HOST` and `TARGET_PORT` from JVM properties first, with `localhost:8000` as fallback.
 - The worker still launches JMeter with `-JTARGET_HOST` and `-JTARGET_PORT`, so Control Plane task targets can now override the plan correctly.
 - Grafana summary panels now read `task_summary` from the `load_tests` bucket, which is written for both k6 and JMeter after task completion.
+- Grafana should run on `11.6.11` or newer to avoid the `react/jsx-runtime` frontend regression seen on `11.6.0`. In Docker Compose, use the published image tag `grafana/grafana:11.6.11`.
+- The provisioned InfluxDB datasource should use the fixed UID `influxdb-ploadtesting`, and the dashboard should reference that UID directly instead of a datasource template variable.
 
 ## Validation Flow
 
@@ -52,15 +54,17 @@ Use this runbook when a JMeter task appears to finish in the Control Plane but G
 ## Browser-Side Caveat
 
 - The Grafana datasource query path can be healthy even when the Codex in-app browser still shows `No data`.
-- In this repository, that symptom was observed alongside frontend console errors for `/react/jsx-runtime` returning `404`, which prevented the browser from issuing panel query requests.
-- When that happens, verify the panel query directly before assuming InfluxDB or JMeter is broken:
+- In this repository, two separate browser-side failure modes were observed:
+  - Grafana `11.6.0` could trip a frontend `/react/jsx-runtime` `404`.
+  - Dashboard panels that referenced the datasource through `${DS_INFLUXDB-PLOADTESTING}` could fail before issuing `/api/ds/query` requests, even after Grafana was upgraded.
+- Keep the dashboard pinned to the fixed datasource UID `influxdb-ploadtesting` and verify the panel query directly before assuming InfluxDB or JMeter is broken:
   ```bash
-  curl -s http://127.0.0.1:3000/api/ds/query \
+  curl -s -u admin:admin http://127.0.0.1:3000/api/ds/query \
     -H 'Content-Type: application/json' \
     -d '{
       "queries": [{
         "refId": "A",
-        "datasource": { "uid": "P1646463497256716", "type": "influxdb" },
+        "datasource": { "uid": "influxdb-ploadtesting", "type": "influxdb" },
         "datasourceId": 1,
         "query": "from(bucket: \"load_tests\") |> range(start: -30m) |> filter(fn: (r) => r[\"_measurement\"] == \"task_summary\")",
         "intervalMs": 60000,
@@ -70,7 +74,7 @@ Use this runbook when a JMeter task appears to finish in the Control Plane but G
       "to": "now"
     }'
   ```
-- If the API returns frames but the in-app browser still renders `No data`, treat that as a Grafana frontend or browser-runtime issue, not a missing task result.
+- If the API returns frames but the in-app browser still renders `No data`, inspect browser console errors and confirm the dashboard is not still using datasource template indirection.
 
 ## Expected Signals
 

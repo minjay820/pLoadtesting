@@ -36,7 +36,7 @@
       "type": "row"
     },
     {
-      "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB-PLOADTESTING}" },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ploadtesting" },
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
@@ -67,14 +67,14 @@
       "type": "stat",
       "targets": [
         {
-          "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB-PLOADTESTING}" },
+          "datasource": { "type": "influxdb", "uid": "influxdb-ploadtesting" },
           "query": "from(bucket: \"load_tests\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"task_summary\")\n  |> filter(fn: (r) => r[\"_field\"] == \"throughput_rps\")\n  |> group()\n  |> sort(columns: [\"_time\"], desc: true)\n  |> limit(n: 1)",
           "refId": "A"
         }
       ]
     },
     {
-      "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB-PLOADTESTING}" },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ploadtesting" },
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
@@ -105,14 +105,14 @@
       "type": "stat",
       "targets": [
         {
-          "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB-PLOADTESTING}" },
+          "datasource": { "type": "influxdb", "uid": "influxdb-ploadtesting" },
           "query": "from(bucket: \"load_tests\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"task_summary\")\n  |> filter(fn: (r) => r[\"_field\"] == \"p95_response_ms\")\n  |> group()\n  |> sort(columns: [\"_time\"], desc: true)\n  |> limit(n: 1)",
           "refId": "A"
         }
       ]
     },
     {
-      "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB-PLOADTESTING}" },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ploadtesting" },
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
@@ -145,14 +145,14 @@
       "type": "stat",
       "targets": [
         {
-          "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB-PLOADTESTING}" },
+          "datasource": { "type": "influxdb", "uid": "influxdb-ploadtesting" },
           "query": "from(bucket: \"load_tests\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"task_summary\")\n  |> filter(fn: (r) => r[\"_field\"] == \"error_rate_pct\")\n  |> group()\n  |> sort(columns: [\"_time\"], desc: true)\n  |> limit(n: 1)",
           "refId": "A"
         }
       ]
     },
     {
-      "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB-PLOADTESTING}" },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ploadtesting" },
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
@@ -181,7 +181,7 @@
       "type": "stat",
       "targets": [
         {
-          "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB-PLOADTESTING}" },
+          "datasource": { "type": "influxdb", "uid": "influxdb-ploadtesting" },
           "query": "from(bucket: \"load_tests\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"task_summary\")\n  |> filter(fn: (r) => r[\"_field\"] == \"total_requests\")\n  |> group()\n  |> sort(columns: [\"_time\"], desc: true)\n  |> limit(n: 1)",
           "refId": "A"
         }
@@ -195,7 +195,7 @@
       "type": "row"
     },
     {
-      "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB-PLOADTESTING}" },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ploadtesting" },
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -243,14 +243,14 @@
       "type": "timeseries",
       "targets": [
         {
-          "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB-PLOADTESTING}" },
+          "datasource": { "type": "influxdb", "uid": "influxdb-ploadtesting" },
           "query": "from(bucket: \"load_tests\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"task_summary\")\n  |> filter(fn: (r) => r[\"_field\"] == \"avg_response_ms\" or r[\"_field\"] == \"p95_response_ms\")\n  |> group(columns: [\"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"task_latency\")",
           "refId": "A"
         }
       ]
     },
     {
-      "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB-PLOADTESTING}" },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ploadtesting" },
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
@@ -284,7 +284,7 @@
       "type": "gauge",
       "targets": [
         {
-          "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB-PLOADTESTING}" },
+          "datasource": { "type": "influxdb", "uid": "influxdb-ploadtesting" },
           "query": "from(bucket: \"load_tests\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"task_summary\")\n  |> filter(fn: (r) => r[\"_field\"] == \"p95_response_ms\")\n  |> group()\n  |> sort(columns: [\"_time\"], desc: true)\n  |> limit(n: 1)",
           "refId": "A"
         }
@@ -298,7 +298,7 @@
       "type": "row"
     },
     {
-      "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB-PLOADTESTING}" },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ploadtesting" },
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -338,14 +338,14 @@
       "type": "timeseries",
       "targets": [
         {
-          "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB-PLOADTESTING}" },
+          "datasource": { "type": "influxdb", "uid": "influxdb-ploadtesting" },
           "query": "from(bucket: \"load_tests\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"task_summary\")\n  |> filter(fn: (r) => r[\"_field\"] == \"throughput_rps\")\n  |> group(columns: [\"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"rps\")",
           "refId": "A"
         }
       ]
     },
     {
-      "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB-PLOADTESTING}" },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ploadtesting" },
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -404,7 +404,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB-PLOADTESTING}" },
+          "datasource": { "type": "influxdb", "uid": "influxdb-ploadtesting" },
           "query": "from(bucket: \"load_tests\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"task_summary\")\n  |> filter(fn: (r) => r[\"_field\"] == \"error_rate_pct\")\n  |> group(columns: [\"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"error_rate\")",
           "refId": "A"
         }
@@ -418,7 +418,7 @@
       "type": "row"
     },
     {
-      "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB-PLOADTESTING}" },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ploadtesting" },
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -454,14 +454,14 @@
       "type": "timeseries",
       "targets": [
         {
-          "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB-PLOADTESTING}" },
+          "datasource": { "type": "influxdb", "uid": "influxdb-ploadtesting" },
           "query": "from(bucket: \"load_tests\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"task_summary\")\n  |> filter(fn: (r) => r[\"_field\"] == \"total_requests\")\n  |> group(columns: [\"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"total_requests\")",
           "refId": "A"
         }
       ]
     },
     {
-      "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB-PLOADTESTING}" },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ploadtesting" },
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -497,7 +497,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB-PLOADTESTING}" },
+          "datasource": { "type": "influxdb", "uid": "influxdb-ploadtesting" },
           "query": "from(bucket: \"load_tests\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"task_summary\")\n  |> filter(fn: (r) => r[\"_field\"] == \"failed_requests\")\n  |> group(columns: [\"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"failed_requests\")",
           "refId": "A"
         }
@@ -511,7 +511,7 @@
       "type": "row"
     },
     {
-      "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB-PLOADTESTING}" },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ploadtesting" },
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -540,7 +540,7 @@
       "type": "table",
       "targets": [
         {
-          "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB-PLOADTESTING}" },
+          "datasource": { "type": "influxdb", "uid": "influxdb-ploadtesting" },
           "query": "from(bucket: \"load_tests\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"task_summary\")\n  |> pivot(rowKey: [\"_time\", \"task_id\", \"engine\", \"target_url\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> sort(columns: [\"_time\"], desc: true)\n  |> limit(n: 20)",
           "refId": "A"
         }
@@ -551,20 +551,7 @@
   "schemaVersion": 39,
   "tags": ["ploadtesting", "k6", "jmeter", "load-testing"],
   "templating": {
-    "list": [
-      {
-        "current": {},
-        "hide": 0,
-        "includeAll": false,
-        "multi": false,
-        "name": "DS_INFLUXDB-PLOADTESTING",
-        "options": [],
-        "query": "influxdb",
-        "refresh": 1,
-        "type": "datasource",
-        "label": "InfluxDB Datasource"
-      }
-    ]
+    "list": []
   },
   "time": { "from": "now-30m", "to": "now" },
   "timepicker": {},
