@@ -4,7 +4,7 @@ This area is for operator-facing procedures, validation flows, troubleshooting g
 
 ## Current Active Runbooks
 
-No normalized active runbooks have been created yet.
+- [JMeter observability validation](jmeter-observability-validation.md)
 
 ## Likely Future Runbooks
 

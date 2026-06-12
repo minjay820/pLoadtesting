@@ -12,7 +12,7 @@ Before any substantive change, read this file first, then follow only the direct
 - Codex docs update standard: [standards/codex-docs-update-standard.md](standards/codex-docs-update-standard.md)
 - Codex change log standard: [standards/codex-change-log-standard.md](standards/codex-change-log-standard.md)
 - Daily change log template: [templates/codex-daily-change-log-template.md](templates/codex-daily-change-log-template.md)
-- Today's daily change log: [changes/daily/2026-06-11.md](changes/daily/2026-06-11.md)
+- Today's daily change log: [changes/daily/2026-06-12.md](changes/daily/2026-06-12.md)
 
 ## Active Documentation Areas
 

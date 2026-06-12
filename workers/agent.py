@@ -209,24 +209,44 @@ def calculate_jmeter_summary(jtl_file_path: str):
                         continue
 
         avg_response_ms = 0.0
+        p90_response_ms = 0.0
         p95_response_ms = 0.0
+        p99_response_ms = 0.0
+        max_response_ms = 0.0
         throughput_rps = 0.0
+        error_rate_pct = 0.0
 
         if response_times:
             avg_response_ms = sum(response_times) / len(response_times)
             response_times.sort()
+            p90_index = int(len(response_times) * 0.90)
             p95_index = int(len(response_times) * 0.95)
+            p99_index = int(len(response_times) * 0.99)
+            p90_index = min(p90_index, len(response_times) - 1)
             p95_index = min(p95_index, len(response_times) - 1)
+            p99_index = min(p99_index, len(response_times) - 1)
+            p90_response_ms = response_times[p90_index]
             p95_response_ms = response_times[p95_index]
+            p99_response_ms = response_times[p99_index]
+            max_response_ms = response_times[-1]
 
         if start_time and end_time and end_time > start_time:
             duration_s = (end_time - start_time) / 1000.0
             if duration_s > 0:
                 throughput_rps = total_reqs / duration_s
 
+        if total_reqs > 0:
+            error_rate_pct = failed_reqs / total_reqs * 100.0
+
         return {
+            "total_requests": total_reqs,
+            "failed_requests": failed_reqs,
+            "error_rate_pct": error_rate_pct,
             "avg_response_ms": avg_response_ms,
+            "p90_response_ms": p90_response_ms,
             "p95_response_ms": p95_response_ms,
+            "p99_response_ms": p99_response_ms,
+            "max_response_ms": max_response_ms,
             "throughput_rps": throughput_rps,
             "raw_report": {
                 "message": "JMeter execution finished successfully",

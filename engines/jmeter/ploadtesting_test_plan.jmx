@@ -11,14 +11,14 @@
         <collectionProp name="Arguments.arguments">
           <elementProp name="TARGET_HOST" elementType="Argument">
             <stringProp name="Argument.name">TARGET_HOST</stringProp>
-            <stringProp name="Argument.value">localhost</stringProp>
-            <stringProp name="Argument.desc">Target App 的主機位址（CLI 可用 -JTARGET_HOST=xxx 覆寫）</stringProp>
+            <stringProp name="Argument.value">${__P(TARGET_HOST,localhost)}</stringProp>
+            <stringProp name="Argument.desc">Target App 的主機位址（預設 localhost，可用 -JTARGET_HOST=xxx 覆寫）</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
           <elementProp name="TARGET_PORT" elementType="Argument">
             <stringProp name="Argument.name">TARGET_PORT</stringProp>
-            <stringProp name="Argument.value">8000</stringProp>
-            <stringProp name="Argument.desc">Target App 的 Port（CLI 可用 -JTARGET_PORT=xxx 覆寫）</stringProp>
+            <stringProp name="Argument.value">${__P(TARGET_PORT,8000)}</stringProp>
+            <stringProp name="Argument.desc">Target App 的 Port（預設 8000，可用 -JTARGET_PORT=xxx 覆寫）</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
         </collectionProp>
@@ -28,8 +28,8 @@
       <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP Request Defaults">
         <intProp name="HTTPSampler.connect_timeout">5000</intProp>
         <intProp name="HTTPSampler.response_timeout">30000</intProp>
-        <stringProp name="HTTPSampler.domain">${TARGET_HOST}</stringProp>
-        <stringProp name="HTTPSampler.port">${TARGET_PORT}</stringProp>
+        <stringProp name="HTTPSampler.domain">${__P(TARGET_HOST,localhost)}</stringProp>
+        <stringProp name="HTTPSampler.port">${__P(TARGET_PORT,8000)}</stringProp>
         <stringProp name="HTTPSampler.protocol">http</stringProp>
         <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
         <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
