@@ -1,5 +1,7 @@
 from importlib import import_module
 from pathlib import Path
+import tarfile
+import io
 
 import yaml
 from fastapi.testclient import TestClient
@@ -8,6 +10,30 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 TARGET_APPS_DIR = ROOT_DIR / "target-apps"
 MANIFESTS_DIR = TARGET_APPS_DIR / "manifests"
 TEMPLATES_DIR = TARGET_APPS_DIR / "task-templates"
+
+EXACT_PROFILE_MATRIX = {
+    "echo-k6-smoke": "echo-jmeter-smoke",
+    "latency-k6-delay": "latency-jmeter-delay",
+    "error-k6-flaky": "error-jmeter-flaky",
+    "resource-k6-cpu": "resource-jmeter-cpu",
+    "crud-k6-flow": "crud-jmeter-flow",
+    "auth-k6-checkout": "auth-jmeter-checkout",
+    "auth-k6-refresh-flow": "auth-jmeter-refresh-flow",
+    "auth-k6-failure-branches": "auth-jmeter-failure-branches",
+    "auth-k6-session-flow": "auth-jmeter-session-flow",
+    "auth-k6-mfa-flow": "auth-jmeter-mfa-flow",
+    "sse-k6-smoke": "sse-jmeter-smoke",
+    "sse-k6-ticker": "sse-jmeter-ticker",
+    "sse-k6-progress-heavy": "sse-jmeter-progress-heavy",
+    "ws-k6-echo-smoke": "ws-jmeter-echo-smoke",
+    "ws-k6-broadcast-smoke": "ws-jmeter-broadcast-smoke",
+    "db-k6-crud-smoke": "db-jmeter-crud-smoke",
+    "db-k6-list-filter": "db-jmeter-list-filter",
+    "payload-k6-file-download": "payload-jmeter-file-download",
+    "payload-k6-file-roundtrip": "payload-jmeter-file-roundtrip",
+    "payload-k6-archive-read-many": "payload-jmeter-archive-read-many",
+    "payload-k6-tar-selective-fetch": "payload-jmeter-tar-selective-fetch",
+}
 
 MANIFEST_FILES = sorted(MANIFESTS_DIR.glob("*.yaml"))
 TEMPLATE_FILES = sorted(TEMPLATES_DIR.glob("*.yaml"))
@@ -78,6 +104,18 @@ def test_every_target_catalog_has_k6_and_jmeter_coverage():
         assert coverage[target_app_id] == {"k6", "jmeter"}
 
 
+def test_exact_profile_matrix_has_both_k6_and_jmeter_profiles():
+    all_profiles = {}
+    for template_path in TEMPLATE_FILES:
+        template_doc = load_manifest(template_path)
+        for profile in template_doc["profiles"]:
+            all_profiles[profile["target_profile_id"]] = profile["engine"]
+
+    for k6_profile, jmeter_profile in EXACT_PROFILE_MATRIX.items():
+        assert all_profiles[k6_profile] == "k6"
+        assert all_profiles[jmeter_profile] == "jmeter"
+
+
 def test_every_target_health_endpoint_is_stable():
     for target_app_id, module_name in APP_MODULES.items():
         app = import_module(module_name).app
@@ -105,7 +143,12 @@ def test_delay_error_payload_and_resource_limits():
     assert payload_client.get("/api/files/fixture-1?kb=257").status_code == 422
     assert payload_client.get("/api/files/archive?count=11").status_code == 422
     assert payload_client.get("/api/files/read-many?kb_per_file=65").status_code == 422
+    assert payload_client.get("/api/files/tar-package?file_ids=fixture-1&file_ids=fixture-2&file_ids=fixture-3&file_ids=fixture-4&file_ids=fixture-5&file_ids=fixture-6&file_ids=fixture-7&file_ids=fixture-8&file_ids=fixture-9").status_code == 422
     assert payload_client.post("/api/files/upload?filename=demo.bin", content=b"x" * (262_144 + 1)).status_code == 422
+    assert payload_client.post(
+        "/api/files/selective-fetch",
+        json={"file_ids": [f"fixture-{index}" for index in range(1, 10)], "kb_per_file": 8},
+    ).status_code == 422
 
     resource_client = TestClient(import_module("resource_api").app)
     assert resource_client.get("/api/cpu?iterations=3000000").status_code == 422
@@ -206,6 +249,19 @@ def test_crud_and_auth_flow_workloads():
     assert read_many.status_code == 200
     assert read_many.json()["count"] == 3
     assert len(read_many.json()["combined_sha256_prefix"]) == 16
+    selective_fetch = payload_client.post(
+        "/api/files/selective-fetch",
+        json={"file_ids": ["fixture-1", "fixture-3"], "kb_per_file": 10},
+    )
+    assert selective_fetch.status_code == 200
+    assert selective_fetch.json()["selected_count"] == 2
+    assert selective_fetch.json()["files"][0]["download_path"].startswith("/api/files/fixture-1")
+    tar_package = payload_client.get("/api/files/tar-package?file_ids=fixture-1&file_ids=fixture-3&kb_per_file=10")
+    assert tar_package.status_code == 200
+    assert tar_package.headers["content-type"] == "application/x-tar"
+    with tarfile.open(fileobj=io.BytesIO(tar_package.content), mode="r:") as archive:
+        names = sorted(member.name for member in archive.getmembers())
+        assert names == ["fixture-1.bin", "fixture-3.bin"]
 
     sse_client = TestClient(import_module("sse_api").app)
     response = sse_client.get("/api/ticker?count=3&interval_ms=0&deterministic=true")

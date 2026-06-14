@@ -9,18 +9,32 @@ HEALTH_SLEEP_SECONDS="${HEALTH_SLEEP_SECONDS:-2}"
 CURL_MAX_TIME_SECONDS="${CURL_MAX_TIME_SECONDS:-10}"
 BUILD_TIMEOUT_SECONDS="${BUILD_TIMEOUT_SECONDS:-300}"
 UP_TIMEOUT_SECONDS="${UP_TIMEOUT_SECONDS:-180}"
+ECHO_API_PORT="${ECHO_API_PORT:-18180}"
+LATENCY_API_PORT="${LATENCY_API_PORT:-18181}"
+ERROR_API_PORT="${ERROR_API_PORT:-18182}"
+RESOURCE_API_PORT="${RESOURCE_API_PORT:-18183}"
+PAYLOAD_API_PORT="${PAYLOAD_API_PORT:-18184}"
+CRUD_API_PORT="${CRUD_API_PORT:-18185}"
+AUTH_FLOW_API_PORT="${AUTH_FLOW_API_PORT:-18186}"
+SSE_API_PORT="${SSE_API_PORT:-18187}"
+WS_API_PORT="${WS_API_PORT:-18188}"
+DB_API_PORT="${DB_API_PORT:-18189}"
+
+export ECHO_API_PORT LATENCY_API_PORT ERROR_API_PORT RESOURCE_API_PORT
+export PAYLOAD_API_PORT CRUD_API_PORT AUTH_FLOW_API_PORT SSE_API_PORT
+export WS_API_PORT DB_API_PORT
 
 SERVICES=(
-  "echo-api|http://127.0.0.1:18080/health|GET|http://127.0.0.1:18080/api/echo?message=smoke&repeat=1|"
-  "latency-api|http://127.0.0.1:18081/health|GET|http://127.0.0.1:18081/api/delay/25|"
-  "error-api|http://127.0.0.1:18082/health|GET|http://127.0.0.1:18082/api/flaky?rate=0&deterministic=true&request_key=smoke|"
-  "resource-api|http://127.0.0.1:18083/health|GET|http://127.0.0.1:18083/api/cpu?iterations=1000|"
-  "payload-api|http://127.0.0.1:18084/health|FILE|payload-api|"
-  "crud-api|http://127.0.0.1:18085/health|GET|http://127.0.0.1:18085/api/items|"
-  "auth-flow-api|http://127.0.0.1:18086/health|AUTH|auth-flow-api|"
-  "sse-api|http://127.0.0.1:18087/health|GET|http://127.0.0.1:18087/api/events?count=2&interval_ms=1|"
-  "ws-api|http://127.0.0.1:18088/health|WS|ws-api|"
-  "db-api|http://127.0.0.1:18089/health|POST|http://127.0.0.1:18089/api/records|{\"name\":\"smoke-record\",\"category\":\"smoke\",\"value\":11,\"status\":\"ready\"}"
+  "echo-api|http://127.0.0.1:${ECHO_API_PORT}/health|GET|http://127.0.0.1:${ECHO_API_PORT}/api/echo?message=smoke&repeat=1|"
+  "latency-api|http://127.0.0.1:${LATENCY_API_PORT}/health|GET|http://127.0.0.1:${LATENCY_API_PORT}/api/delay/25|"
+  "error-api|http://127.0.0.1:${ERROR_API_PORT}/health|GET|http://127.0.0.1:${ERROR_API_PORT}/api/flaky?rate=0&deterministic=true&request_key=smoke|"
+  "resource-api|http://127.0.0.1:${RESOURCE_API_PORT}/health|GET|http://127.0.0.1:${RESOURCE_API_PORT}/api/cpu?iterations=1000|"
+  "payload-api|http://127.0.0.1:${PAYLOAD_API_PORT}/health|FILE|payload-api|"
+  "crud-api|http://127.0.0.1:${CRUD_API_PORT}/health|GET|http://127.0.0.1:${CRUD_API_PORT}/api/items|"
+  "auth-flow-api|http://127.0.0.1:${AUTH_FLOW_API_PORT}/health|AUTH|auth-flow-api|"
+  "sse-api|http://127.0.0.1:${SSE_API_PORT}/health|GET|http://127.0.0.1:${SSE_API_PORT}/api/events?count=2&interval_ms=1|"
+  "ws-api|http://127.0.0.1:${WS_API_PORT}/health|WS|ws-api|"
+  "db-api|http://127.0.0.1:${DB_API_PORT}/health|POST|http://127.0.0.1:${DB_API_PORT}/api/records|{\"name\":\"smoke-record\",\"category\":\"smoke\",\"value\":11,\"status\":\"ready\"}"
 )
 
 dump_diagnostics() {
@@ -75,31 +89,53 @@ call_representative() {
     python3 - <<'PY'
 import hashlib
 import json
+import os
 import urllib.request
 
-manifest = urllib.request.urlopen("http://127.0.0.1:18084/api/files/manifest?count=2&kb_per_file=8", timeout=10)
+payload_port = os.environ["PAYLOAD_API_PORT"]
+base_url = f"http://127.0.0.1:{payload_port}"
+
+manifest = urllib.request.urlopen(f"{base_url}/api/files/manifest?count=2&kb_per_file=8", timeout=10)
 manifest_payload = json.loads(manifest.read().decode("utf-8"))
 assert manifest_payload["count"] == 2
 
-fixture_pack = urllib.request.urlopen("http://127.0.0.1:18084/api/files/fixture-pack?count=3&kb_per_file=10", timeout=10)
+fixture_pack = urllib.request.urlopen(f"{base_url}/api/files/fixture-pack?count=3&kb_per_file=10", timeout=10)
 fixture_pack_payload = json.loads(fixture_pack.read().decode("utf-8"))
 assert fixture_pack_payload["count"] == 3
 
-download = urllib.request.urlopen("http://127.0.0.1:18084/api/files/fixture-1?kb=8", timeout=10)
+download = urllib.request.urlopen(f"{base_url}/api/files/fixture-1?kb=8", timeout=10)
 body = download.read()
 assert len(body) == 8 * 1024
 
-archive = urllib.request.urlopen("http://127.0.0.1:18084/api/files/archive?count=3&kb_per_file=10", timeout=10)
+archive = urllib.request.urlopen(f"{base_url}/api/files/archive?count=3&kb_per_file=10", timeout=10)
 archive_body = archive.read()
 assert archive_body.startswith(b"PK")
 
-read_many = urllib.request.urlopen("http://127.0.0.1:18084/api/files/read-many?count=3&kb_per_file=10", timeout=10)
+read_many = urllib.request.urlopen(f"{base_url}/api/files/read-many?count=3&kb_per_file=10", timeout=10)
 read_many_payload = json.loads(read_many.read().decode("utf-8"))
 assert read_many_payload["count"] == 3
 assert len(read_many_payload["combined_sha256_prefix"]) == 16
 
+selective_request = urllib.request.Request(
+    f"{base_url}/api/files/selective-fetch",
+    data=json.dumps({"file_ids": ["fixture-1", "fixture-3"], "kb_per_file": 10}).encode("utf-8"),
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+selective_fetch = urllib.request.urlopen(selective_request, timeout=10)
+selective_payload = json.loads(selective_fetch.read().decode("utf-8"))
+assert selective_payload["selected_count"] == 2
+assert selective_payload["files"][0]["download_path"].startswith("/api/files/fixture-1")
+
+tar_package = urllib.request.urlopen(
+    f"{base_url}/api/files/tar-package?file_ids=fixture-1&file_ids=fixture-3&kb_per_file=10",
+    timeout=10,
+)
+tar_body = tar_package.read()
+assert b"ustar" in tar_body
+
 request = urllib.request.Request(
-    "http://127.0.0.1:18084/api/files/upload?filename=fixture-1.bin",
+    f"{base_url}/api/files/upload?filename=fixture-1.bin",
     data=body,
     headers={"Content-Type": "application/octet-stream"},
     method="POST",
@@ -115,8 +151,11 @@ PY
     python3 - <<'PY'
 import http.cookiejar
 import json
+import os
 import urllib.error
 import urllib.request
+
+base_url = f"http://127.0.0.1:{os.environ['AUTH_FLOW_API_PORT']}"
 
 def mfa_code(username, channel):
     total = sum(f"{username}|{channel}".encode("utf-8"))
@@ -135,7 +174,7 @@ def post(url, payload, headers=None):
     return opener.open(request, timeout=10)
 
 login = post(
-    "http://127.0.0.1:18086/api/login",
+    f"{base_url}/api/login",
     {"username": "smoke", "password": "demo-password", "access_token_uses": 1, "refresh_uses": 2},
 )
 login_payload = json.loads(login.read().decode("utf-8"))
@@ -144,14 +183,14 @@ refresh_token = login_payload["refresh_token"]
 auth_headers = {"Authorization": f"Bearer {access_token}"}
 
 profile = opener.open(
-    urllib.request.Request("http://127.0.0.1:18086/api/profile", headers=auth_headers),
+    urllib.request.Request(f"{base_url}/api/profile", headers=auth_headers),
     timeout=10,
 )
 assert profile.status == 200
 
 try:
     opener.open(
-        urllib.request.Request("http://127.0.0.1:18086/api/profile", headers=auth_headers),
+        urllib.request.Request(f"{base_url}/api/profile", headers=auth_headers),
         timeout=10,
     )
     raise AssertionError("expected expired bearer token")
@@ -159,7 +198,7 @@ except urllib.error.HTTPError as exc:
     assert exc.code == 401
 
 refresh = post(
-    "http://127.0.0.1:18086/api/refresh",
+    f"{base_url}/api/refresh",
     {"refresh_token": refresh_token, "access_token_uses": 2},
 )
 refresh_payload = json.loads(refresh.read().decode("utf-8"))
@@ -167,31 +206,31 @@ refreshed_token = refresh_payload["access_token"]
 refreshed_headers = {"Authorization": f"Bearer {refreshed_token}"}
 
 logout = opener.open(
-    urllib.request.Request("http://127.0.0.1:18086/api/logout", headers=refreshed_headers, method="POST"),
+    urllib.request.Request(f"{base_url}/api/logout", headers=refreshed_headers, method="POST"),
     timeout=10,
 )
 assert logout.status == 200
 
 session_login = post(
-    "http://127.0.0.1:18086/api/session/login",
+    f"{base_url}/api/session/login",
     {"username": "smoke", "password": "demo-password", "session_uses": 2},
 )
 assert session_login.status == 200
-session_profile = opener.open("http://127.0.0.1:18086/api/session/profile", timeout=10)
+session_profile = opener.open(f"{base_url}/api/session/profile", timeout=10)
 assert session_profile.status == 200
 session_logout = opener.open(
-    urllib.request.Request("http://127.0.0.1:18086/api/session/logout", method="POST"),
+    urllib.request.Request(f"{base_url}/api/session/logout", method="POST"),
     timeout=10,
 )
 assert session_logout.status == 200
 
 mfa_start = post(
-    "http://127.0.0.1:18086/api/mfa/login/start",
+    f"{base_url}/api/mfa/login/start",
     {"username": "smoke", "password": "demo-password", "channel": "sms"},
 )
 mfa_start_payload = json.loads(mfa_start.read().decode("utf-8"))
 mfa_verify = post(
-    "http://127.0.0.1:18086/api/mfa/login/verify",
+    f"{base_url}/api/mfa/login/verify",
     {
         "challenge_id": mfa_start_payload["challenge_id"],
         "code": mfa_code("smoke", "sms"),
@@ -203,7 +242,7 @@ mfa_verify = post(
 mfa_verify_payload = json.loads(mfa_verify.read().decode("utf-8"))
 mfa_profile = opener.open(
     urllib.request.Request(
-        "http://127.0.0.1:18086/api/profile",
+        f"{base_url}/api/profile",
         headers={"Authorization": f"Bearer {mfa_verify_payload['access_token']}"},
     ),
     timeout=10,
@@ -270,8 +309,8 @@ run_with_timeout "${UP_TIMEOUT_SECONDS}" docker compose -p "${COMPOSE_PROJECT_NA
 for service_entry in "${SERVICES[@]}"; do
   IFS="|" read -r name health_url representative_method representative_url representative_payload <<<"${service_entry}"
   retry_health "${name}" "${health_url}"
-  echo "representative ok: ${name}"
   call_representative "${representative_method}" "${representative_url}" "${representative_payload}"
+  echo "representative ok: ${name}"
 done
 
 echo "docker target-apps smoke validation passed"

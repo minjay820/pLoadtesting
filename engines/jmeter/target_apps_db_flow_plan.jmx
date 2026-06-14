@@ -110,7 +110,6 @@ def requireStatus = { response, int expected, String label -&gt;
     }
 }
 
-SampleResult.sampleStart()
 try {
     def summary = [flow_mode: flowMode]
     if (flowMode == 'list-filter') {
@@ -159,8 +158,6 @@ try {
     SampleResult.setResponseMessage(error.getMessage())
     SampleResult.setSuccessful(false)
     throw error
-} finally {
-    SampleResult.sampleEnd()
 }</stringProp>
         </JSR223Sampler>
         <hashTree/>

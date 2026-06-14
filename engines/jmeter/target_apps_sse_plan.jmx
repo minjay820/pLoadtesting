@@ -72,7 +72,6 @@ def request = HttpRequest.newBuilder(uri)
     .GET()
     .build()
 
-SampleResult.sampleStart()
 try {
     def response = client.send(request, HttpResponse.BodyHandlers.ofString())
     def body = response.body()
@@ -103,8 +102,6 @@ try {
     SampleResult.setResponseMessage(error.getMessage())
     SampleResult.setSuccessful(false)
     throw error
-} finally {
-    SampleResult.sampleEnd()
 }</stringProp>
         </JSR223Sampler>
         <hashTree/>

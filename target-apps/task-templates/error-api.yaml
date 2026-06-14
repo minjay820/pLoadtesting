@@ -12,7 +12,7 @@ profiles:
       FLAKY_REQUEST_KEY: ci
   - target_profile_id: error-jmeter-flaky
     display_name: Deterministic Flaky via JMeter
-    description: JMeter deterministic flaky profile pinned to a stable success branch for repeatable response handling checks.
+    description: JMeter deterministic flaky profile pinned to the same failure branch used by CI-visible k6 checks.
     engine: jmeter
     script_path: engines/jmeter/target_apps_echo_latency_plan.jmx
     target_url: http://127.0.0.1:18082
@@ -22,4 +22,5 @@ profiles:
       TARGET_PORT: "18082"
       TARGET_PATH: /api/flaky
       TARGET_METHOD: GET
-      TARGET_QUERY: rate=0.5&deterministic=true&request_key=pass
+      TARGET_QUERY: rate=0.5&deterministic=true&request_key=ci
+      EXPECTED_STATUS_PREFIX: "5"

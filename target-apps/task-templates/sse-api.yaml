@@ -22,6 +22,19 @@ profiles:
       SSE_ENDPOINT_PATH: /api/ticker
       SSE_COUNT: "6"
       SSE_INTERVAL_MS: "75"
+  - target_profile_id: sse-jmeter-ticker
+    display_name: SSE Ticker via JMeter
+    description: JMeter bounded ticker stream against the SSE API.
+    engine: jmeter
+    script_path: engines/jmeter/target_apps_sse_plan.jmx
+    target_url: http://127.0.0.1:18087
+    parameters:
+      target_url: http://127.0.0.1:18087
+      TARGET_HOST: 127.0.0.1
+      TARGET_PORT: "18087"
+      SSE_ENDPOINT_PATH: /api/ticker
+      SSE_COUNT: "6"
+      SSE_INTERVAL_MS: "75"
   - target_profile_id: sse-k6-progress-heavy
     display_name: SSE Progress Heavy via k6
     description: Bounded richer progress stream with denser per-step metadata.

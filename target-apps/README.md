@@ -10,7 +10,7 @@ This directory contains a diversified local target suite for pLoadtesting. These
 | `latency-api` | `18081` | latency / timeout |
 | `error-api` | `18082` | error / flaky / 429 |
 | `resource-api` | `18083` | CPU-bound / memory-bound / I-O-bound |
-| `payload-api` | `18084` | payload size / upload / download / file-heavy / archive / read-many |
+| `payload-api` | `18084` | payload size / upload / download / file-heavy / archive / read-many / tar / selective-fetch |
 | `crud-api` | `18085` | CRUD / DB-like workload |
 | `auth-flow-api` | `18086` | auth-like workload / auth-heavy refresh / expiry / session-cookie / MFA-demo |
 | `sse-api` | `18087` | SSE / streaming / progress |
@@ -28,6 +28,8 @@ Runtime smoke validation script:
 bash target-apps/scripts/smoke_docker_target_apps.sh
 ```
 
+The smoke script uses isolated localhost ports `18180-18189` by default so it can run even when the main local suite is already bound to `18080-18089`.
+
 ## Local Run
 
 ```bash
@@ -42,9 +44,17 @@ curl http://127.0.0.1:18084/api/files/fixture-pack?count=3&kb_per_file=10
 curl http://127.0.0.1:18084/api/files/fixture-1?kb=8 -o /tmp/fixture-1.bin
 curl http://127.0.0.1:18084/api/files/archive?count=3\&kb_per_file=10 -o /tmp/fixture-pack.zip
 curl http://127.0.0.1:18084/api/files/read-many?count=3\&kb_per_file=10
+curl http://127.0.0.1:18084/api/files/tar-package?file_ids=fixture-1\&file_ids=fixture-3\&kb_per_file=10 -o /tmp/fixture-pack.tar
+curl -X POST http://127.0.0.1:18084/api/files/selective-fetch -H "Content-Type: application/json" -d '{"file_ids":["fixture-1","fixture-3"],"kb_per_file":10}'
 curl -N "http://127.0.0.1:18087/api/progress-heavy?steps=6&interval_ms=10"
 curl http://127.0.0.1:18089/api/records?category=sales&limit=5
 docker compose -f target-apps/docker-compose.target-apps.yml down
+```
+
+Host ports can be overridden per service without editing the compose file, for example:
+
+```bash
+ECHO_API_PORT=19080 PAYLOAD_API_PORT=19084 docker compose -f target-apps/docker-compose.target-apps.yml up -d
 ```
 
 ## Health Checks
@@ -65,6 +75,7 @@ curl http://127.0.0.1:18089/health
 ## Notes
 
 - Ports are bound to `127.0.0.1` only.
+- Default ports are `18080-18089`, but each service port can be overridden with environment variables such as `ECHO_API_PORT`, `PAYLOAD_API_PORT`, and `DB_API_PORT`.
 - The suite is intentionally capped to avoid overwhelming laptops or CI runners.
 - `auth-flow-api` uses demo-only credentials: any username with password `demo-password`.
 - Manifest-driven Control Plane task creation can use `target_app_id` plus `target_profile_id`, for example `echo-api` + `echo-k6-smoke`.
@@ -74,6 +85,7 @@ curl http://127.0.0.1:18089/health
 - `db-api` uses disposable SQLite state inside the app container and auto-seeds a small deterministic dataset.
 - `payload-api` now includes bounded file-like manifest, binary download, and binary upload endpoints for file-heavy smoke paths.
 - `payload-api` also includes bounded fixture-pack metadata, zip archive, and read-many summary endpoints for archive-style file-heavy coverage.
+- `payload-api` now also includes bounded tar-like multi-file packaging and manifest-driven selective fetch coverage.
 - `auth-flow-api` now includes bounded refresh, expiry, invalid-credential, and logout branches without any real identity provider or secret.
 - `auth-flow-api` also includes demo-only cookie/session and MFA-like challenge/verify branches with deterministic behavior.
 - JMeter coverage now includes selective target-family correspondence for `error-api`, `resource-api`, `payload-api`, `auth-flow-api`, `sse-api`, `ws-api`, and `db-api`.

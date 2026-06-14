@@ -29,6 +29,11 @@
             <stringProp name="Argument.value">${__P(TARGET_QUERY,message=jmeter&amp;repeat=1)}</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
+          <elementProp name="EXPECTED_STATUS_PREFIX" elementType="Argument">
+            <stringProp name="Argument.name">EXPECTED_STATUS_PREFIX</stringProp>
+            <stringProp name="Argument.value">${__P(EXPECTED_STATUS_PREFIX,2)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
         </collectionProp>
       </elementProp>
     </TestPlan>
@@ -74,7 +79,7 @@
         <hashTree>
           <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Assert 2xx/3xx">
             <collectionProp name="Asserion.test_strings">
-              <stringProp name="1">2</stringProp>
+              <stringProp name="1">${EXPECTED_STATUS_PREFIX}</stringProp>
             </collectionProp>
             <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
             <intProp name="Assertion.test_type">16</intProp>
@@ -85,4 +90,3 @@
     </hashTree>
   </hashTree>
 </jmeterTestPlan>
-

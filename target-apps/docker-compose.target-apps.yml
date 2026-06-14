@@ -7,7 +7,7 @@ services:
       TARGET_APP_MODULE: echo_api
       PYTHONUNBUFFERED: "1"
     ports:
-      - "127.0.0.1:18080:8000"
+      - "127.0.0.1:${ECHO_API_PORT:-18080}:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 15s
@@ -22,7 +22,7 @@ services:
       TARGET_APP_MODULE: latency_api
       PYTHONUNBUFFERED: "1"
     ports:
-      - "127.0.0.1:18081:8000"
+      - "127.0.0.1:${LATENCY_API_PORT:-18081}:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 15s
@@ -37,7 +37,7 @@ services:
       TARGET_APP_MODULE: error_api
       PYTHONUNBUFFERED: "1"
     ports:
-      - "127.0.0.1:18082:8000"
+      - "127.0.0.1:${ERROR_API_PORT:-18082}:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 15s
@@ -52,7 +52,7 @@ services:
       TARGET_APP_MODULE: resource_api
       PYTHONUNBUFFERED: "1"
     ports:
-      - "127.0.0.1:18083:8000"
+      - "127.0.0.1:${RESOURCE_API_PORT:-18083}:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 15s
@@ -67,7 +67,7 @@ services:
       TARGET_APP_MODULE: payload_api
       PYTHONUNBUFFERED: "1"
     ports:
-      - "127.0.0.1:18084:8000"
+      - "127.0.0.1:${PAYLOAD_API_PORT:-18084}:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 15s
@@ -82,7 +82,7 @@ services:
       TARGET_APP_MODULE: crud_api
       PYTHONUNBUFFERED: "1"
     ports:
-      - "127.0.0.1:18085:8000"
+      - "127.0.0.1:${CRUD_API_PORT:-18085}:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 15s
@@ -97,7 +97,7 @@ services:
       TARGET_APP_MODULE: auth_flow_api
       PYTHONUNBUFFERED: "1"
     ports:
-      - "127.0.0.1:18086:8000"
+      - "127.0.0.1:${AUTH_FLOW_API_PORT:-18086}:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 15s
@@ -112,7 +112,7 @@ services:
       TARGET_APP_MODULE: sse_api
       PYTHONUNBUFFERED: "1"
     ports:
-      - "127.0.0.1:18087:8000"
+      - "127.0.0.1:${SSE_API_PORT:-18087}:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 15s
@@ -127,7 +127,7 @@ services:
       TARGET_APP_MODULE: ws_api
       PYTHONUNBUFFERED: "1"
     ports:
-      - "127.0.0.1:18088:8000"
+      - "127.0.0.1:${WS_API_PORT:-18088}:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 15s
@@ -142,7 +142,7 @@ services:
       TARGET_APP_MODULE: db_api
       PYTHONUNBUFFERED: "1"
     ports:
-      - "127.0.0.1:18089:8000"
+      - "127.0.0.1:${DB_API_PORT:-18089}:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 15s

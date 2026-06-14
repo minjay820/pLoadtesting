@@ -12,6 +12,22 @@ profiles:
       DEMO_PASSWORD: demo-password
       DEMO_SKU: sku-1
       DEMO_QUANTITY: "1"
+  - target_profile_id: auth-jmeter-checkout
+    display_name: Auth Checkout via JMeter
+    description: JMeter login, profile, and checkout business flow against auth-flow-api.
+    engine: jmeter
+    script_path: engines/jmeter/target_apps_auth_flow_plan.jmx
+    target_url: http://127.0.0.1:18086
+    parameters:
+      target_url: http://127.0.0.1:18086
+      TARGET_HOST: 127.0.0.1
+      TARGET_PORT: "18086"
+      FLOW_MODE: checkout
+      DEMO_USERNAME: alice
+      DEMO_PASSWORD: demo-password
+      DEMO_SKU: sku-1
+      DEMO_QUANTITY: "1"
+      ACCESS_TOKEN_USES: "2"
   - target_profile_id: auth-k6-refresh-flow
     display_name: Auth Refresh Flow via k6
     description: Bounded login, expiry, refresh, and logout flow against auth-flow-api.
@@ -37,6 +53,21 @@ profiles:
       ACCESS_TOKEN_USES: "1"
       REFRESH_USES: "1"
       ASSERT_FAILURE_BRANCHES: "1"
+  - target_profile_id: auth-jmeter-failure-branches
+    display_name: Auth Failure Branches via JMeter
+    description: JMeter invalid credential, expiry, refresh, and revoked token branch validation.
+    engine: jmeter
+    script_path: engines/jmeter/target_apps_auth_flow_plan.jmx
+    target_url: http://127.0.0.1:18086
+    parameters:
+      target_url: http://127.0.0.1:18086
+      TARGET_HOST: 127.0.0.1
+      TARGET_PORT: "18086"
+      FLOW_MODE: failure-branches
+      DEMO_USERNAME: alice
+      DEMO_PASSWORD: demo-password
+      ACCESS_TOKEN_USES: "1"
+      REFRESH_USES: "1"
   - target_profile_id: auth-k6-session-flow
     display_name: Auth Session Flow via k6
     description: Demo-only cookie login, session profile, and session logout flow against auth-flow-api.

@@ -11,6 +11,8 @@ Use this suite when you need local, reproducible HTTP targets for load-shape val
 - Docker Desktop or equivalent Docker Engine
 - Local ports `18080` through `18089` available on `127.0.0.1`
 
+The compose file keeps `18080-18089` as defaults, but each service port can be overridden with environment variables such as `ECHO_API_PORT`, `PAYLOAD_API_PORT`, and `DB_API_PORT`.
+
 ## Start The Suite
 
 ```bash
@@ -54,6 +56,8 @@ curl http://127.0.0.1:18084/api/files/fixture-pack?count=3\&kb_per_file=10
 curl http://127.0.0.1:18084/api/files/fixture-1?kb=8 -o /tmp/fixture-1.bin
 curl http://127.0.0.1:18084/api/files/archive?count=3\&kb_per_file=10 -o /tmp/fixture-pack.zip
 curl http://127.0.0.1:18084/api/files/read-many?count=3\&kb_per_file=10
+curl http://127.0.0.1:18084/api/files/tar-package?file_ids=fixture-1\&file_ids=fixture-3\&kb_per_file=10 -o /tmp/fixture-pack.tar
+curl -X POST http://127.0.0.1:18084/api/files/selective-fetch -H "Content-Type: application/json" -d '{"file_ids":["fixture-1","fixture-3"],"kb_per_file":10}'
 curl -X POST http://127.0.0.1:18085/api/items -H "Content-Type: application/json" -d '{"name":"demo","value":1}'
 curl -X POST http://127.0.0.1:18086/api/login -H "Content-Type: application/json" -d '{"username":"alice","password":"demo-password"}'
 curl -X POST http://127.0.0.1:18086/api/session/login -H "Content-Type: application/json" -d '{"username":"alice","password":"demo-password","session_uses":2}' -c /tmp/auth-cookies.txt
@@ -81,6 +85,8 @@ The script:
 - includes a bounded in-container WebSocket runtime probe for `ws-api`
 - dumps `docker compose ps` and logs on failure
 - always runs cleanup on exit
+
+By default the smoke script overrides the host port bindings to `18180-18189`, so it can run alongside a manually started local suite that still uses `18080-18089`.
 
 ## Manifest-Driven Task Creation
 
@@ -156,6 +162,7 @@ Payload file-heavy samples:
 k6 run -e TARGET_URL=http://127.0.0.1:18084 engines/k6/target_apps_payload_file_flow.js
 k6 run -e TARGET_URL=http://127.0.0.1:18084 -e FILE_UPLOAD_MODE=1 engines/k6/target_apps_payload_file_flow.js
 k6 run -e TARGET_URL=http://127.0.0.1:18084 engines/k6/target_apps_payload_archive_flow.js
+k6 run -e TARGET_URL=http://127.0.0.1:18084 engines/k6/target_apps_payload_tar_selective_flow.js
 ```
 
 Auth-heavy refresh and failure samples:
@@ -177,8 +184,8 @@ JMeter sample coverage is now available across the current target catalog as bou
 Representative JMeter samples:
 
 ```bash
-jmeter -n -t engines/jmeter/target_apps_echo_latency_plan.jmx -JTARGET_HOST=127.0.0.1 -JTARGET_PORT=18082 -JTARGET_PATH=/api/flaky -JTARGET_METHOD=GET -JTARGET_QUERY='rate=0.5&deterministic=true&request_key=pass'
-jmeter -n -t engines/jmeter/target_apps_payload_crud_plan.jmx -JTARGET_HOST=127.0.0.1 -JTARGET_PORT=18084 -JTARGET_PATH=/api/files/read-many -JTARGET_METHOD=GET -JTARGET_QUERY='count=4&kb_per_file=12'
+jmeter -n -t engines/jmeter/target_apps_echo_latency_plan.jmx -JTARGET_HOST=127.0.0.1 -JTARGET_PORT=18082 -JTARGET_PATH=/api/flaky -JTARGET_METHOD=GET -JTARGET_QUERY='rate=0.5&deterministic=true&request_key=ci' -JEXPECTED_STATUS_PREFIX=5
+jmeter -n -t engines/jmeter/target_apps_payload_flow_plan.jmx -JFLOW_MODE=tar-selective -JTARGET_HOST=127.0.0.1 -JTARGET_PORT=18084 -JPACK_COUNT=5 -JPACK_KB_PER_FILE=10 -JSELECTIVE_COUNT=3
 jmeter -n -t engines/jmeter/target_apps_sse_plan.jmx -JSSE_ENDPOINT_PATH=/api/progress-heavy -JSSE_STEPS=24 -JSSE_INTERVAL_MS=25
 jmeter -n -t engines/jmeter/target_apps_ws_flow_plan.jmx -JFLOW_MODE=echo -JTARGET_HOST=127.0.0.1 -JTARGET_PORT=18088 -JWS_PATH=/ws/echo -JWS_MESSAGE=smoke-echo
 jmeter -n -t engines/jmeter/target_apps_auth_flow_plan.jmx -JFLOW_MODE=session -JDEMO_USERNAME=alice -JDEMO_PASSWORD=demo-password -JSESSION_USES=2
@@ -221,7 +228,7 @@ docker compose -f target-apps/docker-compose.target-apps.yml down
 - `error-api`: flaky rate limited to `0.0` through `1.0`
 - `resource-api`: CPU `2,000,000` iterations, memory `64MB`, I-O `1024KB`
 - `payload-api`: download `512KB`, upload `262144` bytes
-- `payload-api`: file fixture `256KB`, file manifest count `20`, archive file count `10`, archive file size `64KB`, deterministic in-memory file bytes only
+- `payload-api`: file fixture `256KB`, file manifest count `20`, archive file count `10`, archive file size `64KB`, selective fetch count `8`, deterministic in-memory file bytes only
 - `crud-api`: in-memory only
 - `auth-flow-api`: demo-only credentials, checkout quantity `10`, access-token uses `5`, refresh uses `3`, session uses `5`, active MFA challenges `20`
 - `sse-api`: `count <= 100`, `steps <= 100`, `progress-heavy steps <= 60`, `interval_ms <= 5000`, no infinite streaming
@@ -245,6 +252,6 @@ If a request exceeds a safe limit, the app should return `422`.
 
 ## Troubleshooting
 
-- If a port is already in use, stop the conflicting process or temporarily remap the port in `target-apps/docker-compose.target-apps.yml`.
+- If a port is already in use, either stop the conflicting process or override the affected host port with an environment variable such as `PAYLOAD_API_PORT=19084`.
 - If health checks fail, inspect container logs with `docker compose -f target-apps/docker-compose.target-apps.yml logs <service>`.
 - If CI-safe behavior becomes flaky, prefer deterministic mode instead of adding retries.

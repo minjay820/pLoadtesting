@@ -54,6 +54,16 @@
             <stringProp name="Argument.value">${__P(MFA_ISSUE_MODE,bearer)}</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
+          <elementProp name="DEMO_SKU" elementType="Argument">
+            <stringProp name="Argument.name">DEMO_SKU</stringProp>
+            <stringProp name="Argument.value">${__P(DEMO_SKU,sku-1)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="DEMO_QUANTITY" elementType="Argument">
+            <stringProp name="Argument.name">DEMO_QUANTITY</stringProp>
+            <stringProp name="Argument.value">${__P(DEMO_QUANTITY,1)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
         </collectionProp>
       </elementProp>
     </TestPlan>
@@ -86,6 +96,8 @@ def refreshUses = Integer.parseInt(props.get('REFRESH_USES', '2'))
 def sessionUses = Integer.parseInt(props.get('SESSION_USES', '2'))
 def mfaChannel = props.get('MFA_CHANNEL', 'sms')
 def mfaIssueMode = props.get('MFA_ISSUE_MODE', 'bearer')
+def demoSku = props.get('DEMO_SKU', 'sku-1')
+def demoQuantity = Integer.parseInt(props.get('DEMO_QUANTITY', '1'))
 
 def slurper = new JsonSlurper()
 def sessionCookie = [value: null]
@@ -145,7 +157,6 @@ def expectedMfaCode = { String user, String channel -&gt;
     String.format('%06d', (total * 137) % 1000000)
 }
 
-SampleResult.sampleStart()
 try {
     def resultSummary = [flow_mode: flowMode]
 
@@ -192,6 +203,11 @@ try {
         }
         resultSummary.challenge = startJson.challenge_id
     } else {
+        if (flowMode == 'failure-branches') {
+            def badLogin = sendJson('POST', '/api/login', [username: username, password: 'bad-password'], [:])
+            requireStatus(badLogin, 401, 'bad login')
+        }
+
         def login = sendJson(
             'POST',
             '/api/login',
@@ -204,6 +220,23 @@ try {
 
         def firstProfile = sendGet('/api/profile', authHeader)
         requireStatus(firstProfile, 200, 'initial bearer profile')
+
+        if (flowMode == 'checkout') {
+            def checkout = sendJson(
+                'POST',
+                '/api/checkout',
+                [sku: demoSku, quantity: demoQuantity],
+                authHeader
+            )
+            requireStatus(checkout, 200, 'checkout')
+            resultSummary.checkout = slurper.parseText(checkout.body())
+            resultSummary.login = loginJson
+            SampleResult.setResponseCode('200')
+            SampleResult.setResponseMessage("Auth ${flowMode} flow validated")
+            SampleResult.setResponseData(JsonOutput.toJson(resultSummary), 'UTF-8')
+            SampleResult.setSuccessful(true)
+            return
+        }
 
         def expiredProfile = sendGet('/api/profile', authHeader)
         requireStatus(expiredProfile, 401, 'expired bearer profile')
@@ -239,8 +272,6 @@ try {
     SampleResult.setResponseMessage(error.getMessage())
     SampleResult.setSuccessful(false)
     throw error
-} finally {
-    SampleResult.sampleEnd()
 }</stringProp>
         </JSR223Sampler>
         <hashTree/>

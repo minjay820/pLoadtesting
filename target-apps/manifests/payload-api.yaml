@@ -25,6 +25,10 @@ endpoints:
     method: GET
   - path: /api/files/read-many
     method: GET
+  - path: /api/files/tar-package
+    method: GET
+  - path: /api/files/selective-fetch
+    method: POST
   - path: /api/files/upload
     method: POST
 safe_limits:
@@ -34,5 +38,6 @@ safe_limits:
   max_file_manifest_count: 20
   max_archive_file_count: 10
   max_archive_kb_per_file: 64
+  max_selective_fetch_count: 8
 default_profile: payload
-notes: Deterministic payload, fixture-pack, archive, and read-many content avoids third-party dependencies and nondeterministic blobs.
+notes: Deterministic payload, fixture-pack, archive, tar-like package, and manifest-driven selective fetch content avoids third-party dependencies and nondeterministic blobs.

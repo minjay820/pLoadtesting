@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Target Apps Payload Flow Plan">
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="TARGET_HOST" elementType="Argument">
+            <stringProp name="Argument.name">TARGET_HOST</stringProp>
+            <stringProp name="Argument.value">${__P(TARGET_HOST,127.0.0.1)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="TARGET_PORT" elementType="Argument">
+            <stringProp name="Argument.name">TARGET_PORT</stringProp>
+            <stringProp name="Argument.value">${__P(TARGET_PORT,18084)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="FLOW_MODE" elementType="Argument">
+            <stringProp name="Argument.name">FLOW_MODE</stringProp>
+            <stringProp name="Argument.value">${__P(FLOW_MODE,file-download)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="FILE_ENDPOINT_PATH" elementType="Argument">
+            <stringProp name="Argument.name">FILE_ENDPOINT_PATH</stringProp>
+            <stringProp name="Argument.value">${__P(FILE_ENDPOINT_PATH,/api/files/fixture-1)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="FILE_KB" elementType="Argument">
+            <stringProp name="Argument.name">FILE_KB</stringProp>
+            <stringProp name="Argument.value">${__P(FILE_KB,32)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="PACK_COUNT" elementType="Argument">
+            <stringProp name="Argument.name">PACK_COUNT</stringProp>
+            <stringProp name="Argument.value">${__P(PACK_COUNT,4)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="PACK_KB_PER_FILE" elementType="Argument">
+            <stringProp name="Argument.name">PACK_KB_PER_FILE</stringProp>
+            <stringProp name="Argument.value">${__P(PACK_KB_PER_FILE,12)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="SELECTIVE_COUNT" elementType="Argument">
+            <stringProp name="Argument.name">SELECTIVE_COUNT</stringProp>
+            <stringProp name="Argument.value">${__P(SELECTIVE_COUNT,3)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Payload Flow Thread Group">
+        <intProp name="ThreadGroup.num_threads">1</intProp>
+        <intProp name="ThreadGroup.ramp_time">1</intProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
+          <stringProp name="LoopController.loops">2</stringProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Run Payload Flow">
+          <stringProp name="scriptLanguage">groovy</stringProp>
+          <stringProp name="script">import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+import java.net.HttpURLConnection
+import java.net.URL
+import java.security.MessageDigest
+
+def host = props.get('TARGET_HOST', '127.0.0.1')
+def port = props.get('TARGET_PORT', '18084')
+def baseUrl = "http://${host}:${port}"
+def flowMode = props.get('FLOW_MODE', 'file-download')
+def fileEndpointPath = props.get('FILE_ENDPOINT_PATH', '/api/files/fixture-1')
+def fileKb = Integer.parseInt(props.get('FILE_KB', '32'))
+def packCount = Integer.parseInt(props.get('PACK_COUNT', '4'))
+def packKbPerFile = Integer.parseInt(props.get('PACK_KB_PER_FILE', '12'))
+def selectiveCount = Integer.parseInt(props.get('SELECTIVE_COUNT', '3'))
+def slurper = new JsonSlurper()
+
+def sha256Prefix = { byte[] payload -&gt;
+    MessageDigest.getInstance('SHA-256').digest(payload).encodeHex().toString().substring(0, 16)
+}
+
+def sendGet = { String path -&gt;
+    def connection = (HttpURLConnection) new URL("${baseUrl}${path}").openConnection()
+    connection.setConnectTimeout(5000)
+    connection.setReadTimeout(10000)
+    connection.setRequestMethod('GET')
+    connection.setDoInput(true)
+    def status = connection.responseCode
+    def input = status &gt;= 400 ? connection.getErrorStream() : connection.getInputStream()
+    def bytes = input != null ? input.bytes : new byte[0]
+    [statusCode: { -&gt; status }, headers: { -&gt; connection.headerFields }, bodyBytes: { -&gt; bytes }, body: { -&gt; new String(bytes, 'UTF-8') }]
+}
+
+def sendPostJson = { String path, Object payload, Map headers = [:] -&gt;
+    def connection = (HttpURLConnection) new URL("${baseUrl}${path}").openConnection()
+    connection.setConnectTimeout(5000)
+    connection.setReadTimeout(10000)
+    connection.setRequestMethod('POST')
+    connection.setDoInput(true)
+    connection.setDoOutput(true)
+    connection.setRequestProperty('Content-Type', 'application/json')
+    headers.each { key, value -&gt; connection.setRequestProperty(String.valueOf(key), String.valueOf(value)) }
+    connection.outputStream.withWriter('UTF-8') { writer -&gt; writer &lt;&lt; JsonOutput.toJson(payload) }
+    def status = connection.responseCode
+    def input = status &gt;= 400 ? connection.getErrorStream() : connection.getInputStream()
+    def bytes = input != null ? input.bytes : new byte[0]
+    [statusCode: { -&gt; status }, bodyBytes: { -&gt; bytes }, body: { -&gt; new String(bytes, 'UTF-8') }]
+}
+
+def sendPostBinary = { String path, byte[] payload -&gt;
+    def connection = (HttpURLConnection) new URL("${baseUrl}${path}").openConnection()
+    connection.setConnectTimeout(5000)
+    connection.setReadTimeout(10000)
+    connection.setRequestMethod('POST')
+    connection.setDoInput(true)
+    connection.setDoOutput(true)
+    connection.setRequestProperty('Content-Type', 'application/octet-stream')
+    connection.outputStream.write(payload)
+    def status = connection.responseCode
+    def input = status &gt;= 400 ? connection.getErrorStream() : connection.getInputStream()
+    def bytes = input != null ? input.bytes : new byte[0]
+    [statusCode: { -&gt; status }, body: { -&gt; new String(bytes, 'UTF-8') }]
+}
+
+def headerValue = { response, String name ->
+    response.headers().find { key, value -> key != null &amp;&amp; key.equalsIgnoreCase(name) }?.value?.join(',') ?: ''
+}
+
+try {
+    def summary = [flow_mode: flowMode]
+    if (flowMode == 'roundtrip') {
+        def manifest = sendGet("/api/files/manifest?count=3&amp;kb_per_file=${fileKb}")
+        if (manifest.statusCode() != 200) {
+            throw new AssertionError("manifest failed with ${manifest.statusCode()}")
+        }
+        def download = sendGet("${fileEndpointPath}?kb=${fileKb}")
+        if (download.statusCode() != 200 || download.bodyBytes().length != fileKb * 1024) {
+            throw new AssertionError('roundtrip download failed')
+        }
+        def upload = sendPostBinary('/api/files/upload?filename=roundtrip.bin', download.bodyBytes())
+        if (upload.statusCode() != 200) {
+            throw new AssertionError("roundtrip upload failed with ${upload.statusCode()} body ${upload.body()}")
+        }
+        summary.upload = slurper.parseText(upload.body())
+    } else if (flowMode == 'archive-read-many') {
+        def fixturePack = sendGet("/api/files/fixture-pack?count=${packCount}&amp;kb_per_file=${packKbPerFile}")
+        def archive = sendGet("/api/files/archive?count=${packCount}&amp;kb_per_file=${packKbPerFile}")
+        def readMany = sendGet("/api/files/read-many?count=${packCount}&amp;kb_per_file=${packKbPerFile}")
+        if (fixturePack.statusCode() != 200 || archive.statusCode() != 200 || readMany.statusCode() != 200) {
+            throw new AssertionError('archive-read-many sequence failed')
+        }
+        def archiveContentType = headerValue(archive, 'Content-Type')
+        if (!archiveContentType.contains('application/zip')) {
+            throw new AssertionError('expected zip content-type')
+        }
+        def readManyJson = slurper.parseText(readMany.body())
+        if (readManyJson.count != packCount) {
+            throw new AssertionError('read-many count mismatch')
+        }
+        summary.read_many = readManyJson
+    } else if (flowMode == 'tar-selective') {
+        def manifest = sendGet("/api/files/manifest?count=${packCount}&amp;kb_per_file=${packKbPerFile}")
+        if (manifest.statusCode() != 200) {
+            throw new AssertionError('manifest failed')
+        }
+        def manifestJson = slurper.parseText(manifest.body())
+        def selected = manifestJson.files.take(selectiveCount).collect { it.file_id }
+        def selective = sendPostJson('/api/files/selective-fetch', [file_ids: selected, kb_per_file: packKbPerFile])
+        if (selective.statusCode() != 200) {
+            throw new AssertionError("selective fetch failed with ${selective.statusCode()}")
+        }
+        def selectiveJson = slurper.parseText(selective.body())
+        if (selectiveJson.selected_count != selectiveCount) {
+            throw new AssertionError('selective count mismatch')
+        }
+        def tarQuery = selected.collect { "file_ids=${it}" }.join('&amp;')
+        def tarPackage = sendGet("/api/files/tar-package?${tarQuery}&amp;kb_per_file=${packKbPerFile}")
+        def tarContentType = headerValue(tarPackage, 'Content-Type')
+        if (tarPackage.statusCode() != 200 || !tarContentType.contains('application/x-tar')) {
+            throw new AssertionError('tar package failed')
+        }
+        summary.selective = selectiveJson
+        summary.tar_sha256_prefix = sha256Prefix(tarPackage.bodyBytes())
+    } else {
+        def manifest = sendGet("/api/files/manifest?count=3&amp;kb_per_file=${fileKb}")
+        def download = sendGet("${fileEndpointPath}?kb=${fileKb}")
+        if (manifest.statusCode() != 200 || download.statusCode() != 200 || download.bodyBytes().length != fileKb * 1024) {
+            throw new AssertionError('file-download sequence failed')
+        }
+        summary.file_sha256_prefix = sha256Prefix(download.bodyBytes())
+    }
+
+    SampleResult.setResponseCode('200')
+    SampleResult.setResponseMessage("Payload ${flowMode} flow validated")
+    SampleResult.setResponseData(JsonOutput.toJson(summary), 'UTF-8')
+    SampleResult.setSuccessful(true)
+} catch (Throwable error) {
+    SampleResult.setResponseCode('500')
+    SampleResult.setResponseMessage(error.getMessage())
+    SampleResult.setSuccessful(false)
+    throw error
+}</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

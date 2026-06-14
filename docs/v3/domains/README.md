@@ -6,6 +6,7 @@ This area is for stable domain explanations: system concepts, business or produc
 
 - [pLoadtesting system overview](p-loadtesting-system-overview.md)
 - [pLoadtesting target apps](p-loadtesting-target-apps.md)
+- [pLoadtesting engine coverage matrix](p-loadtesting-engine-coverage-matrix.md)
 
 ## Likely Future Domain Topics
 

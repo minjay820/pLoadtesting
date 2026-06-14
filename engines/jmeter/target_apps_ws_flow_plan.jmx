@@ -104,7 +104,6 @@ def nextMessage = { listener, String label -&gt;
     value
 }
 
-SampleResult.sampleStart()
 try {
     def summary = [flow_mode: flowMode]
     if (flowMode == 'broadcast') {
@@ -156,8 +155,6 @@ try {
     SampleResult.setResponseMessage(error.getMessage())
     SampleResult.setSuccessful(false)
     throw error
-} finally {
-    SampleResult.sampleEnd()
 }</stringProp>
         </JSR223Sampler>
         <hashTree/>

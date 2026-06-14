@@ -38,7 +38,7 @@ The `target-apps/` suite addresses that gap without changing the core Control Pl
 | `latency-api` | `http://127.0.0.1:18081` | latency / timeout | Caps delay at 5 seconds and converts timeout simulation into explicit 504 responses |
 | `error-api` | `http://127.0.0.1:18082` | error / flaky / 429 | Supports deterministic flaky mode for CI |
 | `resource-api` | `http://127.0.0.1:18083` | CPU-bound / memory-bound / I-O-bound | Uses bounded synthetic work only |
-| `payload-api` | `http://127.0.0.1:18084` | payload size / upload / download / file-heavy | Uses deterministic filler payloads, fixture-pack metadata, zip archives, and read-many summaries instead of external files |
+| `payload-api` | `http://127.0.0.1:18084` | payload size / upload / download / file-heavy | Uses deterministic filler payloads, fixture-pack metadata, zip archives, tar-like packages, and selective-fetch summaries instead of external files |
 | `crud-api` | `http://127.0.0.1:18085` | CRUD / DB-like workload | Uses in-memory state for low-cost reproducibility |
 | `auth-flow-api` | `http://127.0.0.1:18086` | auth-like / auth-heavy / scenario-style business flow | Demo-only bearer token plus bounded refresh, expiry, cookie/session, and MFA-like branches |
 | `sse-api` | `http://127.0.0.1:18087` | SSE / streaming / progress | Finite `text/event-stream` responses only, including progress-heavy profile |
@@ -83,6 +83,8 @@ The `target-apps/` suite addresses that gap without changing the core Control Pl
 - `GET /api/files/{file_id}?kb=...`
 - `GET /api/files/archive?count=...&kb_per_file=...`
 - `GET /api/files/read-many?count=...&kb_per_file=...`
+- `GET /api/files/tar-package?count=...&kb_per_file=...`
+- `POST /api/files/selective-fetch`
 - `POST /api/files/upload`
 
 ### crud-api
@@ -154,7 +156,7 @@ Current coverage rule:
 
 - every current target family in the catalog must have at least one `k6` sample
 - every current target family in the catalog must have at least one `jmeter` sample
-- profile-by-profile parity is still incremental, so some families currently use representative JMeter correspondence coverage rather than a one-to-one mirror of every k6 profile
+- current manifest-driven target profiles are tracked in the dedicated [engine coverage matrix](p-loadtesting-engine-coverage-matrix.md)
 
 Template flow:
 
@@ -175,16 +177,23 @@ Examples:
 | `error-api` | `error-k6-flaky` | k6 | deterministic flaky response validation |
 | `resource-api` | `resource-k6-cpu` | k6 | bounded CPU workload |
 | `payload-api` | `payload-jmeter-download` | JMeter | payload download throughput |
-| `payload-api` | `payload-jmeter-archive-read-many` | JMeter | bounded read-many archive-style flow |
+| `payload-api` | `payload-jmeter-file-download` | JMeter | bounded fixture file download |
+| `payload-api` | `payload-jmeter-file-roundtrip` | JMeter | manifest, bounded download, and upload roundtrip |
+| `payload-api` | `payload-jmeter-archive-read-many` | JMeter | exact fixture-pack, zip archive, and read-many flow |
 | `payload-api` | `payload-k6-file-download` | k6 | bounded file-like download |
 | `payload-api` | `payload-k6-file-roundtrip` | k6 | bounded manifest, download, and upload roundtrip |
 | `payload-api` | `payload-k6-archive-read-many` | k6 | bounded fixture-pack, zip archive, and read-many flow |
+| `payload-api` | `payload-k6-tar-selective-fetch` | k6 | manifest-driven selective fetch plus tar-like package |
+| `payload-api` | `payload-jmeter-tar-selective-fetch` | JMeter | manifest-driven selective fetch plus tar-like package |
 | `crud-api` | `crud-k6-flow` | k6 | create-and-fetch flow |
+| `crud-api` | `crud-jmeter-flow` | JMeter | create-and-fetch flow |
 | `error-api` | `error-jmeter-flaky` | JMeter | deterministic flaky success-branch handling |
 | `resource-api` | `resource-jmeter-cpu` | JMeter | bounded CPU request validation |
 | `auth-flow-api` | `auth-k6-checkout` | k6 | login and checkout business flow |
+| `auth-flow-api` | `auth-jmeter-checkout` | JMeter | login and checkout business flow |
 | `auth-flow-api` | `auth-k6-refresh-flow` | k6 | expiry, refresh, and logout flow |
 | `auth-flow-api` | `auth-k6-failure-branches` | k6 | invalid credential, expiry, and revoked token checks |
+| `auth-flow-api` | `auth-jmeter-failure-branches` | JMeter | invalid credential, expiry, and revoked token checks |
 | `auth-flow-api` | `auth-k6-session-flow` | k6 | cookie login, session profile, and session logout flow |
 | `auth-flow-api` | `auth-k6-mfa-flow` | k6 | deterministic MFA-like challenge and verify flow |
 | `auth-flow-api` | `auth-jmeter-refresh-flow` | JMeter | bearer expiry, refresh, and logout flow |
@@ -194,6 +203,7 @@ Examples:
 | `sse-api` | `sse-k6-ticker` | k6 | bounded SSE ticker stream |
 | `sse-api` | `sse-k6-progress-heavy` | k6 | richer bounded progress stream |
 | `sse-api` | `sse-jmeter-smoke` | JMeter | bounded finite SSE smoke read |
+| `sse-api` | `sse-jmeter-ticker` | JMeter | bounded finite SSE ticker read |
 | `sse-api` | `sse-jmeter-progress-heavy` | JMeter | richer bounded SSE progress read |
 | `ws-api` | `ws-k6-echo-smoke` | k6 | bounded WebSocket echo smoke |
 | `ws-api` | `ws-k6-broadcast-smoke` | k6 | bounded WebSocket broadcast smoke |
@@ -206,10 +216,11 @@ Examples:
 
 This keeps the Worker and task model unchanged while allowing manifest-driven selection.
 
-For JMeter specifically, the current suite uses two correspondence styles:
+For JMeter specifically, the current suite uses three correspondence styles:
 
 - parametric HTTP plans for simple bounded GET-oriented targets
 - JSR223 flow plans for SSE, WebSocket, auth-heavy, and DB-heavy targets where multi-step or non-trivial transport handling is required
+- exact flow plans for CRUD and payload file-heavy branches where the old generic GET-only plan was not precise enough
 
 ## CI Validation Approach
 
@@ -230,6 +241,7 @@ The suite also now has a real runtime smoke path:
 - probe a representative endpoint per service
 - dump `docker compose ps` and logs on failure
 - always clean up containers on exit
+- keep the default compose ports at `18080-18089`, but run smoke on isolated `18180-18189` overrides by default to avoid local port collisions
 
 This is exposed as a manual GitHub Actions run rather than a per-push job so CI time stays bounded.
 
@@ -271,6 +283,7 @@ The first streaming target intentionally stays narrow:
 - `max_file_manifest_count = 20`
 - `max_archive_file_count = 10`
 - `max_archive_kb_per_file = 64`
+- `max_selective_fetch_count = 8`
 - deterministic file bytes only; no host filesystem reads
 
 ## Auth-Heavy Safety Limits
@@ -293,7 +306,7 @@ Future work may add the following, with the current evaluation posture:
 | gRPC | Useful for protocol coverage, but adds tooling/runtime complexity to CI | Defer until there is a real gRPC consumer requirement |
 | SSE | Implemented first because it is finite, HTTP-native, and cheap to validate | Expand through richer bounded profiles such as progress-heavy before larger payload experiments |
 | DB-heavy | Implemented with SQLite-backed bounded write/read and list/filter coverage | Revisit heavier joins, seed control, or file-backed artifacts only if current target proves insufficient |
-| file-heavy | Implemented by extending `payload-api` with bounded manifest, binary download, binary upload, archive, and read-many flows | Revisit only if real tar-like packaging or heavier artifact churn is needed and can still stay deterministic |
+| file-heavy | Implemented by extending `payload-api` with bounded manifest, binary download, binary upload, archive, read-many, tar-like packaging, and manifest-driven selective fetch flows | Revisit only if heavier artifact churn or larger package semantics are needed and can still stay deterministic |
 | auth-heavy | Implemented by extending `auth-flow-api` with refresh, expiry, logout, cookie/session, MFA-like, and failure branches | Revisit only deeper browser-like or multi-factor variants that can still stay fully demo-only and deterministic |
 
 gRPC remains deferred because it would add additional protocol tooling and CI surface area without an immediate repo-driven use case. Deeper file-heavy and auth-heavy expansions should stay bounded, demo-only, and local-first.
