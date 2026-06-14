@@ -179,7 +179,7 @@ k6 run -e TARGET_URL=http://127.0.0.1:18086 -e FLOW_MODE=session engines/k6/targ
 k6 run -e TARGET_URL=http://127.0.0.1:18086 -e FLOW_MODE=mfa -e MFA_CHANNEL=sms engines/k6/target_apps_auth_session_mfa_flow.js
 ```
 
-JMeter sample coverage is now available across the current target catalog as bounded selective correspondence coverage.
+JMeter sample coverage is now available across the current target catalog with exact reciprocal profile metadata for the current k6/JMeter task templates.
 
 Representative JMeter samples:
 

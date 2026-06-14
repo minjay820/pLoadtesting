@@ -16,7 +16,7 @@ from rest_framework.views import APIView
 
 from .models import LoadTestTask
 from .serializers import LoadTestTaskCreateSerializer, LoadTestTaskSerializer
-from .template_registry import list_task_templates
+from .template_registry import get_template_coverage_export, list_task_templates
 
 
 class TaskListCreateView(generics.ListCreateAPIView):
@@ -68,3 +68,12 @@ class TaskTemplateListView(APIView):
 
     def get(self, request: Request) -> Response:
         return Response({"templates": list_task_templates()}, status=status.HTTP_200_OK)
+
+
+class TaskTemplateCoverageView(APIView):
+    """
+    GET /api/tasks/templates/coverage/  ─ machine-readable target profile coverage export
+    """
+
+    def get(self, request: Request) -> Response:
+        return Response(get_template_coverage_export(), status=status.HTTP_200_OK)

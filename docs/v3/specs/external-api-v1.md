@@ -13,6 +13,7 @@ The current Control Plane exposes preview endpoints under `/api/`:
 - `POST /api/tasks/`
 - `GET /api/tasks/{id}/`
 - `GET /api/tasks/templates/`
+- `GET /api/tasks/templates/coverage/`
 - `POST /api/tasks/{id}/results/`
 
 Worker Agents expose:
@@ -35,6 +36,7 @@ Future `/api/v1` routes should wrap these concepts with clearer compatibility gu
 |---|---|---|
 | Tasks | `/api/v1/tasks/` | `LoadTestTask` |
 | Task templates | `/api/v1/task-templates/` | `target-apps/task-templates/*.yaml` plus manifests |
+| Template coverage | `/api/v1/task-templates/coverage/` | computed registry coverage metadata |
 | Workers | `/api/v1/workers/` | `WorkerNode` |
 | Results | `/api/v1/tasks/{task_id}/result/` | `TestResult` |
 | Health | `/api/v1/health/` | Control Plane service health |
@@ -79,6 +81,17 @@ Result responses should expose summary fields already represented by `TestResult
 - raw report reference or inline raw report, depending on future storage size policy
 
 The current model stores `raw_report` inline. A future artifact store can move large raw output without changing the summary contract.
+
+## Template Coverage Contract
+
+The preview endpoint `GET /api/tasks/templates/coverage/` exposes machine-readable coverage metadata for future dashboard consumers. The future v1 equivalent should preserve these concepts:
+
+- `summary`: target count, profile count, engine counts, exact coverage profile count, and gap profile count
+- `targets`: per-target aggregates, workload types, protocol, base URL, profile counts, and gap counts
+- `profiles`: one row per profile with engine, script path, equivalent profile, `coverage_status`, `coverage_group`, and `coverage_gap`
+- `gaps`: profiles whose `coverage_status` is `gap`
+
+`coverage_status` is `exact` when a profile has a reciprocal `equivalent_profile_id` on the opposite engine within the same target app. It is `gap` when no exact equivalent is defined or the reciprocal metadata is invalid. `coverage_group` is a stable grouping key for dashboard display, and `coverage_gap` is null for exact coverage.
 
 ## Filtering And Pagination
 

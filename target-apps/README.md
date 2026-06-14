@@ -21,7 +21,7 @@ Each app exposes `/health`, explicit safe limits, deterministic behavior where r
 
 Task templates live in `target-apps/task-templates/` and point to ready-to-use k6 or JMeter sample scenarios under `engines/`.
 The current baseline is that every target family in this catalog has at least one `k6` sample and one `jmeter` sample.
-Profile-level parity and remaining gaps are tracked in `docs/v3/domains/p-loadtesting-target-profile-coverage.md`.
+Profile-level parity is tracked in `docs/v3/domains/p-loadtesting-target-profile-coverage.md` and exported through `GET /api/tasks/templates/coverage/`.
 
 Runtime smoke validation script:
 
@@ -87,6 +87,7 @@ curl http://127.0.0.1:18089/health
 - `payload-api` now includes bounded file-like manifest, binary download, and binary upload endpoints for file-heavy smoke paths.
 - `payload-api` also includes bounded fixture-pack metadata, zip archive, and read-many summary endpoints for archive-style file-heavy coverage.
 - `payload-api` now also includes bounded tar-like multi-file packaging and manifest-driven selective fetch coverage.
+- `payload-api` includes exact k6/JMeter coverage for the generic `/api/download` text payload profile.
 - `auth-flow-api` now includes bounded refresh, expiry, invalid-credential, and logout branches without any real identity provider or secret.
 - `auth-flow-api` also includes demo-only cookie/session and MFA-like challenge/verify branches with deterministic behavior.
-- JMeter coverage now includes selective target-family correspondence for `error-api`, `resource-api`, `payload-api`, `auth-flow-api`, `sse-api`, `ws-api`, and `db-api`.
+- k6 and JMeter coverage now have exact reciprocal profile metadata for the current target catalog.

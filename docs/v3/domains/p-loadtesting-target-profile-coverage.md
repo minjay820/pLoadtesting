@@ -5,11 +5,11 @@ This document is the authoritative profile-level coverage matrix for the current
 ## Summary
 
 - Target Apps: `10`
-- Profile Count: `43`
-- k6 Profile Count: `21`
+- Profile Count: `44`
+- k6 Profile Count: `22`
 - JMeter Profile Count: `22`
-- Exact Pair Count: `21`
-- Strict Non-Parity Count: `1`
+- Exact Pair Count: `22`
+- Strict Non-Parity Count: `0`
 
 ## Counting Rules
 
@@ -20,7 +20,10 @@ This document is the authoritative profile-level coverage matrix for the current
   - opposite engines
   - same `target_app_id`
 - Unmatched retained profiles still count in the strict totals.
-- The current strict non-parity set contains one profile only: `payload-jmeter-download`.
+- `coverage_status` is computed by the Control Plane template registry from reciprocal `equivalent_profile_id` metadata.
+- `coverage_group` is a deterministic dashboard grouping key such as `payload.download`.
+- `coverage_gap` is null for exact coverage and contains a short explanation when a profile has no exact equivalent.
+- The current strict non-parity set is empty.
 
 ## Target App Catalog
 
@@ -30,7 +33,7 @@ This document is the authoritative profile-level coverage matrix for the current
 | `latency-api` | delay + timeout simulation | 2 | `1` exact pair |
 | `error-api` | status + flaky + 429 | 2 | `1` exact pair |
 | `resource-api` | CPU + memory + I/O | 2 | `1` exact pair |
-| `payload-api` | download + file + archive + tar/selective | 9 | `4` exact pairs + `1` unmatched generic JMeter shortcut |
+| `payload-api` | download + file + archive + tar/selective | 10 | `5` exact pairs |
 | `crud-api` | create + list + fetch item | 2 | `1` exact pair |
 | `auth-flow-api` | checkout + refresh + failure + session + mfa | 10 | `5` exact pairs |
 | `sse-api` | events + ticker + progress-heavy | 6 | `3` exact pairs |
@@ -49,7 +52,8 @@ This document is the authoritative profile-level coverage matrix for the current
 | `error-api` | flaky failure branch | `error-jmeter-flaky` | `jmeter` | `engines/jmeter/target_apps_echo_latency_plan.jmx` | `error-k6-flaky` | yes | none | no | none |
 | `resource-api` | cpu | `resource-k6-cpu` | `k6` | `engines/k6/target_apps_resource_cpu.js` | `resource-jmeter-cpu` | yes | none | no | none |
 | `resource-api` | cpu | `resource-jmeter-cpu` | `jmeter` | `engines/jmeter/target_apps_echo_latency_plan.jmx` | `resource-k6-cpu` | yes | none | no | none |
-| `payload-api` | generic text download | `payload-jmeter-download` | `jmeter` | `engines/jmeter/target_apps_payload_crud_plan.jmx` | - | no | retained generic JMeter shortcut without an exact k6 peer | no | low |
+| `payload-api` | generic text download | `payload-k6-download` | `k6` | `engines/k6/target_apps_payload_download.js` | `payload-jmeter-download` | yes | none | no | none |
+| `payload-api` | generic text download | `payload-jmeter-download` | `jmeter` | `engines/jmeter/target_apps_payload_crud_plan.jmx` | `payload-k6-download` | yes | none | no | none |
 | `payload-api` | fixture file download | `payload-k6-file-download` | `k6` | `engines/k6/target_apps_payload_file_flow.js` | `payload-jmeter-file-download` | yes | none | no | none |
 | `payload-api` | fixture file download | `payload-jmeter-file-download` | `jmeter` | `engines/jmeter/target_apps_payload_flow_plan.jmx` | `payload-k6-file-download` | yes | none | no | none |
 | `payload-api` | file roundtrip | `payload-k6-file-roundtrip` | `k6` | `engines/k6/target_apps_payload_file_flow.js` | `payload-jmeter-file-roundtrip` | yes | none | no | none |
@@ -87,14 +91,28 @@ This document is the authoritative profile-level coverage matrix for the current
 
 ## Gap Summary
 
-Current strict non-parity profiles:
+Current strict non-parity profiles: none.
 
-| Profile ID | Reason | Suggested Action | Priority |
-|---|---|---|---|
-| `payload-jmeter-download` | Legacy generic JMeter shortcut for simple text payload download. It is useful operationally, but it is not the mirrored peer for the current exact file-heavy payload profiles. | Keep it as a documented generic extension unless the team explicitly wants every retained convenience profile to have a strict 1:1 k6 peer. | low |
+The former `payload-jmeter-download` gap is closed by `payload-k6-download`, a low-cost exact k6 peer for `GET /api/download?kb=32`.
+
+## Machine-Readable Coverage Export
+
+Dashboard and API consumers should use:
+
+```text
+GET /api/tasks/templates/coverage/
+```
+
+The export includes:
+
+- `summary`: target, profile, engine, exact coverage, and gap counts
+- `targets`: per-target profile and coverage aggregates
+- `profiles`: profile-level script, engine, equivalent profile, and coverage metadata
+- `gaps`: currently empty because every profile has reciprocal exact coverage
 
 ## Verification Notes
 
 - Template parity metadata is validated in `target-apps/tests/test_suite.py`.
 - Control Plane template listing and task expansion are validated in `control-plane/apps/tasks/tests.py`.
 - Runtime execution parity remains bounded and local-only through the current k6, JMeter, and Docker smoke validation paths.
+- The machine-readable coverage export is validated through Control Plane API tests.

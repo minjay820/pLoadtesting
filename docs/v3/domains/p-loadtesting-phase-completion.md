@@ -18,7 +18,7 @@ pLoadtesting is a working local preview of a multi-engine load-testing ecosystem
 |---|---|---|---|
 | Phase 0: governance and diagnostics | complete for current docs trunk | `docs/v3/README.md`, daily change log, CI diagnostics runbook, `.github/workflows/ci.yml` | Continue same-session docs updates for substantive changes |
 | Phase 1: local target coverage | complete for current catalog | `target-apps/`, manifests, compose file, Docker smoke script, target app runbook | Keep target apps local-only and bounded when adding future workload families |
-| Phase 2: manifest-driven profiles and engine parity | complete for current strict rule | `target-apps/task-templates/*.yaml`, target profile coverage matrix, k6 and JMeter assets | One retained generic shortcut, `payload-jmeter-download`, remains intentionally non-parity |
+| Phase 2: manifest-driven profiles and engine parity | complete for current strict rule | `target-apps/task-templates/*.yaml`, target profile coverage matrix, k6 and JMeter assets | Maintain reciprocal metadata and coverage export as profiles evolve |
 | Phase 3: worker execution loop | functional preview | Worker registration, heartbeat, `/execute`, Control Plane dispatch, task result callback | Production hardening, scoped access, and multi-host operations are not implemented |
 | Phase 4: validation readiness | complete for local preview | pytest, Django checks, compose config validation, Docker smoke validation | Runtime validation is still local/manual for heavier Docker smoke paths |
 

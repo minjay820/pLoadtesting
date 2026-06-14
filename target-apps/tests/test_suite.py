@@ -142,10 +142,10 @@ def test_profile_parity_metadata_is_reciprocal_and_strict_gap_is_expected():
     jmeter_profiles = {profile_id for profile_id, profile in profile_index.items() if profile["engine"] == "jmeter"}
 
     exact_pair_count = len(paired_profiles) // 2
-    assert exact_pair_count == 21
-    assert len(k6_profiles) == 21
+    assert exact_pair_count == 22
+    assert len(k6_profiles) == 22
     assert len(jmeter_profiles) == 22
-    assert sorted(set(profile_index) - paired_profiles) == ["payload-jmeter-download"]
+    assert sorted(set(profile_index) - paired_profiles) == []
 
 
 def test_profile_coverage_doc_summary_matches_template_counts():

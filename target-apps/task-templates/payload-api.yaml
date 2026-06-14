@@ -4,6 +4,7 @@ profiles:
     display_name: Payload Download via JMeter
     description: JMeter download-oriented profile against payload-api.
     engine: jmeter
+    equivalent_profile_id: payload-k6-download
     script_path: engines/jmeter/target_apps_payload_crud_plan.jmx
     target_url: http://127.0.0.1:18084
     parameters:
@@ -13,6 +14,16 @@ profiles:
       TARGET_PATH: /api/download
       TARGET_METHOD: GET
       TARGET_QUERY: kb=32
+  - target_profile_id: payload-k6-download
+    display_name: Payload Download via k6
+    description: k6 bounded text payload download profile against payload-api.
+    engine: k6
+    equivalent_profile_id: payload-jmeter-download
+    script_path: engines/k6/target_apps_payload_download.js
+    target_url: http://127.0.0.1:18084
+    parameters:
+      TARGET_URL: http://127.0.0.1:18084
+      PAYLOAD_KB: "32"
   - target_profile_id: payload-jmeter-file-download
     display_name: Payload File Download via JMeter
     description: JMeter bounded fixture file download against payload-api.

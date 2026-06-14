@@ -6,9 +6,10 @@ This document now acts as a short bridge page for engine parity.
 
 - Exact k6↔JMeter parity is now tracked through `equivalent_profile_id` in `target-apps/task-templates/*.yaml`.
 - The full authoritative matrix lives in [p-loadtesting-target-profile-coverage.md](p-loadtesting-target-profile-coverage.md).
+- Machine-readable coverage metadata is exposed through `GET /api/tasks/templates/coverage/`.
 - The current strict totals are:
-  - `21` exact pair rows
-  - `1` strict non-parity profile
+  - `22` exact pair rows
+  - `0` strict non-parity profiles
 
 ## Exact Pairs At A Glance
 
@@ -18,7 +19,7 @@ This document now acts as a short bridge page for engine parity.
 | `latency-api` | 1 |
 | `error-api` | 1 |
 | `resource-api` | 1 |
-| `payload-api` | 4 |
+| `payload-api` | 5 |
 | `crud-api` | 1 |
 | `auth-flow-api` | 5 |
 | `sse-api` | 3 |
@@ -27,9 +28,7 @@ This document now acts as a short bridge page for engine parity.
 
 ## Remaining Gap
 
-| Profile ID | Status |
-|---|---|
-| `payload-jmeter-download` | retained generic JMeter shortcut without a strict k6 peer |
+No current strict profile-level parity gaps remain.
 
 ## Verification Notes
 

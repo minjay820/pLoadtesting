@@ -18,9 +18,9 @@ This directory contains JMeter plans for `pLoadtesting`, including the original 
 
 ## Coverage Notes
 
-- The current target catalog now has selective JMeter coverage for every target family.
-- The repo baseline is now: every current target family should have at least one `k6` and one `jmeter` sample asset.
-- Exact profile-to-profile pairing for current manifest-driven target profiles is tracked in `docs/v3/domains/p-loadtesting-target-profile-coverage.md`.
+- The current target catalog has JMeter coverage for every target family.
+- The repo baseline is now: every current target profile has exact k6/JMeter parity through reciprocal `equivalent_profile_id` metadata.
+- Exact profile-to-profile pairing for current manifest-driven target profiles is tracked in `docs/v3/domains/p-loadtesting-target-profile-coverage.md` and exported by `GET /api/tasks/templates/coverage/`.
 - `docs/v3/domains/p-loadtesting-engine-coverage-matrix.md` now serves as the short summary bridge page.
 - SSE and WebSocket plans do not require third-party JMeter websocket plugins in this repo phase; they use Groovy plus the Java 11 built-in HTTP and WebSocket clients.
 
@@ -157,6 +157,6 @@ docker run --rm \
 
 ## Limitations
 
-- JMeter coverage is currently selective correspondence coverage across the target catalog, not full profile-for-profile parity.
+- JMeter coverage is exact profile-for-profile parity for the current manifest-driven target catalog.
 - The JSR223 plans are intended for bounded smoke and functional validation, not for high-scale engine benchmarking against k6.
 - WebSocket, SSE, auth-heavy, and DB-heavy JMeter flows are demo-only and local-only; they must not be pointed at third-party systems.

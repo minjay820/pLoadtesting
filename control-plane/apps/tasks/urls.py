@@ -6,11 +6,12 @@ Tasks app 的路由設定。
 
 from django.urls import path
 
-from .views import TaskDetailView, TaskListCreateView, TaskTemplateListView
+from .views import TaskDetailView, TaskListCreateView, TaskTemplateCoverageView, TaskTemplateListView
 
 app_name = "tasks"
 
 urlpatterns = [
+    path("templates/coverage/", TaskTemplateCoverageView.as_view(), name="task-template-coverage"),
     path("templates/", TaskTemplateListView.as_view(), name="task-template-list"),
 
     # GET  /api/tasks/         — 列出所有任務

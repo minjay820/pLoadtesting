@@ -23,6 +23,7 @@ The dashboard should reduce manual API usage without changing the Control Plane 
 | Run creation | `GET /api/tasks/templates/`, `POST /api/tasks/` | Create tasks from manifest-driven target profiles |
 | Worker health | `GET /api/workers/` | Show worker online/offline state, active task count, and capabilities |
 | Target profile catalog | `GET /api/tasks/templates/` | Expose available target apps, profiles, engines, scripts, and parity metadata |
+| Coverage matrix | `GET /api/tasks/templates/coverage/` | Read machine-readable profile coverage status and target aggregates |
 | Result summary | nested task result | Show total requests, failure rate, response time percentiles, throughput, and thresholds |
 | Observability link | Grafana provisioned dashboards | Open deeper time-series metrics when available |
 
@@ -52,9 +53,12 @@ The future dashboard should use the external API v1 contract once implemented. U
 - `POST /api/tasks/`
 - `GET /api/tasks/{id}/`
 - `GET /api/tasks/templates/`
+- `GET /api/tasks/templates/coverage/`
 - `GET /api/workers/`
 
 Dashboard work should not rely on direct database access.
+
+The dashboard should use `GET /api/tasks/templates/coverage/` for coverage cards, parity filters, and target/profile counts instead of parsing Markdown coverage documents. `coverage_status=exact` indicates reciprocal k6/JMeter pairing, while `coverage_status=gap` indicates a profile that should be shown with a gap explanation from `coverage_gap`.
 
 ## Safety And Access
 

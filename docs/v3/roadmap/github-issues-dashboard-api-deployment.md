@@ -211,33 +211,35 @@ New contributors can find the active docs trunk, run local validations, and unde
 
 - Current docs/v3 governance.
 
-## Issue 7: Decide Whether To Backfill Generic Payload Shortcut Parity
+## Issue 7: Maintain Profile Coverage Metadata
 
 **Summary**
 
-Decide whether `payload-jmeter-download` should remain a documented generic shortcut or receive an exact k6 peer.
+Keep target profile coverage metadata accurate as new profiles are added or existing profiles change.
 
 **Problem / Use Case**
 
-The target profile coverage matrix has one strict non-parity profile by design.
+The dashboard and API consumers depend on reciprocal `equivalent_profile_id` metadata and the coverage export to avoid parsing Markdown matrices.
 
 **Proposed Solution**
 
-Keep the current gap documented unless the team wants every retained convenience profile to have exact k6/JMeter symmetry.
+Require every new current-catalog profile to either define exact reciprocal parity or explicitly document a gap through registry metadata and tests.
 
 **Expected Behavior**
 
-The coverage matrix remains explicit and auditable.
+The coverage matrix and machine-readable coverage export remain explicit and auditable.
 
 **Acceptance Criteria**
 
-- Decision is recorded in the target profile coverage doc or an ADR.
-- If backfilled, the new profile has reciprocal `equivalent_profile_id` metadata and tests.
-- If retained, the current low-priority gap remains documented.
+- New exact pairs have reciprocal `equivalent_profile_id` metadata.
+- Coverage summary counts in docs match template metadata.
+- `GET /api/tasks/templates/coverage/` reflects current exact and gap counts.
+- Dashboard consumers can show exact and gap states without Markdown parsing.
 
 **Validation**
 
 - `target-apps/tests/test_suite.py` parity validation passes.
+- Control Plane template coverage export tests pass.
 
 **Dependencies**
 

@@ -35,6 +35,7 @@ This project is a multi-engine load testing ecosystem:
 - `engines/k6/`: k6 JavaScript load test scripts.
 - `engines/jmeter/`: JMeter `.jmx` plans and report assets.
 - `docs/v3/domains/p-loadtesting-target-profile-coverage.md`: authoritative profile-level k6/JMeter parity matrix.
+- `GET /api/tasks/templates/coverage/`: machine-readable profile coverage export for dashboard and API consumers.
 - `docs/v3/domains/p-loadtesting-phase-completion.md`: current Phase 0-4 completion assessment.
 - `docs/v3/domains/p-loadtesting-web-dashboard.md`: future dashboard MVP plan.
 - `docs/v3/specs/external-api-v1.md`: future stable external API contract plan.

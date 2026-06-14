@@ -177,6 +177,7 @@ Examples:
 | `latency-api` | `latency-k6-delay` | k6 | reproducible delay behavior |
 | `error-api` | `error-k6-flaky` | k6 | deterministic flaky response validation |
 | `resource-api` | `resource-k6-cpu` | k6 | bounded CPU workload |
+| `payload-api` | `payload-k6-download` | k6 | payload download throughput |
 | `payload-api` | `payload-jmeter-download` | JMeter | payload download throughput |
 | `payload-api` | `payload-jmeter-file-download` | JMeter | bounded fixture file download |
 | `payload-api` | `payload-jmeter-file-roundtrip` | JMeter | manifest, bounded download, and upload roundtrip |

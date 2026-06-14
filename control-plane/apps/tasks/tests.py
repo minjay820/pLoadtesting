@@ -122,6 +122,7 @@ class TaskTemplateApiTests(TestCase):
         templates = response.json()["templates"]
         self.assertTrue(any(row["target_profile_id"] == "echo-k6-smoke" for row in templates))
         self.assertTrue(any(row["target_profile_id"] == "payload-jmeter-download" for row in templates))
+        self.assertTrue(any(row["target_profile_id"] == "payload-k6-download" for row in templates))
         self.assertTrue(any(row["target_profile_id"] == "payload-k6-file-download" for row in templates))
         self.assertTrue(any(row["target_profile_id"] == "payload-k6-archive-read-many" for row in templates))
         self.assertTrue(any(row["target_profile_id"] == "auth-k6-refresh-flow" for row in templates))
@@ -162,7 +163,49 @@ class TaskTemplateApiTests(TestCase):
             templates_by_profile["payload-k6-archive-read-many"]["equivalent_profile_id"],
             "payload-jmeter-archive-read-many",
         )
-        self.assertIsNone(templates_by_profile["payload-jmeter-download"]["equivalent_profile_id"])
+        self.assertEqual(
+            templates_by_profile["payload-jmeter-download"]["equivalent_profile_id"],
+            "payload-k6-download",
+        )
+        self.assertEqual(
+            templates_by_profile["payload-k6-download"]["equivalent_profile_id"],
+            "payload-jmeter-download",
+        )
+        self.assertEqual(templates_by_profile["payload-k6-download"]["coverage_status"], "exact")
+        self.assertEqual(templates_by_profile["payload-jmeter-download"]["coverage_status"], "exact")
+        self.assertEqual(templates_by_profile["payload-k6-download"]["coverage_group"], "payload.download")
+        self.assertIsNone(templates_by_profile["payload-k6-download"]["coverage_gap"])
+
+    def test_template_coverage_export(self):
+        response = self.client.get("/api/tasks/templates/coverage/")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(
+            payload["summary"],
+            {
+                "target_app_count": 10,
+                "profile_count": 44,
+                "k6_profile_count": 22,
+                "jmeter_profile_count": 22,
+                "exact_coverage_profile_count": 44,
+                "gap_profile_count": 0,
+            },
+        )
+        self.assertEqual(payload["gaps"], [])
+
+        profiles_by_id = {row["target_profile_id"]: row for row in payload["profiles"]}
+        self.assertEqual(profiles_by_id["payload-k6-download"]["coverage_status"], "exact")
+        self.assertEqual(profiles_by_id["payload-k6-download"]["coverage_group"], "payload.download")
+        self.assertEqual(profiles_by_id["payload-k6-download"]["equivalent_profile_id"], "payload-jmeter-download")
+        self.assertIsNone(profiles_by_id["payload-k6-download"]["coverage_gap"])
+
+        targets_by_id = {row["target_app_id"]: row for row in payload["targets"]}
+        self.assertEqual(targets_by_id["payload-api"]["profile_count"], 10)
+        self.assertEqual(targets_by_id["payload-api"]["k6_profile_count"], 5)
+        self.assertEqual(targets_by_id["payload-api"]["jmeter_profile_count"], 5)
+        self.assertEqual(targets_by_id["payload-api"]["gap_profile_count"], 0)
+        self.assertEqual(targets_by_id["payload-api"]["exact_coverage_profile_count"], 10)
 
     def test_create_task_from_template(self):
         response = self.client.post(
@@ -216,6 +259,35 @@ class TaskTemplateApiTests(TestCase):
         self.assertEqual(task.script_path, "engines/k6/target_apps_payload_file_flow.js")
         self.assertEqual(task.target_url, "http://127.0.0.1:18084")
         self.assertEqual(task.parameters["FILE_UPLOAD_MODE"], "1")
+
+    def test_create_payload_download_tasks_from_templates(self):
+        k6_response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "payload-api",
+                "target_profile_id": "payload-k6-download",
+            },
+            format="json",
+        )
+        jmeter_response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "payload-api",
+                "target_profile_id": "payload-jmeter-download",
+            },
+            format="json",
+        )
+
+        self.assertEqual(k6_response.status_code, 201)
+        self.assertEqual(jmeter_response.status_code, 201)
+        k6_task = LoadTestTask.objects.get(id=k6_response.json()["id"])
+        jmeter_task = LoadTestTask.objects.get(id=jmeter_response.json()["id"])
+        self.assertEqual(k6_task.engine, "k6")
+        self.assertEqual(k6_task.script_path, "engines/k6/target_apps_payload_download.js")
+        self.assertEqual(k6_task.parameters["PAYLOAD_KB"], "32")
+        self.assertEqual(jmeter_task.engine, "jmeter")
+        self.assertEqual(jmeter_task.script_path, "engines/jmeter/target_apps_payload_crud_plan.jmx")
+        self.assertEqual(jmeter_task.parameters["TARGET_PATH"], "/api/download")
 
     def test_create_payload_archive_task_from_template(self):
         response = self.client.post(
