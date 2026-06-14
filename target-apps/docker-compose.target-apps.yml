@@ -1,0 +1,105 @@
+services:
+  echo-api:
+    build:
+      context: ./target-apps
+      dockerfile: Dockerfile
+    environment:
+      TARGET_APP_MODULE: echo_api
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - "127.0.0.1:18080:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  latency-api:
+    build:
+      context: ./target-apps
+      dockerfile: Dockerfile
+    environment:
+      TARGET_APP_MODULE: latency_api
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - "127.0.0.1:18081:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  error-api:
+    build:
+      context: ./target-apps
+      dockerfile: Dockerfile
+    environment:
+      TARGET_APP_MODULE: error_api
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - "127.0.0.1:18082:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  resource-api:
+    build:
+      context: ./target-apps
+      dockerfile: Dockerfile
+    environment:
+      TARGET_APP_MODULE: resource_api
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - "127.0.0.1:18083:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  payload-api:
+    build:
+      context: ./target-apps
+      dockerfile: Dockerfile
+    environment:
+      TARGET_APP_MODULE: payload_api
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - "127.0.0.1:18084:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  crud-api:
+    build:
+      context: ./target-apps
+      dockerfile: Dockerfile
+    environment:
+      TARGET_APP_MODULE: crud_api
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - "127.0.0.1:18085:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  auth-flow-api:
+    build:
+      context: ./target-apps
+      dockerfile: Dockerfile
+    environment:
+      TARGET_APP_MODULE: auth_flow_api
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - "127.0.0.1:18086:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3

@@ -1,0 +1,21 @@
+target_app_id: latency-api
+display_name: Latency API
+runtime: python-fastapi
+protocol: http-rest
+base_url: http://127.0.0.1:18081
+workload_types:
+  - latency
+  - timeout
+endpoints:
+  - path: /health
+    method: GET
+  - path: /api/delay/{ms}
+    method: GET
+  - path: /api/timeout-simulation
+    method: GET
+safe_limits:
+  max_delay_ms: 5000
+  timeout_threshold_ms: 2000
+default_profile: latency
+notes: Returns 504 for timeout-style simulation instead of sleeping indefinitely.
+

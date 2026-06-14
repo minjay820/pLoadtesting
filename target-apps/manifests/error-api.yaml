@@ -1,0 +1,26 @@
+target_app_id: error-api
+display_name: Error API
+runtime: python-fastapi
+protocol: http-rest
+base_url: http://127.0.0.1:18082
+workload_types:
+  - error
+  - flaky
+  - rate-limit
+endpoints:
+  - path: /health
+    method: GET
+  - path: /api/status/{code}
+    method: GET
+  - path: /api/flaky
+    method: GET
+  - path: /api/rate-limit
+    method: GET
+safe_limits:
+  flaky_rate_range:
+    min: 0.0
+    max: 1.0
+  retry_after_max_seconds: 60
+default_profile: error
+notes: Deterministic mode is available for CI-stable flaky responses.
+

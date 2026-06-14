@@ -27,10 +27,12 @@ jobs:
         python -m pip install --upgrade pip
         if [ -f target-app/requirements.txt ]; then pip install -r target-app/requirements.txt; fi
         if [ -f target-app/requirements-dev.txt ]; then pip install -r target-app/requirements-dev.txt; fi
+        if [ -f target-apps/requirements.txt ]; then pip install -r target-apps/requirements.txt; fi
+        if [ -f target-apps/requirements-dev.txt ]; then pip install -r target-apps/requirements-dev.txt; fi
 
     - name: Run pytest
       run: |
-        pytest target-app/ -v
+        pytest target-app/ target-apps/tests -v
 
   # ── Job 2: Control Plane Tests ─────────────────────────────────────────────
   test-control-plane:

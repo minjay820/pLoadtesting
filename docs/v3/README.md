@@ -28,6 +28,7 @@ Before any substantive change, read this file first, then follow only the direct
 This project is a multi-engine load testing ecosystem:
 
 - `target-app/`: FastAPI reference target service.
+- `target-apps/`: diversified local target app suite for controlled scenario coverage.
 - `control-plane/`: Django 5, Django REST Framework, Celery, Redis, and SQLite MVP orchestration layer.
 - `workers/`: FastAPI worker agent for k6 and JMeter execution.
 - `engines/k6/`: k6 JavaScript load test scripts.

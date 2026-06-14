@@ -60,7 +60,8 @@
 ```
 pLoadtesting/
 │
-├── target-app/               # Reference API server used as a load testing target
+├── target-app/               # Original reference API server used as a load testing target
+├── target-apps/              # Diversified local target app suite with manifests and compose
 ├── engines/                  # Load testing scripts and scenario assets
 │   ├── k6/                   # k6 test scripts (smoke, stress_cpu, stress_io, stress_data)
 │   ├── jmeter/               # JMeter test plans (.jmx)
@@ -100,6 +101,18 @@ A standardized, deployable reference target API service.
 | `GET /api/cpu-bound?n=1000000` | Scenario | Float-multiply loop simulating CPU-bound work (~100ms) |
 | `GET /api/io-bound?delay=2.0` | Scenario | Non-blocking async sleep simulating I/O wait |
 | `POST /api/data` | Scenario | Accepts body, returns 100 generated items (~8-12 KB payload) |
+
+### 🎯 target-apps/
+
+A diversified local target suite for broader HTTP/REST workload coverage.
+
+| Item | Details |
+|---|---|
+| Purpose | Loopback-only local targets for CI and internal validation |
+| Compose | `docker compose -f target-apps/docker-compose.target-apps.yml up --build -d` |
+| Catalog | `echo-api`, `latency-api`, `error-api`, `resource-api`, `payload-api`, `crud-api`, `auth-flow-api` |
+| Manifests | `target-apps/manifests/*.yaml` |
+| Runbook | `docs/v3/runbooks/target-app-local-runbook.md` |
 
 ---
 

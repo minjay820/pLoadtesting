@@ -5,6 +5,7 @@ This area is for stable domain explanations: system concepts, business or produc
 ## Current Active Domain Documents
 
 - [pLoadtesting system overview](p-loadtesting-system-overview.md)
+- [pLoadtesting target apps](p-loadtesting-target-apps.md)
 
 ## Likely Future Domain Topics
 

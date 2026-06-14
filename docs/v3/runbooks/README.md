@@ -6,6 +6,7 @@ This area is for operator-facing procedures, validation flows, troubleshooting g
 
 - [CI Control Plane diagnostics](ci-control-plane-diagnostics.md)
 - [JMeter observability validation](jmeter-observability-validation.md)
+- [Target app local runbook](target-app-local-runbook.md)
 
 ## Likely Future Runbooks
 

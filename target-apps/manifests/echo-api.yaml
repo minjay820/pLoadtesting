@@ -1,0 +1,23 @@
+target_app_id: echo-api
+display_name: Echo API
+runtime: python-fastapi
+protocol: http-rest
+base_url: http://127.0.0.1:18080
+workload_types:
+  - baseline
+  - echo
+  - payload-small
+endpoints:
+  - path: /health
+    method: GET
+  - path: /api/echo
+    method: GET
+  - path: /api/echo
+    method: POST
+safe_limits:
+  max_message_chars: 4096
+  max_repeat: 8
+  max_expanded_chars: 32768
+default_profile: smoke
+notes: For local, CI, and authorized internal testing only.
+

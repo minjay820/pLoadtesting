@@ -1,0 +1,25 @@
+target_app_id: resource-api
+display_name: Resource API
+runtime: python-fastapi
+protocol: http-rest
+base_url: http://127.0.0.1:18083
+workload_types:
+  - cpu-bound
+  - memory-bound
+  - io-bound
+endpoints:
+  - path: /health
+    method: GET
+  - path: /api/cpu
+    method: GET
+  - path: /api/memory
+    method: GET
+  - path: /api/io
+    method: GET
+safe_limits:
+  max_cpu_iterations: 2000000
+  max_memory_mb: 64
+  max_io_kb: 1024
+default_profile: resource
+notes: Safe limits are tuned for laptop and CI usage.
+

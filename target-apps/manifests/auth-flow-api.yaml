@@ -1,0 +1,25 @@
+target_app_id: auth-flow-api
+display_name: Auth Flow API
+runtime: python-fastapi
+protocol: http-rest
+base_url: http://127.0.0.1:18086
+workload_types:
+  - auth-like
+  - scenario-flow
+endpoints:
+  - path: /health
+    method: GET
+  - path: /api/login
+    method: POST
+  - path: /api/profile
+    method: GET
+  - path: /api/checkout
+    method: POST
+  - path: /api/orders/{id}
+    method: GET
+safe_limits:
+  max_quantity: 10
+  credential_mode: demo-only
+default_profile: scenario
+notes: Demo credentials only; not suitable for real identity or secret handling.
+

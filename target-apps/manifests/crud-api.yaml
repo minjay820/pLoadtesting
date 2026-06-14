@@ -1,0 +1,23 @@
+target_app_id: crud-api
+display_name: CRUD API
+runtime: python-fastapi
+protocol: http-rest
+base_url: http://127.0.0.1:18085
+workload_types:
+  - crud
+  - db-like
+endpoints:
+  - path: /health
+    method: GET
+  - path: /api/items
+    method: GET
+  - path: /api/items
+    method: POST
+  - path: /api/items/{id}
+    method: GET
+safe_limits:
+  storage_mode: in-memory
+  max_value: 1000000
+default_profile: crud
+notes: Uses in-memory state for low-cost CI friendliness.
+

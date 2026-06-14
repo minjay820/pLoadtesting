@@ -6,9 +6,10 @@ This document consolidates the current system functional requirements and the li
 
 pLoadtesting is a multi-engine load-testing ecosystem for running repeatable tests against an authorized target service, collecting execution results, and surfacing them through operational APIs and observability tools.
 
-The current implementation centers on four cooperating parts:
+The current implementation centers on five cooperating parts:
 
 - a reference target application that exposes predictable load scenarios
+- a diversified local target app suite for broader workload coverage
 - a Control Plane that tracks workers, tasks, and results
 - Worker Agents that execute k6 or JMeter workloads
 - observability and CI layers that make the system repeatable and inspectable
@@ -17,12 +18,21 @@ The current implementation centers on four cooperating parts:
 
 ### Load Target
 
-The target application must provide stable endpoints that generate different kinds of load:
+The target application layer must provide stable endpoints that generate different kinds of load:
 
 - `GET /api/health` for readiness and smoke checks
 - `GET /api/cpu-bound` for CPU-intensive behavior
 - `GET /api/io-bound` for async wait / I-O-like behavior
 - `POST /api/data` for larger JSON serialization and payload handling
+
+The new `target-apps/` suite expands that coverage with separate local targets for:
+
+- baseline and echo behavior
+- latency and timeout simulation
+- error, flaky, and 429 responses
+- bounded upload and download payload tests
+- bounded CPU, memory, and disk I-O pressure
+- CRUD, auth-like, and scenario-style business flows
 
 These endpoints exist so the engines can exercise distinct performance shapes in a controlled way.
 
@@ -112,7 +122,8 @@ flowchart LR
 
 | Component | Responsibility |
 |---|---|
-| Target App | Provides deterministic CPU, I/O, and JSON response scenarios for load generation. |
+| Target App | Preserves the original single-app FastAPI target used by the current k6 and JMeter examples. |
+| Target App Suite | Adds diversified local targets with manifests, safe limits, and deterministic replay for broader coverage. |
 | Control Plane | Owns worker registry, task lifecycle, result persistence, and API access control. |
 | Worker Agent | Registers with the Control Plane, maintains heartbeat, runs the selected engine, and returns results. |
 | Redis | Backing queue for Celery task coordination. |
@@ -156,3 +167,5 @@ This overview was synthesized from the current repository code and existing docu
 - `control-plane/apps/*/views.py`
 - `workers/agent.py`
 - `target-app/main.py`
+- `target-apps/README.md`
+- `target-apps/apps/*.py`
