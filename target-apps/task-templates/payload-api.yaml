@@ -13,4 +13,26 @@ profiles:
       TARGET_PATH: /api/download
       TARGET_METHOD: GET
       TARGET_QUERY: kb=32
-
+  - target_profile_id: payload-k6-file-download
+    display_name: Payload File Download via k6
+    description: Bounded file-like download against payload-api with deterministic fixture bytes.
+    engine: k6
+    script_path: engines/k6/target_apps_payload_file_flow.js
+    target_url: http://127.0.0.1:18084
+    parameters:
+      TARGET_URL: http://127.0.0.1:18084
+      FILE_ENDPOINT_PATH: /api/files/fixture-1
+      FILE_KB: "32"
+      FILE_DISPOSITION: attachment
+  - target_profile_id: payload-k6-file-roundtrip
+    display_name: Payload File Roundtrip via k6
+    description: Manifest, download, and bounded binary upload flow against payload-api.
+    engine: k6
+    script_path: engines/k6/target_apps_payload_file_flow.js
+    target_url: http://127.0.0.1:18084
+    parameters:
+      TARGET_URL: http://127.0.0.1:18084
+      FILE_ENDPOINT_PATH: /api/files/fixture-2
+      FILE_KB: "24"
+      FILE_DISPOSITION: attachment
+      FILE_UPLOAD_MODE: "1"

@@ -7,6 +7,7 @@ workload_types:
   - payload-size
   - upload
   - download
+  - file-heavy
 endpoints:
   - path: /health
     method: GET
@@ -14,9 +15,16 @@ endpoints:
     method: GET
   - path: /api/upload
     method: POST
+  - path: /api/files/manifest
+    method: GET
+  - path: /api/files/{file_id}
+    method: GET
+  - path: /api/files/upload
+    method: POST
 safe_limits:
   max_download_kb: 512
   max_upload_bytes: 262144
+  max_file_kb: 256
+  max_file_manifest_count: 20
 default_profile: payload
-notes: Deterministic filler content avoids third-party dependencies and nondeterministic blobs.
-
+notes: Deterministic payload and file-like fixture content avoids third-party dependencies and nondeterministic blobs.

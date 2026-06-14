@@ -6,10 +6,16 @@ base_url: http://127.0.0.1:18086
 workload_types:
   - auth-like
   - scenario-flow
+  - auth-heavy
+  - refresh
+  - expiry
+  - failure-branches
 endpoints:
   - path: /health
     method: GET
   - path: /api/login
+    method: POST
+  - path: /api/refresh
     method: POST
   - path: /api/profile
     method: GET
@@ -17,9 +23,12 @@ endpoints:
     method: POST
   - path: /api/orders/{id}
     method: GET
+  - path: /api/logout
+    method: POST
 safe_limits:
   max_quantity: 10
+  max_access_token_uses: 5
+  max_refresh_uses: 3
   credential_mode: demo-only
 default_profile: scenario
-notes: Demo credentials only; not suitable for real identity or secret handling.
-
+notes: Demo credentials only; includes bounded refresh, expiry, and logout branches without any real identity or secret handling.

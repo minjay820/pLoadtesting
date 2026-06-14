@@ -49,6 +49,8 @@ curl "http://127.0.0.1:18081/api/delay/250"
 curl "http://127.0.0.1:18082/api/flaky?rate=1&deterministic=true&request_key=ci"
 curl "http://127.0.0.1:18083/api/cpu?iterations=250000"
 curl "http://127.0.0.1:18084/api/download?kb=32"
+curl http://127.0.0.1:18084/api/files/manifest?count=2\&kb_per_file=8
+curl http://127.0.0.1:18084/api/files/fixture-1?kb=8 -o /tmp/fixture-1.bin
 curl -X POST http://127.0.0.1:18085/api/items -H "Content-Type: application/json" -d '{"name":"demo","value":1}'
 curl -X POST http://127.0.0.1:18086/api/login -H "Content-Type: application/json" -d '{"username":"alice","password":"demo-password"}'
 curl -N "http://127.0.0.1:18087/api/events?count=3&interval_ms=10"
@@ -70,6 +72,7 @@ The script:
 - boots the compose stack
 - retries `/health` checks with bounded waits
 - calls one representative endpoint per target app
+- exercises file-heavy and auth-heavy branches for `payload-api` and `auth-flow-api`
 - includes a bounded in-container WebSocket runtime probe for `ws-api`
 - dumps `docker compose ps` and logs on failure
 - always runs cleanup on exit
@@ -142,6 +145,20 @@ k6 run -e TARGET_URL=http://127.0.0.1:18089 engines/k6/target_apps_db_crud_flow.
 k6 run -e TARGET_URL=http://127.0.0.1:18089 engines/k6/target_apps_db_list_filter.js
 ```
 
+Payload file-heavy samples:
+
+```bash
+k6 run -e TARGET_URL=http://127.0.0.1:18084 engines/k6/target_apps_payload_file_flow.js
+k6 run -e TARGET_URL=http://127.0.0.1:18084 -e FILE_UPLOAD_MODE=1 engines/k6/target_apps_payload_file_flow.js
+```
+
+Auth-heavy refresh and failure samples:
+
+```bash
+k6 run -e TARGET_URL=http://127.0.0.1:18086 engines/k6/target_apps_auth_refresh_flow.js
+k6 run -e TARGET_URL=http://127.0.0.1:18086 -e ASSERT_FAILURE_BRANCHES=1 engines/k6/target_apps_auth_refresh_flow.js
+```
+
 JMeter SSE, WebSocket, and SQLite-heavy sample plans are intentionally deferred for now because the current repo priorities favor low-cost, deterministic validation paths. The bounded k6 scripts cover these transports and flows with less CI and tooling risk.
 
 Optional overrides are still allowed:
@@ -174,8 +191,9 @@ docker compose -f target-apps/docker-compose.target-apps.yml down
 - `error-api`: flaky rate limited to `0.0` through `1.0`
 - `resource-api`: CPU `2,000,000` iterations, memory `64MB`, I-O `1024KB`
 - `payload-api`: download `512KB`, upload `262144` bytes
+- `payload-api`: file fixture `256KB`, file manifest count `20`, deterministic in-memory file bytes only
 - `crud-api`: in-memory only
-- `auth-flow-api`: demo-only credentials and bounded checkout quantity
+- `auth-flow-api`: demo-only credentials, checkout quantity `10`, access-token uses `5`, refresh uses `3`
 - `sse-api`: `count <= 100`, `steps <= 100`, `progress-heavy steps <= 60`, `interval_ms <= 5000`, no infinite streaming
 - `ws-api`: message size `1024` bytes, `10` messages per connection, `20` connections per process, room size `5`, idle timeout `5s`
 - `db-api`: page size `50`, total rows `500`, deterministic SQLite seed rows, no external database dependency
@@ -192,6 +210,7 @@ If a request exceeds a safe limit, the app should return `422`.
   - `python manage.py check`
   - `python manage.py test apps/ --verbosity=2`
 - WebSocket representative runtime behavior is covered in the Docker smoke script instead of the always-on pytest path.
+- File-heavy and auth-heavy representative flows are also covered in pytest and the Docker smoke script.
 
 ## Troubleshooting
 

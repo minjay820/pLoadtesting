@@ -122,6 +122,9 @@ class TaskTemplateApiTests(TestCase):
         templates = response.json()["templates"]
         self.assertTrue(any(row["target_profile_id"] == "echo-k6-smoke" for row in templates))
         self.assertTrue(any(row["target_profile_id"] == "payload-jmeter-download" for row in templates))
+        self.assertTrue(any(row["target_profile_id"] == "payload-k6-file-download" for row in templates))
+        self.assertTrue(any(row["target_profile_id"] == "auth-k6-refresh-flow" for row in templates))
+        self.assertTrue(any(row["target_profile_id"] == "auth-k6-failure-branches" for row in templates))
         self.assertTrue(any(row["target_app_id"] == "sse-api" for row in templates))
         self.assertTrue(any(row["target_profile_id"] == "sse-k6-progress-heavy" for row in templates))
         self.assertTrue(any(row["target_app_id"] == "ws-api" for row in templates))
@@ -146,6 +149,23 @@ class TaskTemplateApiTests(TestCase):
         self.assertEqual(task.target_url, "http://127.0.0.1:18080")
         self.assertEqual(task.parameters["TARGET_URL"], "http://127.0.0.1:18080")
         self.assertEqual(task.parameters["target_url"], "http://127.0.0.1:18080")
+
+    def test_create_payload_file_task_from_template(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "payload-api",
+                "target_profile_id": "payload-k6-file-roundtrip",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.engine, "k6")
+        self.assertEqual(task.script_path, "engines/k6/target_apps_payload_file_flow.js")
+        self.assertEqual(task.target_url, "http://127.0.0.1:18084")
+        self.assertEqual(task.parameters["FILE_UPLOAD_MODE"], "1")
 
     def test_create_task_from_template_with_overrides(self):
         response = self.client.post(
@@ -282,3 +302,37 @@ class TaskTemplateApiTests(TestCase):
         self.assertEqual(task.script_path, "engines/k6/target_apps_db_list_filter.js")
         self.assertEqual(task.target_url, "http://127.0.0.1:18089")
         self.assertEqual(task.parameters["DB_LIST_CATEGORY"], "sales")
+
+    def test_create_auth_refresh_task_from_template(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "auth-flow-api",
+                "target_profile_id": "auth-k6-refresh-flow",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.engine, "k6")
+        self.assertEqual(task.script_path, "engines/k6/target_apps_auth_refresh_flow.js")
+        self.assertEqual(task.target_url, "http://127.0.0.1:18086")
+        self.assertEqual(task.parameters["ACCESS_TOKEN_USES"], "1")
+
+    def test_create_auth_failure_task_from_template(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "auth-flow-api",
+                "target_profile_id": "auth-k6-failure-branches",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.engine, "k6")
+        self.assertEqual(task.script_path, "engines/k6/target_apps_auth_refresh_flow.js")
+        self.assertEqual(task.target_url, "http://127.0.0.1:18086")
+        self.assertEqual(task.parameters["ASSERT_FAILURE_BRANCHES"], "1")

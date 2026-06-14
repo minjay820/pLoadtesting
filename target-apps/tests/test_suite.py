@@ -86,6 +86,9 @@ def test_delay_error_payload_and_resource_limits():
     assert payload_client.get("/api/download?kb=600").status_code == 422
     oversized_body = "x" * (262_144 + 1)
     assert payload_client.post("/api/upload", content=oversized_body).status_code == 422
+    assert payload_client.get("/api/files/manifest?count=21").status_code == 422
+    assert payload_client.get("/api/files/fixture-1?kb=257").status_code == 422
+    assert payload_client.post("/api/files/upload?filename=demo.bin", content=b"x" * (262_144 + 1)).status_code == 422
 
     resource_client = TestClient(import_module("resource_api").app)
     assert resource_client.get("/api/cpu?iterations=3000000").status_code == 422
@@ -106,13 +109,43 @@ def test_crud_and_auth_flow_workloads():
     assert crud_client.get(f"/api/items/{item_id}").status_code == 200
 
     auth_client = TestClient(import_module("auth_flow_api").app)
-    login = auth_client.post("/api/login", json={"username": "alice", "password": "demo-password"})
+    login = auth_client.post(
+        "/api/login",
+        json={"username": "alice", "password": "demo-password", "access_token_uses": 2, "refresh_uses": 2},
+    )
     assert login.status_code == 200
     token = login.json()["access_token"]
+    refresh_token = login.json()["refresh_token"]
     headers = {"Authorization": f"Bearer {token}"}
     assert auth_client.get("/api/profile", headers=headers).status_code == 200
     checkout = auth_client.post("/api/checkout", json={"sku": "sku-1", "quantity": 2}, headers=headers)
     assert checkout.status_code == 200
+    expired = auth_client.get("/api/profile", headers=headers)
+    assert expired.status_code == 401
+    refreshed = auth_client.post("/api/refresh", json={"refresh_token": refresh_token, "access_token_uses": 2})
+    assert refreshed.status_code == 200
+    refreshed_token = refreshed.json()["access_token"]
+    refreshed_headers = {"Authorization": f"Bearer {refreshed_token}"}
+    assert auth_client.get("/api/profile", headers=refreshed_headers).status_code == 200
+    assert auth_client.post("/api/logout", headers=refreshed_headers).status_code == 200
+    assert auth_client.get("/api/profile", headers=refreshed_headers).status_code == 401
+    assert auth_client.post("/api/login", json={"username": "alice", "password": "bad-password"}).status_code == 401
+
+    payload_client = TestClient(import_module("payload_api").app)
+    manifest = payload_client.get("/api/files/manifest?count=2&kb_per_file=8")
+    assert manifest.status_code == 200
+    assert manifest.json()["count"] == 2
+    file_download = payload_client.get("/api/files/fixture-1?kb=8")
+    assert file_download.status_code == 200
+    assert file_download.headers["content-type"] == "application/octet-stream"
+    assert "attachment;" in file_download.headers["content-disposition"]
+    file_upload = payload_client.post(
+        "/api/files/upload?filename=fixture-1.bin",
+        content=file_download.content,
+        headers={"Content-Type": "application/octet-stream"},
+    )
+    assert file_upload.status_code == 200
+    assert file_upload.json()["received_bytes"] == 8 * 1024
 
     sse_client = TestClient(import_module("sse_api").app)
     response = sse_client.get("/api/ticker?count=3&interval_ms=0&deterministic=true")

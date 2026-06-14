@@ -10,9 +10,9 @@ This directory contains a diversified local target suite for pLoadtesting. These
 | `latency-api` | `18081` | latency / timeout |
 | `error-api` | `18082` | error / flaky / 429 |
 | `resource-api` | `18083` | CPU-bound / memory-bound / I-O-bound |
-| `payload-api` | `18084` | payload size / upload / download |
+| `payload-api` | `18084` | payload size / upload / download / file-heavy |
 | `crud-api` | `18085` | CRUD / DB-like workload |
-| `auth-flow-api` | `18086` | auth-like workload / scenario-style business flow |
+| `auth-flow-api` | `18086` | auth-like workload / auth-heavy refresh / expiry / failure |
 | `sse-api` | `18087` | SSE / streaming / progress |
 | `ws-api` | `18088` | WebSocket echo / broadcast |
 | `db-api` | `18089` | SQLite DB-heavy / CRUD / list-filter |
@@ -36,6 +36,8 @@ curl http://127.0.0.1:18080/health
 curl "http://127.0.0.1:18081/api/delay/250"
 curl "http://127.0.0.1:18082/api/flaky?rate=0.5&deterministic=true&request_key=ci"
 curl "http://127.0.0.1:18084/api/download?kb=32"
+curl http://127.0.0.1:18084/api/files/manifest?count=2&kb_per_file=8
+curl http://127.0.0.1:18084/api/files/fixture-1?kb=8 -o /tmp/fixture-1.bin
 curl -N "http://127.0.0.1:18087/api/progress-heavy?steps=6&interval_ms=10"
 curl http://127.0.0.1:18089/api/records?category=sales&limit=5
 docker compose -f target-apps/docker-compose.target-apps.yml down
@@ -66,3 +68,5 @@ curl http://127.0.0.1:18089/health
 - `sse-api` includes a bounded `progress-heavy` profile for denser step metadata without unbounded stream size.
 - `ws-api` exposes bounded `WS /ws/echo` and `WS /ws/broadcast/{room}` flows only.
 - `db-api` uses disposable SQLite state inside the app container and auto-seeds a small deterministic dataset.
+- `payload-api` now includes bounded file-like manifest, binary download, and binary upload endpoints for file-heavy smoke paths.
+- `auth-flow-api` now includes bounded refresh, expiry, invalid-credential, and logout branches without any real identity provider or secret.

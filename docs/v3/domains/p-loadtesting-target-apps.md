@@ -10,9 +10,11 @@ The original repository shipped one reference FastAPI target with a small set of
 - deterministic latency and timeout-style responses
 - status-code, flaky, and 429 handling
 - upload and download payload size stress
+- bounded file-heavy manifest, binary download, and binary upload flows
 - CPU, memory, and disk I/O pressure
 - CRUD and DB-like request patterns
 - auth-like session handling
+- bounded auth-heavy refresh, expiry, logout, and failure branches
 - scenario-style business flows
 - finite streaming via Server-Sent Events
 - bounded WebSocket connection-lifecycle validation
@@ -36,9 +38,9 @@ The `target-apps/` suite addresses that gap without changing the core Control Pl
 | `latency-api` | `http://127.0.0.1:18081` | latency / timeout | Caps delay at 5 seconds and converts timeout simulation into explicit 504 responses |
 | `error-api` | `http://127.0.0.1:18082` | error / flaky / 429 | Supports deterministic flaky mode for CI |
 | `resource-api` | `http://127.0.0.1:18083` | CPU-bound / memory-bound / I-O-bound | Uses bounded synthetic work only |
-| `payload-api` | `http://127.0.0.1:18084` | payload size / upload / download | Uses deterministic filler payloads instead of external files |
+| `payload-api` | `http://127.0.0.1:18084` | payload size / upload / download / file-heavy | Uses deterministic filler payloads and file-like fixture bytes instead of external files |
 | `crud-api` | `http://127.0.0.1:18085` | CRUD / DB-like workload | Uses in-memory state for low-cost reproducibility |
-| `auth-flow-api` | `http://127.0.0.1:18086` | auth-like / scenario-style business flow | Demo-only bearer token workflow |
+| `auth-flow-api` | `http://127.0.0.1:18086` | auth-like / auth-heavy / scenario-style business flow | Demo-only bearer token plus bounded refresh, expiry, and logout branches |
 | `sse-api` | `http://127.0.0.1:18087` | SSE / streaming / progress | Finite `text/event-stream` responses only, including progress-heavy profile |
 | `ws-api` | `http://127.0.0.1:18088` | WebSocket echo / broadcast | Strict caps on connections, room size, message size, and per-connection messages |
 | `db-api` | `http://127.0.0.1:18089` | DB-heavy / CRUD / list-filter | SQLite-backed disposable dataset with deterministic seed rows |
@@ -76,6 +78,9 @@ The `target-apps/` suite addresses that gap without changing the core Control Pl
 - `GET /health`
 - `GET /api/download?kb=...`
 - `POST /api/upload`
+- `GET /api/files/manifest?count=...&kb_per_file=...`
+- `GET /api/files/{file_id}?kb=...`
+- `POST /api/files/upload`
 
 ### crud-api
 
@@ -88,9 +93,11 @@ The `target-apps/` suite addresses that gap without changing the core Control Pl
 
 - `GET /health`
 - `POST /api/login`
+- `POST /api/refresh`
 - `GET /api/profile`
 - `POST /api/checkout`
 - `GET /api/orders/{id}`
+- `POST /api/logout`
 
 ### sse-api
 
@@ -154,8 +161,12 @@ Examples:
 | `error-api` | `error-k6-flaky` | k6 | deterministic flaky response validation |
 | `resource-api` | `resource-k6-cpu` | k6 | bounded CPU workload |
 | `payload-api` | `payload-jmeter-download` | JMeter | payload download throughput |
+| `payload-api` | `payload-k6-file-download` | k6 | bounded file-like download |
+| `payload-api` | `payload-k6-file-roundtrip` | k6 | bounded manifest, download, and upload roundtrip |
 | `crud-api` | `crud-k6-flow` | k6 | create-and-fetch flow |
 | `auth-flow-api` | `auth-k6-checkout` | k6 | login and checkout business flow |
+| `auth-flow-api` | `auth-k6-refresh-flow` | k6 | expiry, refresh, and logout flow |
+| `auth-flow-api` | `auth-k6-failure-branches` | k6 | invalid credential, expiry, and revoked token checks |
 | `sse-api` | `sse-k6-smoke` | k6 | bounded SSE smoke stream |
 | `sse-api` | `sse-k6-ticker` | k6 | bounded SSE ticker stream |
 | `sse-api` | `sse-k6-progress-heavy` | k6 | richer bounded progress stream |
@@ -218,6 +229,22 @@ The first streaming target intentionally stays narrow:
 - deterministic startup seed rows only
 - no external database service, no cross-run persistence requirement
 
+## File-Heavy Safety Limits
+
+- `max_download_kb = 512`
+- `max_upload_bytes = 262144`
+- `max_file_kb = 256`
+- `max_file_manifest_count = 20`
+- deterministic file bytes only; no host filesystem reads
+
+## Auth-Heavy Safety Limits
+
+- demo-only password mode
+- `max_quantity = 10`
+- `max_access_token_uses = 5`
+- `max_refresh_uses = 3`
+- no real identity provider, no external secret exchange, no cookie/session dependency
+
 ## Future Extensions
 
 Future work may add the following, with the current evaluation posture:
@@ -228,7 +255,7 @@ Future work may add the following, with the current evaluation posture:
 | gRPC | Useful for protocol coverage, but adds tooling/runtime complexity to CI | Defer until there is a real gRPC consumer requirement |
 | SSE | Implemented first because it is finite, HTTP-native, and cheap to validate | Expand through richer bounded profiles such as progress-heavy before larger payload experiments |
 | DB-heavy | Implemented with SQLite-backed bounded write/read and list/filter coverage | Revisit heavier joins, seed control, or file-backed artifacts only if current target proves insufficient |
-| file-heavy | Valuable for upload/download and local artifact churn | Add bounded fixture packs and strict size caps |
-| auth-heavy | Valuable, but easy to drift into secret-like behavior | Extend demo-only auth-flow with refresh/expiry branches, still no real secrets |
+| file-heavy | Implemented by extending `payload-api` with bounded manifest, binary download, and binary upload flows | Expand only if current fixture-style bytes are insufficient for worker or artifact testing |
+| auth-heavy | Implemented by extending `auth-flow-api` with refresh, expiry, logout, and failure branches | Revisit cookie/session or MFA-like flows only if they can stay fully demo-only and deterministic |
 
-gRPC remains deferred because it would add additional protocol tooling and CI surface area without an immediate repo-driven use case. File-heavy and deeper auth-heavy targets remain deferred until the new WebSocket and SQLite targets prove stable.
+gRPC remains deferred because it would add additional protocol tooling and CI surface area without an immediate repo-driven use case. Deeper file-heavy and auth-heavy expansions should stay bounded, demo-only, and local-first.

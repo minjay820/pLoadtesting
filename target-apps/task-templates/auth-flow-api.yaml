@@ -12,4 +12,28 @@ profiles:
       DEMO_PASSWORD: demo-password
       DEMO_SKU: sku-1
       DEMO_QUANTITY: "1"
-
+  - target_profile_id: auth-k6-refresh-flow
+    display_name: Auth Refresh Flow via k6
+    description: Bounded login, expiry, refresh, and logout flow against auth-flow-api.
+    engine: k6
+    script_path: engines/k6/target_apps_auth_refresh_flow.js
+    target_url: http://127.0.0.1:18086
+    parameters:
+      TARGET_URL: http://127.0.0.1:18086
+      DEMO_USERNAME: alice
+      DEMO_PASSWORD: demo-password
+      ACCESS_TOKEN_USES: "1"
+      REFRESH_USES: "2"
+  - target_profile_id: auth-k6-failure-branches
+    display_name: Auth Failure Branches via k6
+    description: Invalid credential, expired token, and revoked token checks against auth-flow-api.
+    engine: k6
+    script_path: engines/k6/target_apps_auth_refresh_flow.js
+    target_url: http://127.0.0.1:18086
+    parameters:
+      TARGET_URL: http://127.0.0.1:18086
+      DEMO_USERNAME: alice
+      DEMO_PASSWORD: demo-password
+      ACCESS_TOKEN_USES: "1"
+      REFRESH_USES: "1"
+      ASSERT_FAILURE_BRANCHES: "1"
