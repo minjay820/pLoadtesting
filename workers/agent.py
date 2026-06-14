@@ -16,7 +16,7 @@ import uvicorn
 
 # ── InfluxDB v2 Client（可選，僅在環境變數存在時啟用）───────────────────────
 try:
-    from influxdb_client import InfluxDBClient, Point, WritePrecision
+    from influxdb_client import InfluxDBClient, Point
     from influxdb_client.client.write_api import SYNCHRONOUS
     _INFLUXDB_AVAILABLE = True
 except ImportError:

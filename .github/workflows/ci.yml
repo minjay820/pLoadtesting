@@ -52,6 +52,17 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r control-plane/requirements.txt
 
+    - name: Collect Control Plane diagnostics
+      run: |
+        cd control-plane
+        python --version
+        python -m pip --version
+        python -m pip freeze | sort
+        python manage.py check
+      env:
+        DJANGO_SETTINGS_MODULE: config.settings.development
+        PLOADTESTING_API_TOKEN: ci-test-token
+
     - name: Run Django tests
       run: |
         cd control-plane
