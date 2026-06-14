@@ -1,0 +1,25 @@
+target_app_id: sse-api
+profiles:
+  - target_profile_id: sse-k6-smoke
+    display_name: SSE Smoke via k6
+    description: Bounded SSE smoke stream against the events endpoint.
+    engine: k6
+    script_path: engines/k6/target_apps_sse_smoke.js
+    target_url: http://127.0.0.1:18087
+    parameters:
+      TARGET_URL: http://127.0.0.1:18087
+      SSE_ENDPOINT_PATH: /api/events
+      SSE_COUNT: "5"
+      SSE_INTERVAL_MS: "50"
+  - target_profile_id: sse-k6-ticker
+    display_name: SSE Ticker via k6
+    description: Bounded ticker stream against the SSE API.
+    engine: k6
+    script_path: engines/k6/target_apps_sse_smoke.js
+    target_url: http://127.0.0.1:18087
+    parameters:
+      TARGET_URL: http://127.0.0.1:18087
+      SSE_ENDPOINT_PATH: /api/ticker
+      SSE_COUNT: "6"
+      SSE_INTERVAL_MS: "75"
+

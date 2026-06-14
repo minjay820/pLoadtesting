@@ -1,7 +1,7 @@
 services:
   echo-api:
     build:
-      context: ./target-apps
+      context: .
       dockerfile: Dockerfile
     environment:
       TARGET_APP_MODULE: echo_api
@@ -16,7 +16,7 @@ services:
 
   latency-api:
     build:
-      context: ./target-apps
+      context: .
       dockerfile: Dockerfile
     environment:
       TARGET_APP_MODULE: latency_api
@@ -31,7 +31,7 @@ services:
 
   error-api:
     build:
-      context: ./target-apps
+      context: .
       dockerfile: Dockerfile
     environment:
       TARGET_APP_MODULE: error_api
@@ -46,7 +46,7 @@ services:
 
   resource-api:
     build:
-      context: ./target-apps
+      context: .
       dockerfile: Dockerfile
     environment:
       TARGET_APP_MODULE: resource_api
@@ -61,7 +61,7 @@ services:
 
   payload-api:
     build:
-      context: ./target-apps
+      context: .
       dockerfile: Dockerfile
     environment:
       TARGET_APP_MODULE: payload_api
@@ -76,7 +76,7 @@ services:
 
   crud-api:
     build:
-      context: ./target-apps
+      context: .
       dockerfile: Dockerfile
     environment:
       TARGET_APP_MODULE: crud_api
@@ -91,13 +91,28 @@ services:
 
   auth-flow-api:
     build:
-      context: ./target-apps
+      context: .
       dockerfile: Dockerfile
     environment:
       TARGET_APP_MODULE: auth_flow_api
       PYTHONUNBUFFERED: "1"
     ports:
       - "127.0.0.1:18086:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  sse-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      TARGET_APP_MODULE: sse_api
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - "127.0.0.1:18087:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 15s

@@ -5,6 +5,7 @@ on:
     branches: [ main, 'chore/**', 'feat/**', 'fix/**', 'docs/**' ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   # ── Job 1: Target App Tests ─────────────────────────────────────────────────
@@ -97,3 +98,16 @@ jobs:
     - name: Lint Worker Agent
       run: |
         python -m pyflakes workers/agent.py
+
+  docker-target-apps-smoke:
+    name: "🐳 Target Apps Docker Smoke"
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run docker target-apps smoke script
+      run: |
+        bash target-apps/scripts/smoke_docker_target_apps.sh

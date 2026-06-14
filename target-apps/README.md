@@ -13,10 +13,17 @@ This directory contains a diversified local target suite for pLoadtesting. These
 | `payload-api` | `18084` | payload size / upload / download |
 | `crud-api` | `18085` | CRUD / DB-like workload |
 | `auth-flow-api` | `18086` | auth-like workload / scenario-style business flow |
+| `sse-api` | `18087` | SSE / streaming / progress |
 
 Each app exposes `/health`, explicit safe limits, deterministic behavior where randomness exists, and a manifest in `target-apps/manifests/`.
 
 Task templates live in `target-apps/task-templates/` and point to ready-to-use k6 or JMeter sample scenarios under `engines/`.
+
+Runtime smoke validation script:
+
+```bash
+bash target-apps/scripts/smoke_docker_target_apps.sh
+```
 
 ## Local Run
 
@@ -40,6 +47,7 @@ curl http://127.0.0.1:18083/health
 curl http://127.0.0.1:18084/health
 curl http://127.0.0.1:18085/health
 curl http://127.0.0.1:18086/health
+curl http://127.0.0.1:18087/health
 ```
 
 ## Notes
@@ -48,3 +56,4 @@ curl http://127.0.0.1:18086/health
 - The suite is intentionally capped to avoid overwhelming laptops or CI runners.
 - `auth-flow-api` uses demo-only credentials: any username with password `demo-password`.
 - Manifest-driven Control Plane task creation can use `target_app_id` plus `target_profile_id`, for example `echo-api` + `echo-k6-smoke`.
+- `sse-api` returns finite `text/event-stream` responses only; it never runs infinite streams.

@@ -110,9 +110,10 @@ A diversified local target suite for broader HTTP/REST workload coverage.
 |---|---|
 | Purpose | Loopback-only local targets for CI and internal validation |
 | Compose | `docker compose -f target-apps/docker-compose.target-apps.yml up --build -d` |
-| Catalog | `echo-api`, `latency-api`, `error-api`, `resource-api`, `payload-api`, `crud-api`, `auth-flow-api` |
+| Catalog | `echo-api`, `latency-api`, `error-api`, `resource-api`, `payload-api`, `crud-api`, `auth-flow-api`, `sse-api` |
 | Manifests | `target-apps/manifests/*.yaml` |
 | Task Templates | `target-apps/task-templates/*.yaml` |
+| Docker Smoke | `target-apps/scripts/smoke_docker_target_apps.sh` |
 | Runbook | `docs/v3/runbooks/target-app-local-runbook.md` |
 
 ---

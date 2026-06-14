@@ -19,6 +19,7 @@ APP_MODULES = {
     "payload-api": "payload_api",
     "crud-api": "crud_api",
     "auth-flow-api": "auth_flow_api",
+    "sse-api": "sse_api",
 }
 
 
@@ -57,6 +58,7 @@ def test_task_templates_are_loadable_and_point_to_real_assets():
             script_path = ROOT_DIR / profile["script_path"]
             assert script_path.exists(), f"Missing sample script or plan: {script_path}"
             assert profile["target_url"].startswith("http://127.0.0.1:")
+    assert (TARGET_APPS_DIR / "scripts" / "smoke_docker_target_apps.sh").exists()
 
 
 def test_every_target_health_endpoint_is_stable():
@@ -88,6 +90,10 @@ def test_delay_error_payload_and_resource_limits():
     assert resource_client.get("/api/memory?mb=128").status_code == 422
     assert resource_client.get("/api/io?kb=2048").status_code == 422
 
+    sse_client = TestClient(import_module("sse_api").app)
+    assert sse_client.get("/api/events?count=101").status_code == 422
+    assert sse_client.get("/api/events?interval_ms=5001").status_code == 422
+
 
 def test_crud_and_auth_flow_workloads():
     crud_client = TestClient(import_module("crud_api").app)
@@ -104,6 +110,13 @@ def test_crud_and_auth_flow_workloads():
     assert auth_client.get("/api/profile", headers=headers).status_code == 200
     checkout = auth_client.post("/api/checkout", json={"sku": "sku-1", "quantity": 2}, headers=headers)
     assert checkout.status_code == 200
+
+    sse_client = TestClient(import_module("sse_api").app)
+    response = sse_client.get("/api/ticker?count=3&interval_ms=0&deterministic=true")
+    assert response.status_code == 200
+    assert "text/event-stream" in response.headers["content-type"]
+    assert "event: ticker" in response.text
+    assert '"sequence":1' in response.text
 
 
 def test_compose_and_readme_commands_are_consistent():

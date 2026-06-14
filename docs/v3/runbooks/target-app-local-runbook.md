@@ -9,7 +9,7 @@ Use this suite when you need local, reproducible HTTP targets for load-shape val
 ## Prerequisites
 
 - Docker Desktop or equivalent Docker Engine
-- Local ports `18080` through `18086` available on `127.0.0.1`
+- Local ports `18080` through `18087` available on `127.0.0.1`
 
 ## Start The Suite
 
@@ -30,6 +30,7 @@ curl http://127.0.0.1:18083/health
 curl http://127.0.0.1:18084/health
 curl http://127.0.0.1:18085/health
 curl http://127.0.0.1:18086/health
+curl http://127.0.0.1:18087/health
 ```
 
 Expected response shape:
@@ -48,7 +49,25 @@ curl "http://127.0.0.1:18083/api/cpu?iterations=250000"
 curl "http://127.0.0.1:18084/api/download?kb=32"
 curl -X POST http://127.0.0.1:18085/api/items -H "Content-Type: application/json" -d '{"name":"demo","value":1}'
 curl -X POST http://127.0.0.1:18086/api/login -H "Content-Type: application/json" -d '{"username":"alice","password":"demo-password"}'
+curl -N "http://127.0.0.1:18087/api/events?count=3&interval_ms=10"
 ```
+
+## Docker Runtime Smoke Validation
+
+Use the real runtime smoke script when you need build-and-run validation instead of only `docker compose ... config --quiet`:
+
+```bash
+bash target-apps/scripts/smoke_docker_target_apps.sh
+```
+
+The script:
+
+- builds the shared image
+- boots the compose stack
+- retries `/health` checks with bounded waits
+- calls one representative endpoint per target app
+- dumps `docker compose ps` and logs on failure
+- always runs cleanup on exit
 
 ## Manifest-Driven Task Creation
 
@@ -73,6 +92,27 @@ curl -X POST http://127.0.0.1:9000/api/tasks/ \
     "created_by": "local-runbook"
   }'
 ```
+
+## k6 SSE Sample Scenario
+
+Finite SSE smoke validation is available through:
+
+```bash
+k6 run -e TARGET_URL=http://127.0.0.1:18087 engines/k6/target_apps_sse_smoke.js
+```
+
+Useful overrides:
+
+```bash
+k6 run \
+  -e TARGET_URL=http://127.0.0.1:18087 \
+  -e SSE_ENDPOINT_PATH=/api/ticker \
+  -e SSE_COUNT=6 \
+  -e SSE_INTERVAL_MS=75 \
+  engines/k6/target_apps_sse_smoke.js
+```
+
+JMeter SSE coverage is intentionally deferred for now because the current repo priorities favor low-cost, deterministic streaming validation. SSE in JMeter would require a less stable workaround than the bounded k6 HTTP path.
 
 Optional overrides are still allowed:
 
@@ -106,12 +146,14 @@ docker compose -f target-apps/docker-compose.target-apps.yml down
 - `payload-api`: download `512KB`, upload `262144` bytes
 - `crud-api`: in-memory only
 - `auth-flow-api`: demo-only credentials and bounded checkout quantity
+- `sse-api`: `count <= 100`, `steps <= 100`, `interval_ms <= 5000`, no infinite streaming
 
 If a request exceeds a safe limit, the app should return `422`.
 
 ## CI Notes
 
 - CI does not need to boot the suite in Docker for basic validation.
+- Manual CI can run the real Docker smoke validation job through `workflow_dispatch`.
 - Metadata and endpoint behavior are covered by `pytest target-app/ target-apps/tests -v`.
 - Template registry and manifest-driven task creation are covered by `python manage.py test apps/ --verbosity=2`.
 - Existing Control Plane checks remain:

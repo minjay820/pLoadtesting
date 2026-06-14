@@ -1,0 +1,25 @@
+target_app_id: sse-api
+display_name: SSE API
+runtime: python-fastapi
+protocol: http-rest-sse
+base_url: http://127.0.0.1:18087
+workload_types:
+  - streaming
+  - sse
+  - progress
+endpoints:
+  - path: /health
+    method: GET
+  - path: /api/events
+    method: GET
+  - path: /api/ticker
+    method: GET
+  - path: /api/progress
+    method: GET
+safe_limits:
+  max_count: 100
+  max_interval_ms: 5000
+  infinite_streaming: disabled
+default_profile: sse-smoke
+notes: Finite SSE streams only, suitable for local and CI-safe streaming validation.
+

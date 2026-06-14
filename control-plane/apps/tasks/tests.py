@@ -122,6 +122,7 @@ class TaskTemplateApiTests(TestCase):
         templates = response.json()["templates"]
         self.assertTrue(any(row["target_profile_id"] == "echo-k6-smoke" for row in templates))
         self.assertTrue(any(row["target_profile_id"] == "payload-jmeter-download" for row in templates))
+        self.assertTrue(any(row["target_app_id"] == "sse-api" for row in templates))
 
     def test_create_task_from_template(self):
         response = self.client.post(
@@ -176,3 +177,21 @@ class TaskTemplateApiTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("target_app_id and target_profile_id", str(response.json()))
+
+    def test_create_sse_task_from_template(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "sse-api",
+                "target_profile_id": "sse-k6-smoke",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.name, "SSE Smoke via k6")
+        self.assertEqual(task.engine, "k6")
+        self.assertEqual(task.script_path, "engines/k6/target_apps_sse_smoke.js")
+        self.assertEqual(task.target_url, "http://127.0.0.1:18087")
+        self.assertEqual(task.parameters["SSE_ENDPOINT_PATH"], "/api/events")

@@ -36,6 +36,7 @@ engines/k6/
 | `target_apps_resource_cpu.js` | `GET /api/cpu` | 0→10 | 30s total | Bounded CPU profile |
 | `target_apps_crud_flow.js` | `POST /api/items` + `GET /api/items/{id}` | 5 | 20s run | CRUD flow sample |
 | `target_apps_auth_checkout.js` | login/profile/checkout | 5 | 20s run | Auth-style business flow sample |
+| `target_apps_sse_smoke.js` | finite SSE stream | 1 | 3 iterations | SSE streaming smoke for `sse-api` |
 
 ---
 
@@ -72,6 +73,9 @@ k6 run stress_io.js
 
 # Run Data Serialization Stress
 k6 run stress_data.js
+
+# Run SSE Smoke
+k6 run -e TARGET_URL=http://127.0.0.1:18087 target_apps_sse_smoke.js
 ```
 
 ---

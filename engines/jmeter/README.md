@@ -33,6 +33,11 @@ Additional target-suite sample plans:
 | `target_apps_echo_latency_plan.jmx` | Parametric echo or latency GET profile via `TARGET_HOST`, `TARGET_PORT`, `TARGET_PATH`, `TARGET_QUERY` |
 | `target_apps_payload_crud_plan.jmx` | Parametric payload download or CRUD listing profile via the same variable set |
 
+SSE note:
+
+- There is currently no JMeter SSE sample plan in this repo.
+- SSE is validated through bounded k6 HTTP reads first because that path is cheaper and more stable for CI.
+
 ---
 
 ## 🚀 Execution Guide

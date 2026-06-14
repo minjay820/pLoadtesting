@@ -14,6 +14,7 @@ The original repository shipped one reference FastAPI target with a small set of
 - CRUD and DB-like request patterns
 - auth-like session handling
 - scenario-style business flows
+- finite streaming via Server-Sent Events
 
 The `target-apps/` suite addresses that gap without changing the core Control Plane or Worker contracts.
 
@@ -36,6 +37,7 @@ The `target-apps/` suite addresses that gap without changing the core Control Pl
 | `payload-api` | `http://127.0.0.1:18084` | payload size / upload / download | Uses deterministic filler payloads instead of external files |
 | `crud-api` | `http://127.0.0.1:18085` | CRUD / DB-like workload | Uses in-memory state for low-cost reproducibility |
 | `auth-flow-api` | `http://127.0.0.1:18086` | auth-like / scenario-style business flow | Demo-only bearer token workflow |
+| `sse-api` | `http://127.0.0.1:18087` | SSE / streaming / progress | Finite `text/event-stream` responses only |
 
 ## Endpoint Groups
 
@@ -86,6 +88,13 @@ The `target-apps/` suite addresses that gap without changing the core Control Pl
 - `POST /api/checkout`
 - `GET /api/orders/{id}`
 
+### sse-api
+
+- `GET /health`
+- `GET /api/events?count=...&interval_ms=...`
+- `GET /api/ticker?count=...&interval_ms=...`
+- `GET /api/progress?steps=...&interval_ms=...`
+
 ## Manifests
 
 Each target app has a manifest under `target-apps/manifests/` with these fields:
@@ -128,6 +137,8 @@ Examples:
 | `payload-api` | `payload-jmeter-download` | JMeter | payload download throughput |
 | `crud-api` | `crud-k6-flow` | k6 | create-and-fetch flow |
 | `auth-flow-api` | `auth-k6-checkout` | k6 | login and checkout business flow |
+| `sse-api` | `sse-k6-smoke` | k6 | bounded SSE smoke stream |
+| `sse-api` | `sse-k6-ticker` | k6 | bounded SSE ticker stream |
 
 This keeps the Worker and task model unchanged while allowing manifest-driven selection.
 
@@ -141,6 +152,29 @@ Current CI coverage for the suite is intentionally minimal and stable:
 - verify README commands and compose service definitions stay aligned
 - keep existing Django `manage.py check` and `manage.py test apps/ --verbosity=2` unchanged
 
+The suite also now has a real runtime smoke path:
+
+- `bash target-apps/scripts/smoke_docker_target_apps.sh`
+- build the shared image
+- start the full compose stack
+- wait and retry `/health`
+- probe a representative endpoint per service
+- dump `docker compose ps` and logs on failure
+- always clean up containers on exit
+
+This is exposed as a manual GitHub Actions run rather than a per-push job so CI time stays bounded.
+
+## SSE Safety Limits
+
+The first streaming target intentionally stays narrow:
+
+- `count <= 100`
+- `steps <= 100`
+- `interval_ms <= 5000`
+- default stream sizes stay small
+- no infinite streams
+- deterministic mode is on by default for CI-friendly replay
+
 ## Future Extensions
 
 Future work may add the following, with the current evaluation posture:
@@ -149,7 +183,9 @@ Future work may add the following, with the current evaluation posture:
 |---|---|---|
 | WebSocket | Reasonable next step if we need connection-lifecycle and broadcast tests; moderate CI cost | Add one bounded echo/broadcast target with strict client caps |
 | gRPC | Useful for protocol coverage, but adds tooling/runtime complexity to CI | Defer until there is a real gRPC consumer requirement |
-| SSE | Lower complexity than WebSocket and fits streaming-read cases | Good candidate after manifest-driven HTTP flow stabilizes |
+| SSE | Now implemented as the first streaming target because it is finite, HTTP-native, and cheap to validate | Expand with richer event shapes before adding heavier protocols |
 | DB-heavy | Valuable, but should use disposable SQLite or isolated Postgres only | Start with SQLite-backed bounded write/read target |
 | file-heavy | Valuable for upload/download and local artifact churn | Add bounded fixture packs and strict size caps |
 | auth-heavy | Valuable, but easy to drift into secret-like behavior | Extend demo-only auth-flow with refresh/expiry branches, still no real secrets |
+
+WebSocket remains deferred because it needs more connection-lifecycle handling, client caps, and cleanup logic than SSE. gRPC remains deferred because it would add additional protocol tooling and CI surface area without an immediate repo-driven use case.
