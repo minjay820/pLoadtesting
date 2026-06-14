@@ -1,0 +1,136 @@
+{
+  "summary": {
+    "target_app_count": 10,
+    "profile_count": 44,
+    "k6_profile_count": 22,
+    "jmeter_profile_count": 22,
+    "exact_coverage_profile_count": 44,
+    "gap_profile_count": 0
+  },
+  "targets": [
+    {
+      "target_app_id": "payload-api",
+      "display_name": "Payload API",
+      "protocol": "http-rest",
+      "base_url": "http://127.0.0.1:18084",
+      "workload_types": ["payload-size", "upload", "download", "file-heavy"],
+      "profile_count": 10,
+      "k6_profile_count": 5,
+      "jmeter_profile_count": 5,
+      "exact_coverage_profile_count": 10,
+      "gap_profile_count": 0
+    },
+    {
+      "target_app_id": "sse-api",
+      "display_name": "SSE API",
+      "protocol": "http-rest-sse",
+      "base_url": "http://127.0.0.1:18087",
+      "workload_types": ["streaming", "sse", "progress", "progress-heavy"],
+      "profile_count": 6,
+      "k6_profile_count": 3,
+      "jmeter_profile_count": 3,
+      "exact_coverage_profile_count": 6,
+      "gap_profile_count": 0
+    }
+  ],
+  "profiles": [
+    {
+      "target_app_id": "payload-api",
+      "target_profile_id": "payload-k6-download",
+      "display_name": "Payload Download via k6",
+      "description": "k6 bounded text payload download profile against payload-api.",
+      "engine": "k6",
+      "script_path": "engines/k6/target_apps_payload_download.js",
+      "target_url": "http://127.0.0.1:18084",
+      "equivalent_profile_id": "payload-jmeter-download",
+      "workload_types": ["payload-size", "upload", "download", "file-heavy"],
+      "safe_limits": {
+        "max_download_kb": 512,
+        "max_upload_bytes": 262144,
+        "max_file_kb": 256
+      },
+      "coverage_status": "exact",
+      "coverage_group": "payload.download",
+      "coverage_gap": null
+    },
+    {
+      "target_app_id": "payload-api",
+      "target_profile_id": "payload-jmeter-download",
+      "display_name": "Payload Download via JMeter",
+      "description": "JMeter download-oriented profile against payload-api.",
+      "engine": "jmeter",
+      "script_path": "engines/jmeter/target_apps_payload_crud_plan.jmx",
+      "target_url": "http://127.0.0.1:18084",
+      "equivalent_profile_id": "payload-k6-download",
+      "workload_types": ["payload-size", "upload", "download", "file-heavy"],
+      "safe_limits": {
+        "max_download_kb": 512,
+        "max_upload_bytes": 262144,
+        "max_file_kb": 256
+      },
+      "coverage_status": "exact",
+      "coverage_group": "payload.download",
+      "coverage_gap": null
+    },
+    {
+      "target_app_id": "ws-api",
+      "target_profile_id": "ws-k6-echo-smoke",
+      "display_name": "WebSocket Echo Smoke via k6",
+      "description": "Bounded WebSocket echo validation with deterministic replies and explicit close limits.",
+      "engine": "k6",
+      "script_path": "engines/k6/target_apps_ws_echo_smoke.js",
+      "target_url": "http://127.0.0.1:18088",
+      "equivalent_profile_id": "ws-jmeter-echo-smoke",
+      "workload_types": ["websocket", "echo", "broadcast", "connection-lifecycle"],
+      "safe_limits": {
+        "max_concurrent_connections": 20,
+        "max_messages_per_connection": 10,
+        "max_message_size_bytes": 1024
+      },
+      "coverage_status": "exact",
+      "coverage_group": "ws.echo_smoke",
+      "coverage_gap": null
+    },
+    {
+      "target_app_id": "sse-api",
+      "target_profile_id": "sse-jmeter-ticker",
+      "display_name": "SSE Ticker via JMeter",
+      "description": "JMeter bounded ticker stream against the SSE API.",
+      "engine": "jmeter",
+      "script_path": "engines/jmeter/target_apps_sse_plan.jmx",
+      "target_url": "http://127.0.0.1:18087",
+      "equivalent_profile_id": "sse-k6-ticker",
+      "workload_types": ["streaming", "sse", "progress", "progress-heavy"],
+      "safe_limits": {
+        "max_count": 100,
+        "max_interval_ms": 5000,
+        "infinite_streaming": "disabled"
+      },
+      "coverage_status": "exact",
+      "coverage_group": "sse.ticker",
+      "coverage_gap": null
+    },
+    {
+      "target_app_id": "auth-flow-api",
+      "target_profile_id": "auth-k6-mfa-flow",
+      "display_name": "Auth MFA Flow via k6",
+      "description": "Deterministic MFA-like challenge and verify flow with bearer issuance against auth-flow-api.",
+      "engine": "k6",
+      "script_path": "engines/k6/target_apps_auth_session_mfa_flow.js",
+      "target_url": "http://127.0.0.1:18086",
+      "equivalent_profile_id": "auth-jmeter-mfa-flow",
+      "workload_types": ["auth-like", "scenario-flow", "auth-heavy", "refresh", "expiry", "failure-branches", "cookie-session", "mfa-demo"],
+      "safe_limits": {
+        "credential_mode": "demo-only",
+        "max_access_token_uses": 5,
+        "max_refresh_uses": 3,
+        "max_session_uses": 5,
+        "max_active_mfa_challenges": 20
+      },
+      "coverage_status": "exact",
+      "coverage_group": "auth.mfa_flow",
+      "coverage_gap": null
+    }
+  ],
+  "gaps": []
+}

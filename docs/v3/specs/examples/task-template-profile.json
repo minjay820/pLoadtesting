@@ -1,0 +1,23 @@
+{
+  "target_app_id": "payload-api",
+  "target_profile_id": "payload-k6-download",
+  "display_name": "Payload Download via k6",
+  "description": "k6 bounded text payload download profile against payload-api.",
+  "engine": "k6",
+  "script_path": "engines/k6/target_apps_payload_download.js",
+  "target_url": "http://127.0.0.1:18084",
+  "equivalent_profile_id": "payload-jmeter-download",
+  "workload_types": ["payload-size", "upload", "download", "file-heavy"],
+  "safe_limits": {
+    "max_download_kb": 512,
+    "max_upload_bytes": 262144,
+    "max_file_kb": 256,
+    "max_archive_file_count": 10,
+    "max_archive_kb_per_file": 64,
+    "max_file_manifest_count": 20,
+    "max_selective_fetch_count": 8
+  },
+  "coverage_status": "exact",
+  "coverage_group": "payload.download",
+  "coverage_gap": null
+}

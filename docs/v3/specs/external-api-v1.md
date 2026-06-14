@@ -22,6 +22,8 @@ Worker Agents expose:
 
 Future `/api/v1` routes should wrap these concepts with clearer compatibility guarantees.
 
+Preview API consumers should use [API consumer guide](api-consumer-guide.md) for current endpoint examples and [Dashboard read model](dashboard-read-model.md) for dashboard-oriented read models.
+
 ## Versioning Goals
 
 - Use `/api/v1/` for stable external consumers.
@@ -92,6 +94,8 @@ The preview endpoint `GET /api/tasks/templates/coverage/` exposes machine-readab
 - `gaps`: profiles whose `coverage_status` is `gap`
 
 `coverage_status` is `exact` when a profile has a reciprocal `equivalent_profile_id` on the opposite engine within the same target app. It is `gap` when no exact equivalent is defined or the reciprocal metadata is invalid. `coverage_group` is a stable grouping key for dashboard display, and `coverage_gap` is null for exact coverage.
+
+Dashboard and API consumers should treat this endpoint as the source of truth for profile coverage metadata and should not parse Markdown coverage matrices. The current response shape is documented in [API consumer guide](api-consumer-guide.md), with representative examples in [examples/templates-coverage-response.json](examples/templates-coverage-response.json).
 
 ## Filtering And Pagination
 

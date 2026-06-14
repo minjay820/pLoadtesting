@@ -12,7 +12,7 @@ Before any substantive change, read this file first, then follow only the direct
 - Codex docs update standard: [standards/codex-docs-update-standard.md](standards/codex-docs-update-standard.md)
 - Codex change log standard: [standards/codex-change-log-standard.md](standards/codex-change-log-standard.md)
 - Daily change log template: [templates/codex-daily-change-log-template.md](templates/codex-daily-change-log-template.md)
-- Today's daily change log: [changes/daily/2026-06-14.md](changes/daily/2026-06-14.md)
+- Today's daily change log: [changes/daily/2026-06-15.md](changes/daily/2026-06-15.md)
 
 ## Active Documentation Areas
 
@@ -38,6 +38,8 @@ This project is a multi-engine load testing ecosystem:
 - `GET /api/tasks/templates/coverage/`: machine-readable profile coverage export for dashboard and API consumers.
 - `docs/v3/domains/p-loadtesting-phase-completion.md`: current Phase 0-4 completion assessment.
 - `docs/v3/domains/p-loadtesting-web-dashboard.md`: future dashboard MVP plan.
+- `docs/v3/specs/dashboard-read-model.md`: future dashboard read model over current preview APIs.
+- `docs/v3/specs/api-consumer-guide.md`: preview API consumer guide for templates, coverage, and task creation.
 - `docs/v3/specs/external-api-v1.md`: future stable external API contract plan.
 - `docs/v3/specs/api-token-auth.md`: future scoped API access plan.
 - `docs/v3/runbooks/distributed-deployment.md`: cross-host deployment planning runbook.

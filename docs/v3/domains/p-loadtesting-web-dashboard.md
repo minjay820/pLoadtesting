@@ -27,6 +27,25 @@ The dashboard should reduce manual API usage without changing the Control Plane 
 | Result summary | nested task result | Show total requests, failure rate, response time percentiles, throughput, and thresholds |
 | Observability link | Grafana provisioned dashboards | Open deeper time-series metrics when available |
 
+## Phase 6 MVP Boundary
+
+The Phase 6 dashboard MVP should be limited to:
+
+- Target Catalog
+- Profile Catalog
+- Coverage Matrix
+- Create Task Wizard
+
+The following views and controls should remain outside the Phase 6 MVP:
+
+- API Token UI
+- Full result artifact browser
+- Agent management console
+- Settings page
+- Multi-user RBAC UI
+
+The implementation-facing read model for these views is defined in [Dashboard read model](../specs/dashboard-read-model.md).
+
 ## Initial User Flows
 
 1. Operator opens the dashboard and checks worker health.
@@ -59,6 +78,8 @@ The future dashboard should use the external API v1 contract once implemented. U
 Dashboard work should not rely on direct database access.
 
 The dashboard should use `GET /api/tasks/templates/coverage/` for coverage cards, parity filters, and target/profile counts instead of parsing Markdown coverage documents. `coverage_status=exact` indicates reciprocal k6/JMeter pairing, while `coverage_status=gap` indicates a profile that should be shown with a gap explanation from `coverage_gap`.
+
+API consumers should follow [API consumer guide](../specs/api-consumer-guide.md) for current preview endpoint examples and should treat future `/api/v1` routes as a compatibility target rather than current runtime behavior.
 
 ## Safety And Access
 

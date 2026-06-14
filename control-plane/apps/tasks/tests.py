@@ -193,6 +193,38 @@ class TaskTemplateApiTests(TestCase):
             },
         )
         self.assertEqual(payload["gaps"], [])
+        self.assertEqual(len(payload["profiles"]), 44)
+        self.assertEqual(len(payload["targets"]), 10)
+
+        required_summary_fields = {
+            "target_app_count",
+            "profile_count",
+            "k6_profile_count",
+            "jmeter_profile_count",
+            "exact_coverage_profile_count",
+            "gap_profile_count",
+        }
+        self.assertEqual(set(payload["summary"]), required_summary_fields)
+
+        required_profile_fields = {
+            "target_app_id",
+            "target_profile_id",
+            "engine",
+            "script_path",
+            "coverage_status",
+            "coverage_group",
+            "coverage_gap",
+        }
+        profile_keys = {(row["target_app_id"], row["target_profile_id"]) for row in payload["profiles"]}
+        for profile in payload["profiles"]:
+            self.assertTrue(required_profile_fields.issubset(profile))
+            self.assertIn(profile["coverage_status"], {"exact", "gap"})
+            self.assertTrue(profile["coverage_group"])
+            if profile["coverage_status"] == "exact":
+                equivalent_profile_id = profile.get("equivalent_profile_id")
+                self.assertTrue(equivalent_profile_id)
+                equivalent_key = (profile["target_app_id"], equivalent_profile_id)
+                self.assertIn(equivalent_key, profile_keys)
 
         profiles_by_id = {row["target_profile_id"]: row for row in payload["profiles"]}
         self.assertEqual(profiles_by_id["payload-k6-download"]["coverage_status"], "exact")

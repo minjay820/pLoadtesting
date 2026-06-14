@@ -6,6 +6,9 @@ This area is for implementation-facing contracts: APIs, data models, worker prot
 
 - [External API v1 planning spec](external-api-v1.md)
 - [API token access planning spec](api-token-auth.md)
+- [Dashboard read model](dashboard-read-model.md)
+- [API consumer guide](api-consumer-guide.md)
+- [API example payloads](examples/)
 
 ## Likely Future Specs
 
