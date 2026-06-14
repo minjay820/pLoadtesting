@@ -129,15 +129,33 @@ Minimum create payload:
 
 The wizard should not probe target URLs by itself. Target URLs are controlled runtime inputs and should remain within the operator's authorized environment.
 
+Future duration-based execution should add an `execution` section to the wizard after the profile selection step. The default should be `stop_policy=graceful_stop`, with common duration presets such as 10 minutes and 1 hour. For a 1-hour task, the dashboard should explain through field labels and validation state that new load stops at 1 hour, in-flight requests can finish during the grace period, and the worker timeout remains the final safety guard.
+
+Future distributed execution should add a separate `distribution` section only after the basic single-agent flow is stable. The section should let operators choose single-agent or sharded execution, select agent labels, and attach a `dataset` object when dataset partitioning is needed. The dashboard should show `shards` as explicit rows so a 5000-row dataset split into 2000 and 3000 rows is visible before submission.
+
+Planned create-task objects:
+
+| Object | Dashboard Use |
+|---|---|
+| `execution` | Duration, ramp-up, ramp-down, stop policy, grace period, worker timeout, iteration limit, and data policy controls. |
+| `distribution` | Single-agent or sharded execution mode plus agent selectors and shard definitions. |
+| `dataset` | Dataset source, format, partition strategy, and shard ranges. |
+| `shards` | Per-agent execution and dataset shard rows. |
+| `result_aggregation` | Read-only task detail object that explains whether global metrics are exact, conservative, or shard-only. |
+
 ## Run Monitor
 
 Run Monitor is outside the Phase 6 MVP but should later read `GET /api/tasks/` and `GET /api/tasks/{id}/`.
 
 Expected fields include task id, name, engine, script path, target URL, status, worker assignment, timestamps, error message, and nested result summary when available.
 
+Distributed runs should show logical task state separately from shard state. Partial success should be visible when at least one shard completes and at least one shard fails, times out, or is cancelled.
+
 ## Result And Artifact Browser
 
 The full artifact browser is outside the Phase 6 MVP. A later implementation may show result summaries from task detail responses, including request totals, failure rate, response-time percentiles, throughput, threshold status, and a raw report reference or inline raw report depending on future artifact storage policy.
+
+For distributed runs, the browser should show per-agent and per-shard summaries. Total requests and failed requests can be summed, error rate can be recalculated, and throughput should be recalculated over the run time window. Average latency, p95, and p99 must not be presented as global values unless the API provides mergeable samples, histogram buckets, HDR histogram, t-digest, or engine-supported merged output.
 
 ## Agent Health
 
@@ -149,3 +167,4 @@ Agent health is outside the Phase 6 MVP. A later implementation may read `GET /a
 - Future `/api/v1` should preserve the dashboard concepts before promising long-term compatibility.
 - Clients should treat new response fields as additive.
 - Clients should tolerate unknown workload types and safe-limit keys.
+- Clients should treat `execution`, `distribution`, `dataset`, `shards`, and `result_aggregation` as future contract objects until implemented by runtime APIs.

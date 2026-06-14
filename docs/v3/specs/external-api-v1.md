@@ -57,6 +57,9 @@ Task creation should support both explicit fields and template-driven fields, ma
 - `created_by`
 - `target_app_id`
 - `target_profile_id`
+- `execution`
+- `distribution`
+- `dataset`
 
 When `target_app_id` and `target_profile_id` are provided, the API should resolve:
 
@@ -67,6 +70,234 @@ When `target_app_id` and `target_profile_id` are provided, the API should resolv
 - default `name`
 
 Client-provided `parameters` should override template defaults only for supported keys. The implementation should document rejected override keys when stricter validation is added.
+
+### Execution Object
+
+Future v1 task creation should accept an `execution` object for duration-based execution:
+
+```json
+{
+  "execution": {
+    "duration_seconds": 600,
+    "ramp_up_seconds": 30,
+    "ramp_down_seconds": 30,
+    "stop_policy": "graceful_stop",
+    "graceful_stop_seconds": 30,
+    "max_run_seconds": 720,
+    "iteration_limit": null,
+    "data_policy": "time_bounded"
+  }
+}
+```
+
+`stop_policy` should support `hard_stop`, `graceful_stop`, `drain_inflight`, `complete_dataset`, and `whichever_first`. The default should be `graceful_stop`. For a 1-hour run, `duration_seconds=3600` means workers stop generating new traffic at 1 hour, wait within `graceful_stop_seconds` for in-flight requests, and force-stop only after the grace period or `max_run_seconds`.
+
+See [Task execution model](task-execution-model.md) for k6, JMeter, and worker timeout mapping.
+
+### Distribution And Dataset Objects
+
+Future v1 task creation should accept a `distribution` object for single-agent or sharded execution:
+
+```json
+{
+  "distribution": {
+    "mode": "sharded",
+    "claim_model": "agent_claim",
+    "agent_selector": {
+      "engine": "k6",
+      "labels": {
+        "target_network": "internal-a"
+      }
+    },
+    "shards": []
+  }
+}
+```
+
+`mode=single_agent` should preserve the current one-task-one-worker behavior. `mode=sharded` should create a task run with one or more shard sub-runs. Shards can each define `agent_selector`, `execution` overrides, and `dataset_shard`.
+
+Dataset partitioning should use a top-level `dataset` object when the run needs row-level input assignment:
+
+```json
+{
+  "dataset": {
+    "source": "artifact://datasets/users.csv",
+    "format": "csv",
+    "partition_strategy": "manual_ranges",
+    "shards": [
+      {
+        "shard_id": "users-a",
+        "offset": 0,
+        "limit": 2000
+      },
+      {
+        "shard_id": "users-b",
+        "offset": 2000,
+        "limit": 3000
+      }
+    ]
+  }
+}
+```
+
+MVP partition strategies should be `range`, `manual`, and `manual_ranges`. `hash`, `weighted`, and `round_robin` should remain future extensions until dataset metadata and agent capacity are modeled.
+
+See [Distributed agent execution](distributed-agent-execution.md) for shard lifecycle, agent claim, retry, partial success, cancellation, artifact, and aggregation behavior.
+
+### POST /api/v1/tasks Examples
+
+Single agent, 10 minutes:
+
+```json
+{
+  "target_app_id": "payload-api",
+  "target_profile_id": "payload-k6-download",
+  "created_by": "api-v1-client",
+  "execution": {
+    "duration_seconds": 600,
+    "ramp_up_seconds": 30,
+    "ramp_down_seconds": 30,
+    "stop_policy": "graceful_stop",
+    "graceful_stop_seconds": 30,
+    "max_run_seconds": 720,
+    "iteration_limit": null,
+    "data_policy": "time_bounded"
+  },
+  "distribution": {
+    "mode": "single_agent"
+  }
+}
+```
+
+Single agent, 1 hour graceful stop:
+
+```json
+{
+  "target_app_id": "latency-api",
+  "target_profile_id": "latency-jmeter-delay",
+  "created_by": "api-v1-client",
+  "execution": {
+    "duration_seconds": 3600,
+    "ramp_up_seconds": 120,
+    "ramp_down_seconds": 60,
+    "stop_policy": "graceful_stop",
+    "graceful_stop_seconds": 60,
+    "max_run_seconds": 3900,
+    "iteration_limit": null,
+    "data_policy": "time_bounded"
+  },
+  "distribution": {
+    "mode": "single_agent"
+  }
+}
+```
+
+Multi-agent, 5000 rows split into 2000 and 3000:
+
+```json
+{
+  "target_app_id": "db-api",
+  "target_profile_id": "db-k6-list-filter",
+  "created_by": "api-v1-client",
+  "execution": {
+    "duration_seconds": 1800,
+    "stop_policy": "whichever_first",
+    "graceful_stop_seconds": 30,
+    "max_run_seconds": 2100,
+    "data_policy": "whichever_first"
+  },
+  "dataset": {
+    "source": "artifact://datasets/users.csv",
+    "format": "csv",
+    "partition_strategy": "manual_ranges",
+    "shards": [
+      {
+        "shard_id": "users-a",
+        "offset": 0,
+        "limit": 2000
+      },
+      {
+        "shard_id": "users-b",
+        "offset": 2000,
+        "limit": 3000
+      }
+    ]
+  },
+  "distribution": {
+    "mode": "sharded",
+    "claim_model": "agent_claim",
+    "shards": [
+      {
+        "shard_id": "users-a",
+        "agent_selector": {
+          "engine": "k6",
+          "labels": {
+            "target_network": "internal-a"
+          }
+        },
+        "dataset_shard": {
+          "offset": 0,
+          "limit": 2000
+        }
+      },
+      {
+        "shard_id": "users-b",
+        "agent_selector": {
+          "engine": "k6",
+          "labels": {
+            "target_network": "internal-a"
+          }
+        },
+        "dataset_shard": {
+          "offset": 2000,
+          "limit": 3000
+        }
+      }
+    ]
+  }
+}
+```
+
+Multi-agent, different target network labels:
+
+```json
+{
+  "target_app_id": "payload-api",
+  "target_profile_id": "payload-jmeter-download",
+  "created_by": "api-v1-client",
+  "execution": {
+    "duration_seconds": 900,
+    "stop_policy": "graceful_stop",
+    "graceful_stop_seconds": 30,
+    "max_run_seconds": 1020,
+    "data_policy": "time_bounded"
+  },
+  "distribution": {
+    "mode": "sharded",
+    "claim_model": "agent_claim",
+    "shards": [
+      {
+        "shard_id": "network-a",
+        "agent_selector": {
+          "engine": "jmeter",
+          "labels": {
+            "target_network": "internal-a"
+          }
+        }
+      },
+      {
+        "shard_id": "network-b",
+        "agent_selector": {
+          "engine": "jmeter",
+          "labels": {
+            "target_network": "internal-b"
+          }
+        }
+      }
+    ]
+  }
+}
+```
 
 ## Result Contract
 
@@ -83,6 +314,25 @@ Result responses should expose summary fields already represented by `TestResult
 - raw report reference or inline raw report, depending on future storage size policy
 
 The current model stores `raw_report` inline. A future artifact store can move large raw output without changing the summary contract.
+
+Distributed result responses should add a `result_aggregation` object:
+
+```json
+{
+  "result_aggregation": {
+    "mode": "per_shard_with_conservative_global",
+    "total_requests": 5000,
+    "failed_requests": 12,
+    "error_rate_pct": 0.24,
+    "throughput_rps": 83.3,
+    "latency_percentiles_merge_method": "not_available",
+    "global_percentiles_available": false,
+    "shards": []
+  }
+}
+```
+
+`total_requests` and `failed_requests` can be summed. Error rate can be recalculated from those sums. Throughput should be recalculated across the run window. Average latency must be request-count weighted if only shard averages are available. p95 and p99 must not be averaged across agents; correct percentile aggregation requires raw samples, histogram buckets, HDR histogram, t-digest, or engine-supported merge output.
 
 ## Template Coverage Contract
 
@@ -144,3 +394,5 @@ Implementation can map existing DRF validation errors into this shape during the
 - Whether v1 should initially be a thin route alias over current serializers or a separate serializer layer.
 - Whether raw reports should stay inline for v1 or be moved behind artifact references first.
 - Whether task creation should allow arbitrary `script_path` for external consumers or require manifest-driven templates by default.
+- Whether duration and distribution should be introduced as preview-only additive fields before the full shard schema is persisted.
+- Which histogram or engine-native output format should be the first supported global percentile merge source.

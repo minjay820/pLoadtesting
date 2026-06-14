@@ -2,6 +2,8 @@
 
 This runbook describes a future three-host pLoadtesting deployment for controlled internal networks. It is an operational planning document, not a production hardening guarantee.
 
+The current preview runtime uses Control Plane push dispatch to a Worker Agent `/execute` endpoint. The future distributed execution model should move toward agent claim, where Worker Agents connect to the Control Plane to claim shard work. The claim model reduces inbound network requirements for agent hosts and aligns with [Distributed agent execution](../specs/distributed-agent-execution.md).
+
 ## Deployment Model
 
 | Host | Services | Responsibility |
@@ -23,19 +25,24 @@ Do not use this system against third-party targets or systems without explicit p
 |---|---|---|
 | Worker registration | Worker to Control Plane | `POST /api/workers/` |
 | Worker heartbeat | Worker to Control Plane | `POST /api/workers/{id}/heartbeat/` |
-| Task dispatch | Control Plane to Worker | `POST /execute` |
+| Current preview task dispatch | Control Plane to Worker | `POST /execute` |
+| Future shard claim | Worker to Control Plane | Claim pending shard work for a matching agent selector |
 | Result callback | Worker to Control Plane | `POST /api/tasks/{id}/results/` |
 | Load generation | Worker to target app | k6/JMeter traffic |
 | Dashboard/API user | User network to Control Plane | task, worker, template, and result inspection |
 
 The Control Plane must be able to reach each Worker's advertised `ip_address` and `port`. Each Worker must be able to reach the Control Plane base URL.
 
+In the future agent-claim model, the Control Plane does not need to initiate HTTP requests to each agent for normal execution. Workers still need outbound connectivity to the Control Plane for registration, heartbeat, claim, artifact metadata, and result shard submission. Target apps do not need to connect to the Control Plane.
+
 ## Preflight Checklist
 
 - Host clocks are synchronized.
-- Control Plane can resolve and connect to every Worker Agent address.
+- For current preview dispatch, Control Plane can resolve and connect to every Worker Agent address.
+- For future agent claim, each Worker can claim work from the Control Plane without requiring inbound agent reachability from the Control Plane.
 - Each Worker can resolve and connect to the Control Plane URL.
 - Workers can reach only the intended target app networks.
+- Worker labels state target network reachability, such as `target_network=internal-a`.
 - Redis is reachable from Control Plane web and Celery services.
 - The same configured preview access value or future scoped access is aligned between Control Plane and Worker Agents.
 - Worker hosts have k6 and JMeter installed through the Worker image or runtime environment.
@@ -61,7 +68,8 @@ The Control Plane must be able to reach each Worker's advertised `ip_address` an
 5. Start Worker Agent on Host C with the same Control Plane URL and a unique worker name.
 6. Confirm both workers appear in `GET /api/workers/`.
 7. Submit a low-cost template-driven smoke task.
-8. Confirm task dispatch, result callback, and worker heartbeat remain stable.
+8. Confirm task dispatch or future shard claim, result callback, and worker heartbeat remain stable.
+9. For future distributed execution, submit a sharded task with one shard per worker label and confirm shard assignment, result shard collection, and aggregate status.
 
 ## Validation Commands
 
@@ -83,8 +91,39 @@ The Worker `/execute` endpoint expects an authenticated POST request for real di
 | Worker appears offline | heartbeat route reachable and host clocks are synchronized |
 | Task remains pending | worker is online, idle, and advertises the task engine capability |
 | Dispatch fails | Control Plane can reach Worker `/execute` on advertised address |
+| Shard remains unclaimed | agent labels, engine capability, and target network selector match the shard |
 | Result missing | Worker can reach Control Plane result callback route |
+| Partial success | inspect failed, cancelled, timed-out, and completed shard counts separately |
 | Load traffic fails | Worker can reach the authorized target URL |
+
+## Duration And Stop Policy Checks
+
+For future duration-based execution:
+
+- Confirm `duration_seconds`, `graceful_stop_seconds`, and `max_run_seconds` are present in the submitted task contract.
+- Confirm a 1-hour task stops new traffic at 1 hour and only waits for in-flight requests during the configured grace period.
+- Confirm worker-level timeout is longer than the requested duration plus ramp and grace time.
+- Confirm forced stops are recorded in result metadata instead of appearing as ordinary successful completion.
+
+## Dataset Partition Checks
+
+For future dataset partitioning:
+
+- Confirm every shard has a stable `shard_id`.
+- Confirm manual ranges do not overlap unless explicitly allowed by the task contract.
+- Confirm a 5000-row dataset can be represented as offset 0 limit 2000 and offset 2000 limit 3000.
+- Confirm each agent receives only the dataset shard assigned to its claimed shard.
+- Confirm retries preserve attempt numbers so duplicate result shards can be identified.
+
+## Result Aggregation Checks
+
+For distributed results:
+
+- Sum total requests and failed requests across result shards.
+- Recalculate error rate from summed totals.
+- Recalculate throughput from the overall run time window.
+- Do not average shard p95 or p99 values into a global percentile.
+- Mark global latency percentiles unavailable until raw samples, histogram buckets, HDR histogram, t-digest, or engine-supported merge output is available.
 
 ## Rollback
 
@@ -104,3 +143,4 @@ The Worker `/execute` endpoint expects an authenticated POST request for real di
 - Add log redaction for access headers and sensitive runtime parameters.
 - Define backup and retention policies for task results and observability data.
 - Add deployment-specific monitoring for worker heartbeat age, task failure rate, and dispatch errors.
+- Add monitoring for unclaimed shards, shard retries, partial success, forced stops, and aggregation quality.

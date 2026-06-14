@@ -108,6 +108,173 @@ Minimum request:
 
 When `target_app_id` and `target_profile_id` are provided, the Control Plane expands the template into the existing task fields: `name`, `engine`, `script_path`, `target_url`, and default `parameters`.
 
+## Planned Execution And Distribution Objects
+
+The current preview API does not yet implement duration-based execution or distributed multi-agent execution. Future `/api/v1/tasks` should accept these objects:
+
+| Object | Purpose |
+|---|---|
+| `execution` | Duration, ramp-up, ramp-down, stop policy, grace period, worker timeout, iteration limit, and data policy. |
+| `distribution` | Single-agent or sharded execution mode, claim model, agent selectors, and shard definitions. |
+| `dataset` | Dataset source, format, partition strategy, and shard ranges. |
+| `shards` | Per-shard execution and dataset assignment under `distribution`. |
+| `result_aggregation` | Read-only result object describing global and per-shard aggregation confidence. |
+
+Consumers should follow [Task execution model](task-execution-model.md) and [Distributed agent execution](distributed-agent-execution.md) when preparing future-compatible payloads.
+
+Planned single-agent 10-minute task:
+
+```json
+{
+  "target_app_id": "payload-api",
+  "target_profile_id": "payload-k6-download",
+  "created_by": "api-consumer-guide",
+  "execution": {
+    "duration_seconds": 600,
+    "ramp_up_seconds": 30,
+    "ramp_down_seconds": 30,
+    "stop_policy": "graceful_stop",
+    "graceful_stop_seconds": 30,
+    "max_run_seconds": 720,
+    "iteration_limit": null,
+    "data_policy": "time_bounded"
+  },
+  "distribution": {
+    "mode": "single_agent"
+  }
+}
+```
+
+Planned single-agent 1-hour graceful task:
+
+```json
+{
+  "target_app_id": "latency-api",
+  "target_profile_id": "latency-k6-delay",
+  "created_by": "api-consumer-guide",
+  "execution": {
+    "duration_seconds": 3600,
+    "ramp_up_seconds": 120,
+    "ramp_down_seconds": 60,
+    "stop_policy": "graceful_stop",
+    "graceful_stop_seconds": 60,
+    "max_run_seconds": 3900,
+    "iteration_limit": null,
+    "data_policy": "time_bounded"
+  },
+  "distribution": {
+    "mode": "single_agent"
+  }
+}
+```
+
+Planned multi-agent dataset split:
+
+```json
+{
+  "target_app_id": "db-api",
+  "target_profile_id": "db-k6-list-filter",
+  "created_by": "api-consumer-guide",
+  "execution": {
+    "duration_seconds": 1800,
+    "stop_policy": "whichever_first",
+    "graceful_stop_seconds": 30,
+    "max_run_seconds": 2100,
+    "data_policy": "whichever_first"
+  },
+  "dataset": {
+    "source": "artifact://datasets/users.csv",
+    "format": "csv",
+    "partition_strategy": "manual_ranges",
+    "shards": [
+      {
+        "shard_id": "users-a",
+        "offset": 0,
+        "limit": 2000
+      },
+      {
+        "shard_id": "users-b",
+        "offset": 2000,
+        "limit": 3000
+      }
+    ]
+  },
+  "distribution": {
+    "mode": "sharded",
+    "claim_model": "agent_claim",
+    "shards": [
+      {
+        "shard_id": "users-a",
+        "agent_selector": {
+          "engine": "k6",
+          "labels": {
+            "target_network": "internal-a"
+          }
+        },
+        "dataset_shard": {
+          "offset": 0,
+          "limit": 2000
+        }
+      },
+      {
+        "shard_id": "users-b",
+        "agent_selector": {
+          "engine": "k6",
+          "labels": {
+            "target_network": "internal-a"
+          }
+        },
+        "dataset_shard": {
+          "offset": 2000,
+          "limit": 3000
+        }
+      }
+    ]
+  }
+}
+```
+
+Planned multi-agent target network labels:
+
+```json
+{
+  "target_app_id": "payload-api",
+  "target_profile_id": "payload-jmeter-download",
+  "created_by": "api-consumer-guide",
+  "execution": {
+    "duration_seconds": 900,
+    "stop_policy": "graceful_stop",
+    "graceful_stop_seconds": 30,
+    "max_run_seconds": 1020,
+    "data_policy": "time_bounded"
+  },
+  "distribution": {
+    "mode": "sharded",
+    "claim_model": "agent_claim",
+    "shards": [
+      {
+        "shard_id": "network-a",
+        "agent_selector": {
+          "engine": "jmeter",
+          "labels": {
+            "target_network": "internal-a"
+          }
+        }
+      },
+      {
+        "shard_id": "network-b",
+        "agent_selector": {
+          "engine": "jmeter",
+          "labels": {
+            "target_network": "internal-b"
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
 ## Error Handling
 
 Current preview endpoints use Django REST Framework error responses. Consumers should handle:
@@ -143,6 +310,7 @@ Preview and subject to future tightening:
 - per-script parameter names
 - inline `raw_report` shape
 - future `/api/v1` route names
+- `execution`, `distribution`, `dataset`, `shards`, and `result_aggregation` until the v1 runtime contract is implemented
 
 ## Example Files
 

@@ -8,11 +8,13 @@ This area is for implementation-facing contracts: APIs, data models, worker prot
 - [API token access planning spec](api-token-auth.md)
 - [Dashboard read model](dashboard-read-model.md)
 - [API consumer guide](api-consumer-guide.md)
+- [Task execution model](task-execution-model.md)
+- [Distributed agent execution](distributed-agent-execution.md)
 - [API example payloads](examples/)
 
 ## Likely Future Specs
 
-- Worker Agent heartbeat, execution, and result callback contract.
+- Worker Agent heartbeat, execution, distributed claim, and result callback contract.
 - k6 script contract and output parsing expectations.
 - JMeter plan and JTL parsing contract.
 - Docker Compose service contract and environment variables.
