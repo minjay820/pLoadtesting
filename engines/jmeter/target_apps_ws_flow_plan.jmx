@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Target Apps WebSocket Flow Plan">
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="TARGET_HOST" elementType="Argument">
+            <stringProp name="Argument.name">TARGET_HOST</stringProp>
+            <stringProp name="Argument.value">${__P(TARGET_HOST,127.0.0.1)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="TARGET_PORT" elementType="Argument">
+            <stringProp name="Argument.name">TARGET_PORT</stringProp>
+            <stringProp name="Argument.value">${__P(TARGET_PORT,18088)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="FLOW_MODE" elementType="Argument">
+            <stringProp name="Argument.name">FLOW_MODE</stringProp>
+            <stringProp name="Argument.value">${__P(FLOW_MODE,echo)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="WS_PATH" elementType="Argument">
+            <stringProp name="Argument.name">WS_PATH</stringProp>
+            <stringProp name="Argument.value">${__P(WS_PATH,/ws/echo)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="WS_ROOM" elementType="Argument">
+            <stringProp name="Argument.name">WS_ROOM</stringProp>
+            <stringProp name="Argument.value">${__P(WS_ROOM,smoke-room)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="WS_MESSAGE" elementType="Argument">
+            <stringProp name="Argument.name">WS_MESSAGE</stringProp>
+            <stringProp name="Argument.value">${__P(WS_MESSAGE,smoke-echo)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="WS_CLIENT_ID" elementType="Argument">
+            <stringProp name="Argument.name">WS_CLIENT_ID</stringProp>
+            <stringProp name="Argument.value">${__P(WS_CLIENT_ID,publisher)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="WebSocket Thread Group">
+        <intProp name="ThreadGroup.num_threads">1</intProp>
+        <intProp name="ThreadGroup.ramp_time">1</intProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
+          <stringProp name="LoopController.loops">2</stringProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Run WebSocket Flow">
+          <stringProp name="scriptLanguage">groovy</stringProp>
+          <stringProp name="script">import groovy.json.JsonOutput
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.WebSocket
+import java.time.Duration
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
+
+class QueueListener implements WebSocket.Listener {
+    final LinkedBlockingQueue messages = new LinkedBlockingQueue()
+    @Override
+    java.util.concurrent.CompletionStage onText(WebSocket webSocket, CharSequence data, boolean last) {
+        messages.offer(data.toString())
+        webSocket.request(1)
+        return null
+    }
+    @Override
+    void onOpen(WebSocket webSocket) {
+        webSocket.request(1)
+    }
+}
+
+def host = props.get('TARGET_HOST', '127.0.0.1')
+def port = props.get('TARGET_PORT', '18088')
+def flowMode = props.get('FLOW_MODE', 'echo')
+def wsPath = props.get('WS_PATH', '/ws/echo')
+def room = props.get('WS_ROOM', 'smoke-room')
+def message = props.get('WS_MESSAGE', 'smoke-echo')
+def clientId = props.get('WS_CLIENT_ID', 'publisher')
+def baseWs = "ws://${host}:${port}"
+def client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()
+
+def connect = { String uriText -&gt;
+    def listener = new QueueListener()
+    def socket = client.newWebSocketBuilder()
+        .connectTimeout(Duration.ofSeconds(5))
+        .buildAsync(URI.create(uriText), listener)
+        .join()
+    [socket: socket, listener: listener]
+}
+
+def nextMessage = { listener, String label -&gt;
+    def value = listener.messages.poll(5, TimeUnit.SECONDS)
+    if (value == null) {
+        throw new AssertionError("Timed out waiting for ${label}")
+    }
+    value
+}
+
+SampleResult.sampleStart()
+try {
+    def summary = [flow_mode: flowMode]
+    if (flowMode == 'broadcast') {
+        def subscriber = connect("${baseWs}/ws/broadcast/${room}?client_id=subscriber&amp;deterministic=true")
+        def publisher = connect("${baseWs}/ws/broadcast/${room}?client_id=${clientId}&amp;deterministic=true")
+        try {
+            def subscriberWelcome = nextMessage(subscriber.listener, 'subscriber welcome')
+            def publisherWelcome = nextMessage(publisher.listener, 'publisher welcome')
+            if (!subscriberWelcome.contains('\"event\":\"welcome\"')) {
+                throw new AssertionError('Expected subscriber welcome event')
+            }
+            if (!publisherWelcome.contains('\"event\":\"welcome\"')) {
+                throw new AssertionError('Expected publisher welcome event')
+            }
+            publisher.socket.sendText(message, true).join()
+            def broadcast = nextMessage(subscriber.listener, 'broadcast message')
+            if (!(broadcast.contains('\"event\":\"broadcast\"') &amp;&amp; broadcast.contains("\"message\":\"${message}\"") &amp;&amp; broadcast.contains("\"room\":\"${room}\""))) {
+                throw new AssertionError("Unexpected broadcast payload: ${broadcast}")
+            }
+            summary.broadcast = broadcast
+        } finally {
+            subscriber.socket.sendClose(WebSocket.NORMAL_CLOSURE, 'done').join()
+            publisher.socket.sendClose(WebSocket.NORMAL_CLOSURE, 'done').join()
+        }
+    } else {
+        def connection = connect("${baseWs}${wsPath}?deterministic=true")
+        try {
+            def welcome = nextMessage(connection.listener, 'echo welcome')
+            if (!welcome.contains('\"event\":\"welcome\"')) {
+                throw new AssertionError('Expected echo welcome event')
+            }
+            connection.socket.sendText(message, true).join()
+            def echoed = nextMessage(connection.listener, 'echo reply')
+            if (!(echoed.contains('\"event\":\"echo\"') &amp;&amp; echoed.contains("\"message\":\"${message}\"") &amp;&amp; echoed.contains('\"sequence\":1'))) {
+                throw new AssertionError("Unexpected echo payload: ${echoed}")
+            }
+            summary.echo = echoed
+        } finally {
+            connection.socket.sendClose(WebSocket.NORMAL_CLOSURE, 'done').join()
+        }
+    }
+
+    SampleResult.setResponseCode('101')
+    SampleResult.setResponseMessage("WebSocket ${flowMode} flow validated")
+    SampleResult.setResponseData(JsonOutput.toJson(summary), 'UTF-8')
+    SampleResult.setSuccessful(true)
+} catch (Throwable error) {
+    SampleResult.setResponseCode('500')
+    SampleResult.setResponseMessage(error.getMessage())
+    SampleResult.setSuccessful(false)
+    throw error
+} finally {
+    SampleResult.sampleEnd()
+}</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

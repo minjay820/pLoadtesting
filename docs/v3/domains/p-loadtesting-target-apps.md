@@ -150,6 +150,12 @@ These manifests are intended to be machine-readable metadata for future target s
 
 The suite now includes task templates under `target-apps/task-templates/` and engine samples under `engines/k6/` plus `engines/jmeter/`.
 
+Current coverage rule:
+
+- every current target family in the catalog must have at least one `k6` sample
+- every current target family in the catalog must have at least one `jmeter` sample
+- profile-by-profile parity is still incremental, so some families currently use representative JMeter correspondence coverage rather than a one-to-one mirror of every k6 profile
+
 Template flow:
 
 1. `target_app_id` selects the target family.
@@ -169,24 +175,41 @@ Examples:
 | `error-api` | `error-k6-flaky` | k6 | deterministic flaky response validation |
 | `resource-api` | `resource-k6-cpu` | k6 | bounded CPU workload |
 | `payload-api` | `payload-jmeter-download` | JMeter | payload download throughput |
+| `payload-api` | `payload-jmeter-archive-read-many` | JMeter | bounded read-many archive-style flow |
 | `payload-api` | `payload-k6-file-download` | k6 | bounded file-like download |
 | `payload-api` | `payload-k6-file-roundtrip` | k6 | bounded manifest, download, and upload roundtrip |
 | `payload-api` | `payload-k6-archive-read-many` | k6 | bounded fixture-pack, zip archive, and read-many flow |
 | `crud-api` | `crud-k6-flow` | k6 | create-and-fetch flow |
+| `error-api` | `error-jmeter-flaky` | JMeter | deterministic flaky success-branch handling |
+| `resource-api` | `resource-jmeter-cpu` | JMeter | bounded CPU request validation |
 | `auth-flow-api` | `auth-k6-checkout` | k6 | login and checkout business flow |
 | `auth-flow-api` | `auth-k6-refresh-flow` | k6 | expiry, refresh, and logout flow |
 | `auth-flow-api` | `auth-k6-failure-branches` | k6 | invalid credential, expiry, and revoked token checks |
 | `auth-flow-api` | `auth-k6-session-flow` | k6 | cookie login, session profile, and session logout flow |
 | `auth-flow-api` | `auth-k6-mfa-flow` | k6 | deterministic MFA-like challenge and verify flow |
+| `auth-flow-api` | `auth-jmeter-refresh-flow` | JMeter | bearer expiry, refresh, and logout flow |
+| `auth-flow-api` | `auth-jmeter-session-flow` | JMeter | cookie session login, profile, and logout flow |
+| `auth-flow-api` | `auth-jmeter-mfa-flow` | JMeter | deterministic MFA-like challenge and verify flow |
 | `sse-api` | `sse-k6-smoke` | k6 | bounded SSE smoke stream |
 | `sse-api` | `sse-k6-ticker` | k6 | bounded SSE ticker stream |
 | `sse-api` | `sse-k6-progress-heavy` | k6 | richer bounded progress stream |
+| `sse-api` | `sse-jmeter-smoke` | JMeter | bounded finite SSE smoke read |
+| `sse-api` | `sse-jmeter-progress-heavy` | JMeter | richer bounded SSE progress read |
 | `ws-api` | `ws-k6-echo-smoke` | k6 | bounded WebSocket echo smoke |
 | `ws-api` | `ws-k6-broadcast-smoke` | k6 | bounded WebSocket broadcast smoke |
+| `ws-api` | `ws-jmeter-echo-smoke` | JMeter | bounded WebSocket echo via Java 11 client |
+| `ws-api` | `ws-jmeter-broadcast-smoke` | JMeter | bounded WebSocket broadcast via Java 11 client |
 | `db-api` | `db-k6-crud-smoke` | k6 | SQLite-backed CRUD smoke |
 | `db-api` | `db-k6-list-filter` | k6 | SQLite-backed list/filter smoke |
+| `db-api` | `db-jmeter-crud-smoke` | JMeter | SQLite-backed create-and-fetch smoke |
+| `db-api` | `db-jmeter-list-filter` | JMeter | SQLite-backed list/filter smoke |
 
 This keeps the Worker and task model unchanged while allowing manifest-driven selection.
+
+For JMeter specifically, the current suite uses two correspondence styles:
+
+- parametric HTTP plans for simple bounded GET-oriented targets
+- JSR223 flow plans for SSE, WebSocket, auth-heavy, and DB-heavy targets where multi-step or non-trivial transport handling is required
 
 ## CI Validation Approach
 

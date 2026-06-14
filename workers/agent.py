@@ -403,6 +403,7 @@ def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
             if parameters:
                 for k, v in parameters.items():
                     if k != "target_url":
+                        cmd.append(f"-J{k}={v}")
                         env[k] = str(v)
             
             logger.info(f"Running command: {' '.join(cmd)}")

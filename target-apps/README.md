@@ -20,6 +20,7 @@ This directory contains a diversified local target suite for pLoadtesting. These
 Each app exposes `/health`, explicit safe limits, deterministic behavior where randomness exists, and a manifest in `target-apps/manifests/`.
 
 Task templates live in `target-apps/task-templates/` and point to ready-to-use k6 or JMeter sample scenarios under `engines/`.
+The current baseline is that every target family in this catalog has at least one `k6` sample and one `jmeter` sample.
 
 Runtime smoke validation script:
 
@@ -75,3 +76,4 @@ curl http://127.0.0.1:18089/health
 - `payload-api` also includes bounded fixture-pack metadata, zip archive, and read-many summary endpoints for archive-style file-heavy coverage.
 - `auth-flow-api` now includes bounded refresh, expiry, invalid-credential, and logout branches without any real identity provider or secret.
 - `auth-flow-api` also includes demo-only cookie/session and MFA-like challenge/verify branches with deterministic behavior.
+- JMeter coverage now includes selective target-family correspondence for `error-api`, `resource-api`, `payload-api`, `auth-flow-api`, `sse-api`, `ws-api`, and `db-api`.

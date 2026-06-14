@@ -172,7 +172,24 @@ k6 run -e TARGET_URL=http://127.0.0.1:18086 -e FLOW_MODE=session engines/k6/targ
 k6 run -e TARGET_URL=http://127.0.0.1:18086 -e FLOW_MODE=mfa -e MFA_CHANNEL=sms engines/k6/target_apps_auth_session_mfa_flow.js
 ```
 
-JMeter SSE, WebSocket, and SQLite-heavy sample plans are intentionally deferred for now because the current repo priorities favor low-cost, deterministic validation paths. The bounded k6 scripts cover these transports and flows with less CI and tooling risk.
+JMeter sample coverage is now available across the current target catalog as bounded selective correspondence coverage.
+
+Representative JMeter samples:
+
+```bash
+jmeter -n -t engines/jmeter/target_apps_echo_latency_plan.jmx -JTARGET_HOST=127.0.0.1 -JTARGET_PORT=18082 -JTARGET_PATH=/api/flaky -JTARGET_METHOD=GET -JTARGET_QUERY='rate=0.5&deterministic=true&request_key=pass'
+jmeter -n -t engines/jmeter/target_apps_payload_crud_plan.jmx -JTARGET_HOST=127.0.0.1 -JTARGET_PORT=18084 -JTARGET_PATH=/api/files/read-many -JTARGET_METHOD=GET -JTARGET_QUERY='count=4&kb_per_file=12'
+jmeter -n -t engines/jmeter/target_apps_sse_plan.jmx -JSSE_ENDPOINT_PATH=/api/progress-heavy -JSSE_STEPS=24 -JSSE_INTERVAL_MS=25
+jmeter -n -t engines/jmeter/target_apps_ws_flow_plan.jmx -JFLOW_MODE=echo -JTARGET_HOST=127.0.0.1 -JTARGET_PORT=18088 -JWS_PATH=/ws/echo -JWS_MESSAGE=smoke-echo
+jmeter -n -t engines/jmeter/target_apps_auth_flow_plan.jmx -JFLOW_MODE=session -JDEMO_USERNAME=alice -JDEMO_PASSWORD=demo-password -JSESSION_USES=2
+jmeter -n -t engines/jmeter/target_apps_db_flow_plan.jmx -JFLOW_MODE=list-filter -JDB_LIST_CATEGORY=sales -JDB_LIST_STATUS=ready -JDB_LIST_LIMIT=10
+```
+
+Notes:
+
+- The current rule is target-family parity, not strict one-to-one parity for every profile.
+- SSE and WebSocket JMeter plans use Groovy plus the Java 11 built-in clients instead of third-party protocol plugins.
+- Worker-side JMeter execution now forwards template parameters as `-J...` properties, so manifest-driven tasks and direct CLI runs use the same property names.
 
 Optional overrides are still allowed:
 
@@ -224,6 +241,7 @@ If a request exceeds a safe limit, the app should return `422`.
   - `python manage.py test apps/ --verbosity=2`
 - WebSocket representative runtime behavior is covered in the Docker smoke script instead of the always-on pytest path.
 - File-heavy and auth-heavy representative flows are also covered in pytest and the Docker smoke script.
+- Target template parity is also checked so every current target family exposes both `k6` and `jmeter` sample coverage.
 
 ## Troubleshooting
 

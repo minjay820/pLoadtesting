@@ -62,3 +62,47 @@ profiles:
       FLOW_MODE: mfa
       MFA_CHANNEL: sms
       MFA_ISSUE_MODE: bearer
+  - target_profile_id: auth-jmeter-refresh-flow
+    display_name: Auth Refresh Flow via JMeter
+    description: JMeter bearer expiry, refresh, and logout flow against auth-flow-api.
+    engine: jmeter
+    script_path: engines/jmeter/target_apps_auth_flow_plan.jmx
+    target_url: http://127.0.0.1:18086
+    parameters:
+      target_url: http://127.0.0.1:18086
+      TARGET_HOST: 127.0.0.1
+      TARGET_PORT: "18086"
+      FLOW_MODE: refresh
+      DEMO_USERNAME: alice
+      DEMO_PASSWORD: demo-password
+      ACCESS_TOKEN_USES: "1"
+      REFRESH_USES: "2"
+  - target_profile_id: auth-jmeter-session-flow
+    display_name: Auth Session Flow via JMeter
+    description: JMeter demo-only cookie session flow against auth-flow-api.
+    engine: jmeter
+    script_path: engines/jmeter/target_apps_auth_flow_plan.jmx
+    target_url: http://127.0.0.1:18086
+    parameters:
+      target_url: http://127.0.0.1:18086
+      TARGET_HOST: 127.0.0.1
+      TARGET_PORT: "18086"
+      FLOW_MODE: session
+      DEMO_USERNAME: alice
+      DEMO_PASSWORD: demo-password
+      SESSION_USES: "2"
+  - target_profile_id: auth-jmeter-mfa-flow
+    display_name: Auth MFA Flow via JMeter
+    description: JMeter deterministic MFA-like challenge and verify flow against auth-flow-api.
+    engine: jmeter
+    script_path: engines/jmeter/target_apps_auth_flow_plan.jmx
+    target_url: http://127.0.0.1:18086
+    parameters:
+      target_url: http://127.0.0.1:18086
+      TARGET_HOST: 127.0.0.1
+      TARGET_PORT: "18086"
+      FLOW_MODE: mfa
+      DEMO_USERNAME: alice
+      DEMO_PASSWORD: demo-password
+      MFA_CHANNEL: sms
+      MFA_ISSUE_MODE: bearer

@@ -128,10 +128,21 @@ class TaskTemplateApiTests(TestCase):
         self.assertTrue(any(row["target_profile_id"] == "auth-k6-failure-branches" for row in templates))
         self.assertTrue(any(row["target_profile_id"] == "auth-k6-session-flow" for row in templates))
         self.assertTrue(any(row["target_profile_id"] == "auth-k6-mfa-flow" for row in templates))
+        self.assertTrue(any(row["target_profile_id"] == "error-jmeter-flaky" for row in templates))
+        self.assertTrue(any(row["target_profile_id"] == "resource-jmeter-cpu" for row in templates))
+        self.assertTrue(any(row["target_profile_id"] == "payload-jmeter-archive-read-many" for row in templates))
+        self.assertTrue(any(row["target_profile_id"] == "auth-jmeter-refresh-flow" for row in templates))
+        self.assertTrue(any(row["target_profile_id"] == "auth-jmeter-session-flow" for row in templates))
+        self.assertTrue(any(row["target_profile_id"] == "auth-jmeter-mfa-flow" for row in templates))
         self.assertTrue(any(row["target_app_id"] == "sse-api" for row in templates))
         self.assertTrue(any(row["target_profile_id"] == "sse-k6-progress-heavy" for row in templates))
+        self.assertTrue(any(row["target_profile_id"] == "sse-jmeter-progress-heavy" for row in templates))
         self.assertTrue(any(row["target_app_id"] == "ws-api" for row in templates))
+        self.assertTrue(any(row["target_profile_id"] == "ws-jmeter-echo-smoke" for row in templates))
+        self.assertTrue(any(row["target_profile_id"] == "ws-jmeter-broadcast-smoke" for row in templates))
         self.assertTrue(any(row["target_app_id"] == "db-api" for row in templates))
+        self.assertTrue(any(row["target_profile_id"] == "db-jmeter-crud-smoke" for row in templates))
+        self.assertTrue(any(row["target_profile_id"] == "db-jmeter-list-filter" for row in templates))
 
     def test_create_task_from_template(self):
         response = self.client.post(
@@ -255,6 +266,23 @@ class TaskTemplateApiTests(TestCase):
         self.assertEqual(task.parameters["SSE_ENDPOINT_PATH"], "/api/progress-heavy")
         self.assertEqual(task.parameters["SSE_STEPS"], "24")
 
+    def test_create_progress_heavy_sse_jmeter_task_from_template(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "sse-api",
+                "target_profile_id": "sse-jmeter-progress-heavy",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.engine, "jmeter")
+        self.assertEqual(task.script_path, "engines/jmeter/target_apps_sse_plan.jmx")
+        self.assertEqual(task.parameters["SSE_ENDPOINT_PATH"], "/api/progress-heavy")
+        self.assertEqual(task.parameters["SSE_STEPS"], "24")
+
     def test_create_ws_echo_task_from_template(self):
         response = self.client.post(
             "/api/tasks/",
@@ -287,6 +315,24 @@ class TaskTemplateApiTests(TestCase):
         self.assertEqual(task.engine, "k6")
         self.assertEqual(task.script_path, "engines/k6/target_apps_ws_broadcast_smoke.js")
         self.assertEqual(task.target_url, "http://127.0.0.1:18088")
+        self.assertEqual(task.parameters["WS_ROOM"], "smoke-room")
+
+    def test_create_ws_jmeter_task_from_template(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "ws-api",
+                "target_profile_id": "ws-jmeter-broadcast-smoke",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.engine, "jmeter")
+        self.assertEqual(task.script_path, "engines/jmeter/target_apps_ws_flow_plan.jmx")
+        self.assertEqual(task.target_url, "http://127.0.0.1:18088")
+        self.assertEqual(task.parameters["FLOW_MODE"], "broadcast")
         self.assertEqual(task.parameters["WS_ROOM"], "smoke-room")
 
     def test_create_db_crud_task_from_template(self):
@@ -322,6 +368,24 @@ class TaskTemplateApiTests(TestCase):
         self.assertEqual(task.script_path, "engines/k6/target_apps_db_list_filter.js")
         self.assertEqual(task.target_url, "http://127.0.0.1:18089")
         self.assertEqual(task.parameters["DB_LIST_CATEGORY"], "sales")
+
+    def test_create_db_jmeter_task_from_template(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "db-api",
+                "target_profile_id": "db-jmeter-crud-smoke",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.engine, "jmeter")
+        self.assertEqual(task.script_path, "engines/jmeter/target_apps_db_flow_plan.jmx")
+        self.assertEqual(task.target_url, "http://127.0.0.1:18089")
+        self.assertEqual(task.parameters["FLOW_MODE"], "crud")
+        self.assertEqual(task.parameters["DB_RECORD_NAME"], "smoke-record")
 
     def test_create_auth_refresh_task_from_template(self):
         response = self.client.post(
@@ -391,3 +455,21 @@ class TaskTemplateApiTests(TestCase):
         self.assertEqual(task.target_url, "http://127.0.0.1:18086")
         self.assertEqual(task.parameters["FLOW_MODE"], "mfa")
         self.assertEqual(task.parameters["MFA_CHANNEL"], "sms")
+
+    def test_create_auth_jmeter_task_from_template(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "auth-flow-api",
+                "target_profile_id": "auth-jmeter-session-flow",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.engine, "jmeter")
+        self.assertEqual(task.script_path, "engines/jmeter/target_apps_auth_flow_plan.jmx")
+        self.assertEqual(task.target_url, "http://127.0.0.1:18086")
+        self.assertEqual(task.parameters["FLOW_MODE"], "session")
+        self.assertEqual(task.parameters["SESSION_USES"], "2")

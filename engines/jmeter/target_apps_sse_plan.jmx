@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Target Apps SSE Plan">
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="TARGET_HOST" elementType="Argument">
+            <stringProp name="Argument.name">TARGET_HOST</stringProp>
+            <stringProp name="Argument.value">${__P(TARGET_HOST,127.0.0.1)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="TARGET_PORT" elementType="Argument">
+            <stringProp name="Argument.name">TARGET_PORT</stringProp>
+            <stringProp name="Argument.value">${__P(TARGET_PORT,18087)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="SSE_ENDPOINT_PATH" elementType="Argument">
+            <stringProp name="Argument.name">SSE_ENDPOINT_PATH</stringProp>
+            <stringProp name="Argument.value">${__P(SSE_ENDPOINT_PATH,/api/events)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="SSE_COUNT" elementType="Argument">
+            <stringProp name="Argument.name">SSE_COUNT</stringProp>
+            <stringProp name="Argument.value">${__P(SSE_COUNT,5)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="SSE_STEPS" elementType="Argument">
+            <stringProp name="Argument.name">SSE_STEPS</stringProp>
+            <stringProp name="Argument.value">${__P(SSE_STEPS,5)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="SSE_INTERVAL_MS" elementType="Argument">
+            <stringProp name="Argument.name">SSE_INTERVAL_MS</stringProp>
+            <stringProp name="Argument.value">${__P(SSE_INTERVAL_MS,50)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="SSE Thread Group">
+        <intProp name="ThreadGroup.num_threads">1</intProp>
+        <intProp name="ThreadGroup.ramp_time">1</intProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
+          <stringProp name="LoopController.loops">2</stringProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Read Bounded SSE Stream">
+          <stringProp name="scriptLanguage">groovy</stringProp>
+          <stringProp name="script">import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+import java.time.Duration
+
+def host = props.get('TARGET_HOST', '127.0.0.1')
+def port = props.get('TARGET_PORT', '18087')
+def endpointPath = props.get('SSE_ENDPOINT_PATH', '/api/events')
+def count = endpointPath.contains('progress') ? props.get('SSE_STEPS', props.get('SSE_COUNT', '5')) : props.get('SSE_COUNT', '5')
+def intervalMs = props.get('SSE_INTERVAL_MS', '50')
+def countParam = endpointPath.contains('progress') ? 'steps' : 'count'
+def expectedEvent = endpointPath.contains('ticker') ? 'event: ticker' : (endpointPath.contains('progress-heavy') ? 'event: progress-heavy' : (endpointPath.contains('progress') ? 'event: progress' : 'event: message'))
+def uri = URI.create("http://${host}:${port}${endpointPath}?${countParam}=${count}&amp;interval_ms=${intervalMs}&amp;deterministic=true")
+
+def client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()
+def request = HttpRequest.newBuilder(uri)
+    .timeout(Duration.ofSeconds(10))
+    .header('Accept', 'text/event-stream')
+    .GET()
+    .build()
+
+SampleResult.sampleStart()
+try {
+    def response = client.send(request, HttpResponse.BodyHandlers.ofString())
+    def body = response.body()
+    def contentType = response.headers().firstValue('content-type').orElse('')
+
+    if (response.statusCode() != 200) {
+        throw new AssertionError("Expected HTTP 200 but received ${response.statusCode()}")
+    }
+    if (!contentType.contains('text/event-stream')) {
+        throw new AssertionError("Expected SSE content-type but received ${contentType}")
+    }
+    if (!body.contains(expectedEvent)) {
+        throw new AssertionError("Expected event marker ${expectedEvent}")
+    }
+    if (!body.contains('data:')) {
+        throw new AssertionError('Expected SSE data lines')
+    }
+    if (endpointPath.contains('progress-heavy') &amp;&amp; !(body.contains('\"phase\":\"') &amp;&amp; body.contains('\"metrics\":'))) {
+        throw new AssertionError('Expected progress-heavy metadata markers')
+    }
+
+    SampleResult.setResponseCode(String.valueOf(response.statusCode()))
+    SampleResult.setResponseMessage('SSE stream validated')
+    SampleResult.setResponseData(body, 'UTF-8')
+    SampleResult.setSuccessful(true)
+} catch (Throwable error) {
+    SampleResult.setResponseCode('500')
+    SampleResult.setResponseMessage(error.getMessage())
+    SampleResult.setSuccessful(false)
+    throw error
+} finally {
+    SampleResult.sampleEnd()
+}</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

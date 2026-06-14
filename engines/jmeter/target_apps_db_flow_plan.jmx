@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Target Apps DB Flow Plan">
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="TARGET_HOST" elementType="Argument">
+            <stringProp name="Argument.name">TARGET_HOST</stringProp>
+            <stringProp name="Argument.value">${__P(TARGET_HOST,127.0.0.1)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="TARGET_PORT" elementType="Argument">
+            <stringProp name="Argument.name">TARGET_PORT</stringProp>
+            <stringProp name="Argument.value">${__P(TARGET_PORT,18089)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="FLOW_MODE" elementType="Argument">
+            <stringProp name="Argument.name">FLOW_MODE</stringProp>
+            <stringProp name="Argument.value">${__P(FLOW_MODE,crud)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="DB_RECORD_NAME" elementType="Argument">
+            <stringProp name="Argument.name">DB_RECORD_NAME</stringProp>
+            <stringProp name="Argument.value">${__P(DB_RECORD_NAME,smoke-record)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="DB_RECORD_CATEGORY" elementType="Argument">
+            <stringProp name="Argument.name">DB_RECORD_CATEGORY</stringProp>
+            <stringProp name="Argument.value">${__P(DB_RECORD_CATEGORY,smoke)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="DB_RECORD_STATUS" elementType="Argument">
+            <stringProp name="Argument.name">DB_RECORD_STATUS</stringProp>
+            <stringProp name="Argument.value">${__P(DB_RECORD_STATUS,ready)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="DB_RECORD_VALUE" elementType="Argument">
+            <stringProp name="Argument.name">DB_RECORD_VALUE</stringProp>
+            <stringProp name="Argument.value">${__P(DB_RECORD_VALUE,17)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="DB_LIST_CATEGORY" elementType="Argument">
+            <stringProp name="Argument.name">DB_LIST_CATEGORY</stringProp>
+            <stringProp name="Argument.value">${__P(DB_LIST_CATEGORY,sales)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="DB_LIST_STATUS" elementType="Argument">
+            <stringProp name="Argument.name">DB_LIST_STATUS</stringProp>
+            <stringProp name="Argument.value">${__P(DB_LIST_STATUS,ready)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="DB_LIST_LIMIT" elementType="Argument">
+            <stringProp name="Argument.name">DB_LIST_LIMIT</stringProp>
+            <stringProp name="Argument.value">${__P(DB_LIST_LIMIT,10)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="DB Flow Thread Group">
+        <intProp name="ThreadGroup.num_threads">1</intProp>
+        <intProp name="ThreadGroup.ramp_time">1</intProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
+          <stringProp name="LoopController.loops">2</stringProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Run DB Flow">
+          <stringProp name="scriptLanguage">groovy</stringProp>
+          <stringProp name="script">import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+import java.time.Duration
+
+def host = props.get('TARGET_HOST', '127.0.0.1')
+def port = props.get('TARGET_PORT', '18089')
+def baseUrl = "http://${host}:${port}"
+def flowMode = props.get('FLOW_MODE', 'crud')
+def slurper = new JsonSlurper()
+def client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()
+
+def sendJson = { String method, String path, Object payload -&gt;
+    def request = HttpRequest.newBuilder(URI.create("${baseUrl}${path}"))
+        .timeout(Duration.ofSeconds(10))
+        .header('Content-Type', 'application/json')
+        .header('Accept', 'application/json')
+        .method(method, HttpRequest.BodyPublishers.ofString(JsonOutput.toJson(payload)))
+        .build()
+    client.send(request, HttpResponse.BodyHandlers.ofString())
+}
+
+def sendGet = { String path -&gt;
+    def request = HttpRequest.newBuilder(URI.create("${baseUrl}${path}"))
+        .timeout(Duration.ofSeconds(10))
+        .header('Accept', 'application/json')
+        .GET()
+        .build()
+    client.send(request, HttpResponse.BodyHandlers.ofString())
+}
+
+def requireStatus = { response, int expected, String label -&gt;
+    if (response.statusCode() != expected) {
+        throw new AssertionError("${label} expected ${expected} but received ${response.statusCode()} with body ${response.body()}")
+    }
+}
+
+SampleResult.sampleStart()
+try {
+    def summary = [flow_mode: flowMode]
+    if (flowMode == 'list-filter') {
+        def category = props.get('DB_LIST_CATEGORY', 'sales')
+        def status = props.get('DB_LIST_STATUS', 'ready')
+        def limit = props.get('DB_LIST_LIMIT', '10')
+        def listResponse = sendGet("/api/records?category=${category}&amp;status=${status}&amp;limit=${limit}&amp;sort_by=id&amp;sort_order=asc")
+        requireStatus(listResponse, 200, 'db list filter')
+        def listJson = slurper.parseText(listResponse.body())
+        if (!(listJson.count instanceof Number) || listJson.count &gt; Integer.parseInt(limit)) {
+            throw new AssertionError("Expected bounded count &lt;= ${limit}")
+        }
+        if (!(listJson.items instanceof List)) {
+            throw new AssertionError('Expected items list')
+        }
+        summary.list = listJson
+    } else {
+        def createResponse = sendJson(
+            'POST',
+            '/api/records',
+            [
+                name: props.get('DB_RECORD_NAME', 'smoke-record'),
+                category: props.get('DB_RECORD_CATEGORY', 'smoke'),
+                status: props.get('DB_RECORD_STATUS', 'ready'),
+                value: Integer.parseInt(props.get('DB_RECORD_VALUE', '17')),
+            ]
+        )
+        requireStatus(createResponse, 201, 'db create')
+        def createdJson = slurper.parseText(createResponse.body())
+        def fetchResponse = sendGet("/api/records/${createdJson.id}")
+        requireStatus(fetchResponse, 200, 'db fetch')
+        def fetchedJson = slurper.parseText(fetchResponse.body())
+        if (fetchedJson.name != props.get('DB_RECORD_NAME', 'smoke-record')) {
+            throw new AssertionError("Expected fetched name to match ${props.get('DB_RECORD_NAME', 'smoke-record')}")
+        }
+        summary.created = createdJson
+        summary.fetched = fetchedJson
+    }
+
+    SampleResult.setResponseCode('200')
+    SampleResult.setResponseMessage("DB ${flowMode} flow validated")
+    SampleResult.setResponseData(JsonOutput.toJson(summary), 'UTF-8')
+    SampleResult.setSuccessful(true)
+} catch (Throwable error) {
+    SampleResult.setResponseCode('500')
+    SampleResult.setResponseMessage(error.getMessage())
+    SampleResult.setSuccessful(false)
+    throw error
+} finally {
+    SampleResult.sampleEnd()
+}</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

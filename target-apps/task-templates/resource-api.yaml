@@ -9,4 +9,16 @@ profiles:
     parameters:
       TARGET_URL: http://127.0.0.1:18083
       CPU_ITERATIONS: "250000"
-
+  - target_profile_id: resource-jmeter-cpu
+    display_name: Resource CPU via JMeter
+    description: JMeter bounded CPU request against resource-api.
+    engine: jmeter
+    script_path: engines/jmeter/target_apps_echo_latency_plan.jmx
+    target_url: http://127.0.0.1:18083
+    parameters:
+      target_url: http://127.0.0.1:18083
+      TARGET_HOST: 127.0.0.1
+      TARGET_PORT: "18083"
+      TARGET_PATH: /api/cpu
+      TARGET_METHOD: GET
+      TARGET_QUERY: iterations=250000

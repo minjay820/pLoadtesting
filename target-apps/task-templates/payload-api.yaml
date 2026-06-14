@@ -46,3 +46,16 @@ profiles:
       TARGET_URL: http://127.0.0.1:18084
       PACK_COUNT: "4"
       PACK_KB_PER_FILE: "12"
+  - target_profile_id: payload-jmeter-archive-read-many
+    display_name: Payload Read-Many via JMeter
+    description: JMeter bounded archive-style read-many profile against payload-api.
+    engine: jmeter
+    script_path: engines/jmeter/target_apps_payload_crud_plan.jmx
+    target_url: http://127.0.0.1:18084
+    parameters:
+      target_url: http://127.0.0.1:18084
+      TARGET_HOST: 127.0.0.1
+      TARGET_PORT: "18084"
+      TARGET_PATH: /api/files/read-many
+      TARGET_METHOD: GET
+      TARGET_QUERY: count=4&kb_per_file=12

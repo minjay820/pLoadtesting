@@ -68,6 +68,16 @@ def test_task_templates_are_loadable_and_point_to_real_assets():
     assert (TARGET_APPS_DIR / "scripts" / "smoke_docker_target_apps.sh").exists()
 
 
+def test_every_target_catalog_has_k6_and_jmeter_coverage():
+    coverage: dict[str, set[str]] = {}
+    for template_path in TEMPLATE_FILES:
+        template_doc = load_manifest(template_path)
+        coverage[template_doc["target_app_id"]] = {profile["engine"] for profile in template_doc["profiles"]}
+
+    for target_app_id in APP_MODULES:
+        assert coverage[target_app_id] == {"k6", "jmeter"}
+
+
 def test_every_target_health_endpoint_is_stable():
     for target_app_id, module_name in APP_MODULES.items():
         app = import_module(module_name).app

@@ -22,3 +22,30 @@ profiles:
       WS_ROOM: smoke-room
       WS_MESSAGE: smoke-broadcast
       WS_CLIENT_ID: publisher
+  - target_profile_id: ws-jmeter-echo-smoke
+    display_name: WebSocket Echo Smoke via JMeter
+    description: JMeter bounded WebSocket echo validation using the Java 11 WebSocket client.
+    engine: jmeter
+    script_path: engines/jmeter/target_apps_ws_flow_plan.jmx
+    target_url: http://127.0.0.1:18088
+    parameters:
+      target_url: http://127.0.0.1:18088
+      TARGET_HOST: 127.0.0.1
+      TARGET_PORT: "18088"
+      FLOW_MODE: echo
+      WS_PATH: /ws/echo
+      WS_MESSAGE: smoke-echo
+  - target_profile_id: ws-jmeter-broadcast-smoke
+    display_name: WebSocket Broadcast Smoke via JMeter
+    description: JMeter bounded WebSocket broadcast validation using a publisher and subscriber pair.
+    engine: jmeter
+    script_path: engines/jmeter/target_apps_ws_flow_plan.jmx
+    target_url: http://127.0.0.1:18088
+    parameters:
+      target_url: http://127.0.0.1:18088
+      TARGET_HOST: 127.0.0.1
+      TARGET_PORT: "18088"
+      FLOW_MODE: broadcast
+      WS_ROOM: smoke-room
+      WS_MESSAGE: smoke-broadcast
+      WS_CLIENT_ID: publisher

@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Target Apps Auth Flow Plan">
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="TARGET_HOST" elementType="Argument">
+            <stringProp name="Argument.name">TARGET_HOST</stringProp>
+            <stringProp name="Argument.value">${__P(TARGET_HOST,127.0.0.1)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="TARGET_PORT" elementType="Argument">
+            <stringProp name="Argument.name">TARGET_PORT</stringProp>
+            <stringProp name="Argument.value">${__P(TARGET_PORT,18086)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="FLOW_MODE" elementType="Argument">
+            <stringProp name="Argument.name">FLOW_MODE</stringProp>
+            <stringProp name="Argument.value">${__P(FLOW_MODE,refresh)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="DEMO_USERNAME" elementType="Argument">
+            <stringProp name="Argument.name">DEMO_USERNAME</stringProp>
+            <stringProp name="Argument.value">${__P(DEMO_USERNAME,alice)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="DEMO_PASSWORD" elementType="Argument">
+            <stringProp name="Argument.name">DEMO_PASSWORD</stringProp>
+            <stringProp name="Argument.value">${__P(DEMO_PASSWORD,demo-password)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="ACCESS_TOKEN_USES" elementType="Argument">
+            <stringProp name="Argument.name">ACCESS_TOKEN_USES</stringProp>
+            <stringProp name="Argument.value">${__P(ACCESS_TOKEN_USES,1)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="REFRESH_USES" elementType="Argument">
+            <stringProp name="Argument.name">REFRESH_USES</stringProp>
+            <stringProp name="Argument.value">${__P(REFRESH_USES,2)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="SESSION_USES" elementType="Argument">
+            <stringProp name="Argument.name">SESSION_USES</stringProp>
+            <stringProp name="Argument.value">${__P(SESSION_USES,2)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="MFA_CHANNEL" elementType="Argument">
+            <stringProp name="Argument.name">MFA_CHANNEL</stringProp>
+            <stringProp name="Argument.value">${__P(MFA_CHANNEL,sms)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="MFA_ISSUE_MODE" elementType="Argument">
+            <stringProp name="Argument.name">MFA_ISSUE_MODE</stringProp>
+            <stringProp name="Argument.value">${__P(MFA_ISSUE_MODE,bearer)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Auth Flow Thread Group">
+        <intProp name="ThreadGroup.num_threads">1</intProp>
+        <intProp name="ThreadGroup.ramp_time">1</intProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
+          <stringProp name="LoopController.loops">2</stringProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Run Auth Flow">
+          <stringProp name="scriptLanguage">groovy</stringProp>
+          <stringProp name="script">import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+import java.net.HttpURLConnection
+import java.net.URL
+
+def host = props.get('TARGET_HOST', '127.0.0.1')
+def port = props.get('TARGET_PORT', '18086')
+def baseUrl = "http://${host}:${port}"
+def flowMode = props.get('FLOW_MODE', 'refresh')
+def username = props.get('DEMO_USERNAME', 'alice')
+def password = props.get('DEMO_PASSWORD', 'demo-password')
+def accessTokenUses = Integer.parseInt(props.get('ACCESS_TOKEN_USES', '1'))
+def refreshUses = Integer.parseInt(props.get('REFRESH_USES', '2'))
+def sessionUses = Integer.parseInt(props.get('SESSION_USES', '2'))
+def mfaChannel = props.get('MFA_CHANNEL', 'sms')
+def mfaIssueMode = props.get('MFA_ISSUE_MODE', 'bearer')
+
+def slurper = new JsonSlurper()
+def sessionCookie = [value: null]
+
+def sendJson = { String method, String path, Object payload, Map headers -&gt;
+    def connection = (HttpURLConnection) new URL("${baseUrl}${path}").openConnection()
+    connection.setConnectTimeout(5000)
+    connection.setReadTimeout(10000)
+    connection.setRequestMethod(method)
+    connection.setDoInput(true)
+    connection.setRequestProperty('Content-Type', 'application/json')
+    connection.setRequestProperty('Accept', 'application/json')
+    if (sessionCookie.value) {
+        connection.setRequestProperty('Cookie', sessionCookie.value)
+    }
+    headers.each { key, value -&gt; connection.setRequestProperty(String.valueOf(key), String.valueOf(value)) }
+    def body = JsonOutput.toJson(payload)
+    if (body != null) {
+        connection.setDoOutput(true)
+        connection.outputStream.withWriter('UTF-8') { writer -&gt; writer &lt;&lt; body }
+    }
+    def status = connection.responseCode
+    def cookieHeader = connection.getHeaderField('Set-Cookie')
+    if (cookieHeader?.contains('ploadtesting_demo_session=')) {
+        sessionCookie.value = cookieHeader.split(';', 2)[0]
+    }
+    def stream = status &gt;= 400 ? connection.getErrorStream() : connection.getInputStream()
+    def responseBody = stream != null ? stream.getText('UTF-8') : ''
+    [statusCode: { -&gt; status }, body: { -&gt; responseBody }]
+}
+
+def sendGet = { String path, Map headers -&gt;
+    def connection = (HttpURLConnection) new URL("${baseUrl}${path}").openConnection()
+    connection.setConnectTimeout(5000)
+    connection.setReadTimeout(10000)
+    connection.setRequestMethod('GET')
+    connection.setDoInput(true)
+    connection.setRequestProperty('Accept', 'application/json')
+    if (sessionCookie.value) {
+        connection.setRequestProperty('Cookie', sessionCookie.value)
+    }
+    headers.each { key, value -&gt; connection.setRequestProperty(String.valueOf(key), String.valueOf(value)) }
+    def status = connection.responseCode
+    def stream = status &gt;= 400 ? connection.getErrorStream() : connection.getInputStream()
+    def responseBody = stream != null ? stream.getText('UTF-8') : ''
+    [statusCode: { -&gt; status }, body: { -&gt; responseBody }]
+}
+
+def requireStatus = { response, int expected, String label -&gt;
+    if (response.statusCode() != expected) {
+        throw new AssertionError("${label} expected ${expected} but received ${response.statusCode()} with body ${response.body()}")
+    }
+}
+
+def expectedMfaCode = { String user, String channel -&gt;
+    def total = "${user}|${channel}".getBytes('UTF-8').sum { it &amp; 0xFF }
+    String.format('%06d', (total * 137) % 1000000)
+}
+
+SampleResult.sampleStart()
+try {
+    def resultSummary = [flow_mode: flowMode]
+
+    if (flowMode == 'session') {
+        def login = sendJson('POST', '/api/session/login', [username: username, password: password, session_uses: sessionUses], [:])
+        requireStatus(login, 200, 'session login')
+
+        def profile = sendGet('/api/session/profile', [:])
+        requireStatus(profile, 200, 'session profile')
+
+        def logout = sendJson('POST', '/api/session/logout', [:], [:])
+        requireStatus(logout, 200, 'session logout')
+
+        def revoked = sendGet('/api/session/profile', [:])
+        requireStatus(revoked, 401, 'revoked session profile')
+        resultSummary.session_profile = slurper.parseText(profile.body())
+    } else if (flowMode == 'mfa') {
+        def start = sendJson('POST', '/api/mfa/login/start', [username: username, password: password, channel: mfaChannel], [:])
+        requireStatus(start, 200, 'mfa start')
+        def startJson = slurper.parseText(start.body())
+        def verify = sendJson(
+            'POST',
+            '/api/mfa/login/verify',
+            [
+                challenge_id: startJson.challenge_id,
+                code: expectedMfaCode(username, mfaChannel),
+                issue_mode: mfaIssueMode,
+                access_token_uses: 2,
+                refresh_uses: 1,
+                session_uses: sessionUses,
+            ],
+            [:]
+        )
+        requireStatus(verify, 200, 'mfa verify')
+        def verifyJson = slurper.parseText(verify.body())
+        if (mfaIssueMode == 'session') {
+            def sessionProfile = sendGet('/api/session/profile', [:])
+            requireStatus(sessionProfile, 200, 'mfa-issued session profile')
+            resultSummary.profile = slurper.parseText(sessionProfile.body())
+        } else {
+            def profile = sendGet('/api/profile', ['Authorization': "Bearer ${verifyJson.access_token}"])
+            requireStatus(profile, 200, 'mfa-issued bearer profile')
+            resultSummary.profile = slurper.parseText(profile.body())
+        }
+        resultSummary.challenge = startJson.challenge_id
+    } else {
+        def login = sendJson(
+            'POST',
+            '/api/login',
+            [username: username, password: password, access_token_uses: accessTokenUses, refresh_uses: refreshUses],
+            [:]
+        )
+        requireStatus(login, 200, 'bearer login')
+        def loginJson = slurper.parseText(login.body())
+        def authHeader = ['Authorization': "Bearer ${loginJson.access_token}"]
+
+        def firstProfile = sendGet('/api/profile', authHeader)
+        requireStatus(firstProfile, 200, 'initial bearer profile')
+
+        def expiredProfile = sendGet('/api/profile', authHeader)
+        requireStatus(expiredProfile, 401, 'expired bearer profile')
+
+        def refresh = sendJson(
+            'POST',
+            '/api/refresh',
+            [refresh_token: loginJson.refresh_token, access_token_uses: accessTokenUses + 1],
+            [:]
+        )
+        requireStatus(refresh, 200, 'refresh')
+        def refreshJson = slurper.parseText(refresh.body())
+        def refreshedHeader = ['Authorization': "Bearer ${refreshJson.access_token}"]
+
+        def refreshedProfile = sendGet('/api/profile', refreshedHeader)
+        requireStatus(refreshedProfile, 200, 'refreshed bearer profile')
+
+        def logout = sendJson('POST', '/api/logout', [:], refreshedHeader)
+        requireStatus(logout, 200, 'logout')
+
+        def revokedProfile = sendGet('/api/profile', refreshedHeader)
+        requireStatus(revokedProfile, 401, 'revoked bearer profile')
+        resultSummary.login = loginJson
+        resultSummary.refresh = refreshJson
+    }
+
+    SampleResult.setResponseCode('200')
+    SampleResult.setResponseMessage("Auth ${flowMode} flow validated")
+    SampleResult.setResponseData(JsonOutput.toJson(resultSummary), 'UTF-8')
+    SampleResult.setSuccessful(true)
+} catch (Throwable error) {
+    SampleResult.setResponseCode('500')
+    SampleResult.setResponseMessage(error.getMessage())
+    SampleResult.setSuccessful(false)
+    throw error
+} finally {
+    SampleResult.sampleEnd()
+}</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

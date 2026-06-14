@@ -33,3 +33,29 @@ profiles:
       SSE_ENDPOINT_PATH: /api/progress-heavy
       SSE_STEPS: "24"
       SSE_INTERVAL_MS: "25"
+  - target_profile_id: sse-jmeter-smoke
+    display_name: SSE Smoke via JMeter
+    description: JMeter bounded finite SSE read against the events endpoint.
+    engine: jmeter
+    script_path: engines/jmeter/target_apps_sse_plan.jmx
+    target_url: http://127.0.0.1:18087
+    parameters:
+      target_url: http://127.0.0.1:18087
+      TARGET_HOST: 127.0.0.1
+      TARGET_PORT: "18087"
+      SSE_ENDPOINT_PATH: /api/events
+      SSE_COUNT: "5"
+      SSE_INTERVAL_MS: "50"
+  - target_profile_id: sse-jmeter-progress-heavy
+    display_name: SSE Progress Heavy via JMeter
+    description: JMeter bounded richer progress stream with deterministic metadata markers.
+    engine: jmeter
+    script_path: engines/jmeter/target_apps_sse_plan.jmx
+    target_url: http://127.0.0.1:18087
+    parameters:
+      target_url: http://127.0.0.1:18087
+      TARGET_HOST: 127.0.0.1
+      TARGET_PORT: "18087"
+      SSE_ENDPOINT_PATH: /api/progress-heavy
+      SSE_STEPS: "24"
+      SSE_INTERVAL_MS: "25"

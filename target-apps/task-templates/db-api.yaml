@@ -23,3 +23,32 @@ profiles:
       DB_LIST_CATEGORY: sales
       DB_LIST_STATUS: ready
       DB_LIST_LIMIT: "10"
+  - target_profile_id: db-jmeter-crud-smoke
+    display_name: DB CRUD Smoke via JMeter
+    description: JMeter SQLite-backed create and fetch smoke flow.
+    engine: jmeter
+    script_path: engines/jmeter/target_apps_db_flow_plan.jmx
+    target_url: http://127.0.0.1:18089
+    parameters:
+      target_url: http://127.0.0.1:18089
+      TARGET_HOST: 127.0.0.1
+      TARGET_PORT: "18089"
+      FLOW_MODE: crud
+      DB_RECORD_NAME: smoke-record
+      DB_RECORD_CATEGORY: smoke
+      DB_RECORD_STATUS: ready
+      DB_RECORD_VALUE: "17"
+  - target_profile_id: db-jmeter-list-filter
+    display_name: DB List Filter via JMeter
+    description: JMeter SQLite-backed list and filter smoke flow with bounded pagination.
+    engine: jmeter
+    script_path: engines/jmeter/target_apps_db_flow_plan.jmx
+    target_url: http://127.0.0.1:18089
+    parameters:
+      target_url: http://127.0.0.1:18089
+      TARGET_HOST: 127.0.0.1
+      TARGET_PORT: "18089"
+      FLOW_MODE: list-filter
+      DB_LIST_CATEGORY: sales
+      DB_LIST_STATUS: ready
+      DB_LIST_LIMIT: "10"
