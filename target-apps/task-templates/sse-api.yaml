@@ -4,6 +4,7 @@ profiles:
     display_name: SSE Smoke via k6
     description: Bounded SSE smoke stream against the events endpoint.
     engine: k6
+    equivalent_profile_id: sse-jmeter-smoke
     script_path: engines/k6/target_apps_sse_smoke.js
     target_url: http://127.0.0.1:18087
     parameters:
@@ -15,6 +16,7 @@ profiles:
     display_name: SSE Ticker via k6
     description: Bounded ticker stream against the SSE API.
     engine: k6
+    equivalent_profile_id: sse-jmeter-ticker
     script_path: engines/k6/target_apps_sse_smoke.js
     target_url: http://127.0.0.1:18087
     parameters:
@@ -26,6 +28,7 @@ profiles:
     display_name: SSE Ticker via JMeter
     description: JMeter bounded ticker stream against the SSE API.
     engine: jmeter
+    equivalent_profile_id: sse-k6-ticker
     script_path: engines/jmeter/target_apps_sse_plan.jmx
     target_url: http://127.0.0.1:18087
     parameters:
@@ -39,6 +42,7 @@ profiles:
     display_name: SSE Progress Heavy via k6
     description: Bounded richer progress stream with denser per-step metadata.
     engine: k6
+    equivalent_profile_id: sse-jmeter-progress-heavy
     script_path: engines/k6/target_apps_sse_smoke.js
     target_url: http://127.0.0.1:18087
     parameters:
@@ -50,6 +54,7 @@ profiles:
     display_name: SSE Smoke via JMeter
     description: JMeter bounded finite SSE read against the events endpoint.
     engine: jmeter
+    equivalent_profile_id: sse-k6-smoke
     script_path: engines/jmeter/target_apps_sse_plan.jmx
     target_url: http://127.0.0.1:18087
     parameters:
@@ -63,6 +68,7 @@ profiles:
     display_name: SSE Progress Heavy via JMeter
     description: JMeter bounded richer progress stream with deterministic metadata markers.
     engine: jmeter
+    equivalent_profile_id: sse-k6-progress-heavy
     script_path: engines/jmeter/target_apps_sse_plan.jmx
     target_url: http://127.0.0.1:18087
     parameters:

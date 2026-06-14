@@ -20,7 +20,8 @@ This directory contains JMeter plans for `pLoadtesting`, including the original 
 
 - The current target catalog now has selective JMeter coverage for every target family.
 - The repo baseline is now: every current target family should have at least one `k6` and one `jmeter` sample asset.
-- Exact profile-to-profile pairing for current manifest-driven target profiles is tracked in `docs/v3/domains/p-loadtesting-engine-coverage-matrix.md`.
+- Exact profile-to-profile pairing for current manifest-driven target profiles is tracked in `docs/v3/domains/p-loadtesting-target-profile-coverage.md`.
+- `docs/v3/domains/p-loadtesting-engine-coverage-matrix.md` now serves as the short summary bridge page.
 - SSE and WebSocket plans do not require third-party JMeter websocket plugins in this repo phase; they use Groovy plus the Java 11 built-in HTTP and WebSocket clients.
 
 ## Common Parameters

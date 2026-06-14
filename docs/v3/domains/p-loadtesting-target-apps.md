@@ -156,7 +156,8 @@ Current coverage rule:
 
 - every current target family in the catalog must have at least one `k6` sample
 - every current target family in the catalog must have at least one `jmeter` sample
-- current manifest-driven target profiles are tracked in the dedicated [engine coverage matrix](p-loadtesting-engine-coverage-matrix.md)
+- current manifest-driven target profiles are tracked in the authoritative [target profile coverage matrix](p-loadtesting-target-profile-coverage.md)
+- the shorter [engine coverage matrix](p-loadtesting-engine-coverage-matrix.md) now acts as a summary bridge document
 
 Template flow:
 

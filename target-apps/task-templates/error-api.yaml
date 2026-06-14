@@ -4,6 +4,7 @@ profiles:
     display_name: Deterministic Flaky via k6
     description: Deterministic flaky run that produces stable CI-visible failures.
     engine: k6
+    equivalent_profile_id: error-jmeter-flaky
     script_path: engines/k6/target_apps_error_flaky.js
     target_url: http://127.0.0.1:18082
     parameters:
@@ -14,6 +15,7 @@ profiles:
     display_name: Deterministic Flaky via JMeter
     description: JMeter deterministic flaky profile pinned to the same failure branch used by CI-visible k6 checks.
     engine: jmeter
+    equivalent_profile_id: error-k6-flaky
     script_path: engines/jmeter/target_apps_echo_latency_plan.jmx
     target_url: http://127.0.0.1:18082
     parameters:

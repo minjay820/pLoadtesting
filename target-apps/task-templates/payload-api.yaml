@@ -17,6 +17,7 @@ profiles:
     display_name: Payload File Download via JMeter
     description: JMeter bounded fixture file download against payload-api.
     engine: jmeter
+    equivalent_profile_id: payload-k6-file-download
     script_path: engines/jmeter/target_apps_payload_flow_plan.jmx
     target_url: http://127.0.0.1:18084
     parameters:
@@ -30,6 +31,7 @@ profiles:
     display_name: Payload File Download via k6
     description: Bounded file-like download against payload-api with deterministic fixture bytes.
     engine: k6
+    equivalent_profile_id: payload-jmeter-file-download
     script_path: engines/k6/target_apps_payload_file_flow.js
     target_url: http://127.0.0.1:18084
     parameters:
@@ -41,6 +43,7 @@ profiles:
     display_name: Payload File Roundtrip via k6
     description: Manifest, download, and bounded binary upload flow against payload-api.
     engine: k6
+    equivalent_profile_id: payload-jmeter-file-roundtrip
     script_path: engines/k6/target_apps_payload_file_flow.js
     target_url: http://127.0.0.1:18084
     parameters:
@@ -53,6 +56,7 @@ profiles:
     display_name: Payload File Roundtrip via JMeter
     description: JMeter manifest, bounded download, and bounded upload roundtrip against payload-api.
     engine: jmeter
+    equivalent_profile_id: payload-k6-file-roundtrip
     script_path: engines/jmeter/target_apps_payload_flow_plan.jmx
     target_url: http://127.0.0.1:18084
     parameters:
@@ -66,6 +70,7 @@ profiles:
     display_name: Payload Archive Read-Many via k6
     description: Fixture-pack metadata, zip archive, and read-many summary flow against payload-api.
     engine: k6
+    equivalent_profile_id: payload-jmeter-archive-read-many
     script_path: engines/k6/target_apps_payload_archive_flow.js
     target_url: http://127.0.0.1:18084
     parameters:
@@ -76,6 +81,7 @@ profiles:
     display_name: Payload Archive Read-Many via JMeter
     description: JMeter fixture-pack, zip archive, and read-many flow against payload-api.
     engine: jmeter
+    equivalent_profile_id: payload-k6-archive-read-many
     script_path: engines/jmeter/target_apps_payload_flow_plan.jmx
     target_url: http://127.0.0.1:18084
     parameters:
@@ -89,6 +95,7 @@ profiles:
     display_name: Payload Tar Selective Fetch via k6
     description: Manifest-driven selective fetch plus tar-like multi-file package flow against payload-api.
     engine: k6
+    equivalent_profile_id: payload-jmeter-tar-selective-fetch
     script_path: engines/k6/target_apps_payload_tar_selective_flow.js
     target_url: http://127.0.0.1:18084
     parameters:
@@ -100,6 +107,7 @@ profiles:
     display_name: Payload Tar Selective Fetch via JMeter
     description: JMeter manifest-driven selective fetch plus tar-like multi-file package flow against payload-api.
     engine: jmeter
+    equivalent_profile_id: payload-k6-tar-selective-fetch
     script_path: engines/jmeter/target_apps_payload_flow_plan.jmx
     target_url: http://127.0.0.1:18084
     parameters:

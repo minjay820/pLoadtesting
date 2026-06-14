@@ -4,6 +4,7 @@ profiles:
     display_name: Auth Checkout via k6
     description: Login, profile fetch, and checkout flow against auth-flow-api.
     engine: k6
+    equivalent_profile_id: auth-jmeter-checkout
     script_path: engines/k6/target_apps_auth_checkout.js
     target_url: http://127.0.0.1:18086
     parameters:
@@ -16,6 +17,7 @@ profiles:
     display_name: Auth Checkout via JMeter
     description: JMeter login, profile, and checkout business flow against auth-flow-api.
     engine: jmeter
+    equivalent_profile_id: auth-k6-checkout
     script_path: engines/jmeter/target_apps_auth_flow_plan.jmx
     target_url: http://127.0.0.1:18086
     parameters:
@@ -32,6 +34,7 @@ profiles:
     display_name: Auth Refresh Flow via k6
     description: Bounded login, expiry, refresh, and logout flow against auth-flow-api.
     engine: k6
+    equivalent_profile_id: auth-jmeter-refresh-flow
     script_path: engines/k6/target_apps_auth_refresh_flow.js
     target_url: http://127.0.0.1:18086
     parameters:
@@ -44,6 +47,7 @@ profiles:
     display_name: Auth Failure Branches via k6
     description: Invalid credential, expired token, and revoked token checks against auth-flow-api.
     engine: k6
+    equivalent_profile_id: auth-jmeter-failure-branches
     script_path: engines/k6/target_apps_auth_refresh_flow.js
     target_url: http://127.0.0.1:18086
     parameters:
@@ -57,6 +61,7 @@ profiles:
     display_name: Auth Failure Branches via JMeter
     description: JMeter invalid credential, expiry, refresh, and revoked token branch validation.
     engine: jmeter
+    equivalent_profile_id: auth-k6-failure-branches
     script_path: engines/jmeter/target_apps_auth_flow_plan.jmx
     target_url: http://127.0.0.1:18086
     parameters:
@@ -72,6 +77,7 @@ profiles:
     display_name: Auth Session Flow via k6
     description: Demo-only cookie login, session profile, and session logout flow against auth-flow-api.
     engine: k6
+    equivalent_profile_id: auth-jmeter-session-flow
     script_path: engines/k6/target_apps_auth_session_mfa_flow.js
     target_url: http://127.0.0.1:18086
     parameters:
@@ -84,6 +90,7 @@ profiles:
     display_name: Auth MFA Flow via k6
     description: Deterministic MFA-like challenge and verify flow with bearer issuance against auth-flow-api.
     engine: k6
+    equivalent_profile_id: auth-jmeter-mfa-flow
     script_path: engines/k6/target_apps_auth_session_mfa_flow.js
     target_url: http://127.0.0.1:18086
     parameters:
@@ -97,6 +104,7 @@ profiles:
     display_name: Auth Refresh Flow via JMeter
     description: JMeter bearer expiry, refresh, and logout flow against auth-flow-api.
     engine: jmeter
+    equivalent_profile_id: auth-k6-refresh-flow
     script_path: engines/jmeter/target_apps_auth_flow_plan.jmx
     target_url: http://127.0.0.1:18086
     parameters:
@@ -112,6 +120,7 @@ profiles:
     display_name: Auth Session Flow via JMeter
     description: JMeter demo-only cookie session flow against auth-flow-api.
     engine: jmeter
+    equivalent_profile_id: auth-k6-session-flow
     script_path: engines/jmeter/target_apps_auth_flow_plan.jmx
     target_url: http://127.0.0.1:18086
     parameters:
@@ -126,6 +135,7 @@ profiles:
     display_name: Auth MFA Flow via JMeter
     description: JMeter deterministic MFA-like challenge and verify flow against auth-flow-api.
     engine: jmeter
+    equivalent_profile_id: auth-k6-mfa-flow
     script_path: engines/jmeter/target_apps_auth_flow_plan.jmx
     target_url: http://127.0.0.1:18086
     parameters:

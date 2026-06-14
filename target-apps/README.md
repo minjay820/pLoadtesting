@@ -21,6 +21,7 @@ Each app exposes `/health`, explicit safe limits, deterministic behavior where r
 
 Task templates live in `target-apps/task-templates/` and point to ready-to-use k6 or JMeter sample scenarios under `engines/`.
 The current baseline is that every target family in this catalog has at least one `k6` sample and one `jmeter` sample.
+Profile-level parity and remaining gaps are tracked in `docs/v3/domains/p-loadtesting-target-profile-coverage.md`.
 
 Runtime smoke validation script:
 

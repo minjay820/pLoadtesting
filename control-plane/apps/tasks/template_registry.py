@@ -64,9 +64,9 @@ def list_task_templates() -> list[dict]:
                 "engine": template["engine"],
                 "script_path": template["script_path"],
                 "target_url": template["target_url"],
+                "equivalent_profile_id": template.get("equivalent_profile_id"),
                 "workload_types": manifest.get("workload_types", []),
                 "safe_limits": manifest.get("safe_limits", {}),
             }
         )
     return sorted(rows, key=lambda row: (row["target_app_id"], row["target_profile_id"]))
-

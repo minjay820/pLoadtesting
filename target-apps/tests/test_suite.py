@@ -1,7 +1,8 @@
 from importlib import import_module
 from pathlib import Path
-import tarfile
 import io
+import re
+import tarfile
 
 import yaml
 from fastapi.testclient import TestClient
@@ -10,30 +11,6 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 TARGET_APPS_DIR = ROOT_DIR / "target-apps"
 MANIFESTS_DIR = TARGET_APPS_DIR / "manifests"
 TEMPLATES_DIR = TARGET_APPS_DIR / "task-templates"
-
-EXACT_PROFILE_MATRIX = {
-    "echo-k6-smoke": "echo-jmeter-smoke",
-    "latency-k6-delay": "latency-jmeter-delay",
-    "error-k6-flaky": "error-jmeter-flaky",
-    "resource-k6-cpu": "resource-jmeter-cpu",
-    "crud-k6-flow": "crud-jmeter-flow",
-    "auth-k6-checkout": "auth-jmeter-checkout",
-    "auth-k6-refresh-flow": "auth-jmeter-refresh-flow",
-    "auth-k6-failure-branches": "auth-jmeter-failure-branches",
-    "auth-k6-session-flow": "auth-jmeter-session-flow",
-    "auth-k6-mfa-flow": "auth-jmeter-mfa-flow",
-    "sse-k6-smoke": "sse-jmeter-smoke",
-    "sse-k6-ticker": "sse-jmeter-ticker",
-    "sse-k6-progress-heavy": "sse-jmeter-progress-heavy",
-    "ws-k6-echo-smoke": "ws-jmeter-echo-smoke",
-    "ws-k6-broadcast-smoke": "ws-jmeter-broadcast-smoke",
-    "db-k6-crud-smoke": "db-jmeter-crud-smoke",
-    "db-k6-list-filter": "db-jmeter-list-filter",
-    "payload-k6-file-download": "payload-jmeter-file-download",
-    "payload-k6-file-roundtrip": "payload-jmeter-file-roundtrip",
-    "payload-k6-archive-read-many": "payload-jmeter-archive-read-many",
-    "payload-k6-tar-selective-fetch": "payload-jmeter-tar-selective-fetch",
-}
 
 MANIFEST_FILES = sorted(MANIFESTS_DIR.glob("*.yaml"))
 TEMPLATE_FILES = sorted(TEMPLATES_DIR.glob("*.yaml"))
@@ -53,6 +30,24 @@ APP_MODULES = {
 
 def load_manifest(path: Path) -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+def load_all_profiles() -> list[dict]:
+    profiles = []
+    for template_path in TEMPLATE_FILES:
+        template_doc = load_manifest(template_path)
+        for profile in template_doc["profiles"]:
+            profiles.append(
+                {
+                    "target_app_id": template_doc["target_app_id"],
+                    **profile,
+                }
+            )
+    return profiles
+
+
+def load_profile_index() -> dict[str, dict]:
+    return {profile["target_profile_id"]: profile for profile in load_all_profiles()}
 
 
 def demo_mfa_code(username: str, channel: str) -> str:
@@ -82,15 +77,46 @@ def test_manifest_metadata_schema_is_loadable():
 
 def test_task_templates_are_loadable_and_point_to_real_assets():
     assert len(TEMPLATE_FILES) == len(APP_MODULES)
+    profile_index = {}
     for template_path in TEMPLATE_FILES:
         template_doc = load_manifest(template_path)
         assert template_doc["target_app_id"] in APP_MODULES
         assert template_doc["profiles"]
         for profile in template_doc["profiles"]:
+            for field in (
+                "target_profile_id",
+                "display_name",
+                "description",
+                "engine",
+                "script_path",
+                "target_url",
+                "parameters",
+            ):
+                assert field in profile, f"Missing {field} in {template_path.name}"
             assert profile["engine"] in {"k6", "jmeter"}
             script_path = ROOT_DIR / profile["script_path"]
             assert script_path.exists(), f"Missing sample script or plan: {script_path}"
             assert profile["target_url"].startswith("http://127.0.0.1:")
+            if profile["engine"] == "k6":
+                assert profile["script_path"].startswith("engines/k6/")
+                assert script_path.suffix == ".js"
+            else:
+                assert profile["script_path"].startswith("engines/jmeter/")
+                assert script_path.suffix == ".jmx"
+            profile_index[profile["target_profile_id"]] = {
+                "target_app_id": template_doc["target_app_id"],
+                **profile,
+            }
+
+    for profile_id, profile in profile_index.items():
+        equivalent_profile_id = profile.get("equivalent_profile_id")
+        if not equivalent_profile_id:
+            continue
+        assert equivalent_profile_id in profile_index, f"Unknown equivalent profile for {profile_id}"
+        equivalent_profile = profile_index[equivalent_profile_id]
+        assert equivalent_profile["target_app_id"] == profile["target_app_id"]
+        assert equivalent_profile["engine"] != profile["engine"]
+        assert equivalent_profile.get("equivalent_profile_id") == profile_id
     assert (TARGET_APPS_DIR / "scripts" / "smoke_docker_target_apps.sh").exists()
 
 
@@ -104,16 +130,41 @@ def test_every_target_catalog_has_k6_and_jmeter_coverage():
         assert coverage[target_app_id] == {"k6", "jmeter"}
 
 
-def test_exact_profile_matrix_has_both_k6_and_jmeter_profiles():
-    all_profiles = {}
-    for template_path in TEMPLATE_FILES:
-        template_doc = load_manifest(template_path)
-        for profile in template_doc["profiles"]:
-            all_profiles[profile["target_profile_id"]] = profile["engine"]
+def test_profile_parity_metadata_is_reciprocal_and_strict_gap_is_expected():
+    profile_index = load_profile_index()
 
-    for k6_profile, jmeter_profile in EXACT_PROFILE_MATRIX.items():
-        assert all_profiles[k6_profile] == "k6"
-        assert all_profiles[jmeter_profile] == "jmeter"
+    paired_profiles = {
+        profile_id
+        for profile_id, profile in profile_index.items()
+        if profile.get("equivalent_profile_id")
+    }
+    k6_profiles = {profile_id for profile_id, profile in profile_index.items() if profile["engine"] == "k6"}
+    jmeter_profiles = {profile_id for profile_id, profile in profile_index.items() if profile["engine"] == "jmeter"}
+
+    exact_pair_count = len(paired_profiles) // 2
+    assert exact_pair_count == 21
+    assert len(k6_profiles) == 21
+    assert len(jmeter_profiles) == 22
+    assert sorted(set(profile_index) - paired_profiles) == ["payload-jmeter-download"]
+
+
+def test_profile_coverage_doc_summary_matches_template_counts():
+    profile_index = load_profile_index()
+    coverage_doc = (ROOT_DIR / "docs" / "v3" / "domains" / "p-loadtesting-target-profile-coverage.md").read_text(
+        encoding="utf-8"
+    )
+
+    summary_counts = {
+        "Target Apps": len(APP_MODULES),
+        "Profile Count": len(profile_index),
+        "k6 Profile Count": sum(1 for profile in profile_index.values() if profile["engine"] == "k6"),
+        "JMeter Profile Count": sum(1 for profile in profile_index.values() if profile["engine"] == "jmeter"),
+        "Exact Pair Count": sum(1 for profile in profile_index.values() if profile.get("equivalent_profile_id")) // 2,
+        "Strict Non-Parity Count": sum(1 for profile in profile_index.values() if not profile.get("equivalent_profile_id")),
+    }
+
+    for label, count in summary_counts.items():
+        assert re.search(rf"- {re.escape(label)}: `{count}`", coverage_doc), f"Missing summary count for {label}"
 
 
 def test_every_target_health_endpoint_is_stable():

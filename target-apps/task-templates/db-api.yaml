@@ -4,6 +4,7 @@ profiles:
     display_name: DB CRUD Smoke via k6
     description: SQLite-backed create and read smoke flow for deterministic CRUD validation.
     engine: k6
+    equivalent_profile_id: db-jmeter-crud-smoke
     script_path: engines/k6/target_apps_db_crud_flow.js
     target_url: http://127.0.0.1:18089
     parameters:
@@ -16,6 +17,7 @@ profiles:
     display_name: DB List Filter via k6
     description: SQLite-backed list and filter smoke flow with bounded pagination.
     engine: k6
+    equivalent_profile_id: db-jmeter-list-filter
     script_path: engines/k6/target_apps_db_list_filter.js
     target_url: http://127.0.0.1:18089
     parameters:
@@ -27,6 +29,7 @@ profiles:
     display_name: DB CRUD Smoke via JMeter
     description: JMeter SQLite-backed create and fetch smoke flow.
     engine: jmeter
+    equivalent_profile_id: db-k6-crud-smoke
     script_path: engines/jmeter/target_apps_db_flow_plan.jmx
     target_url: http://127.0.0.1:18089
     parameters:
@@ -42,6 +45,7 @@ profiles:
     display_name: DB List Filter via JMeter
     description: JMeter SQLite-backed list and filter smoke flow with bounded pagination.
     engine: jmeter
+    equivalent_profile_id: db-k6-list-filter
     script_path: engines/jmeter/target_apps_db_flow_plan.jmx
     target_url: http://127.0.0.1:18089
     parameters:

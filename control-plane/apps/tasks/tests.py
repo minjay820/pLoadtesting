@@ -150,6 +150,19 @@ class TaskTemplateApiTests(TestCase):
         self.assertTrue(any(row["target_app_id"] == "db-api" for row in templates))
         self.assertTrue(any(row["target_profile_id"] == "db-jmeter-crud-smoke" for row in templates))
         self.assertTrue(any(row["target_profile_id"] == "db-jmeter-list-filter" for row in templates))
+        templates_by_profile = {row["target_profile_id"]: row for row in templates}
+        self.assertEqual(templates_by_profile["sse-k6-ticker"]["equivalent_profile_id"], "sse-jmeter-ticker")
+        self.assertEqual(
+            templates_by_profile["auth-k6-failure-branches"]["equivalent_profile_id"],
+            "auth-jmeter-failure-branches",
+        )
+        self.assertEqual(templates_by_profile["crud-k6-flow"]["equivalent_profile_id"], "crud-jmeter-flow")
+        self.assertEqual(templates_by_profile["ws-k6-echo-smoke"]["equivalent_profile_id"], "ws-jmeter-echo-smoke")
+        self.assertEqual(
+            templates_by_profile["payload-k6-archive-read-many"]["equivalent_profile_id"],
+            "payload-jmeter-archive-read-many",
+        )
+        self.assertIsNone(templates_by_profile["payload-jmeter-download"]["equivalent_profile_id"])
 
     def test_create_task_from_template(self):
         response = self.client.post(

@@ -33,6 +33,7 @@ This project is a multi-engine load testing ecosystem:
 - `workers/`: FastAPI worker agent for k6 and JMeter execution.
 - `engines/k6/`: k6 JavaScript load test scripts.
 - `engines/jmeter/`: JMeter `.jmx` plans and report assets.
+- `docs/v3/domains/p-loadtesting-target-profile-coverage.md`: authoritative profile-level k6/JMeter parity matrix.
 - `docker-compose.yml`: local ecosystem orchestration for target app, control plane, worker, Redis, InfluxDB, and Grafana.
 - `.github/workflows/ci.yml`: CI workflow.
 

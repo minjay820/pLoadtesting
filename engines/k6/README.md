@@ -20,6 +20,8 @@ engines/k6/
 └── README.md         ← This file
 ```
 
+Profile-level k6↔JMeter parity is tracked in `docs/v3/domains/p-loadtesting-target-profile-coverage.md`.
+
 ---
 
 ## 🧵 Script Specifications

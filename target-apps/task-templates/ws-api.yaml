@@ -4,6 +4,7 @@ profiles:
     display_name: WebSocket Echo Smoke via k6
     description: Bounded WebSocket echo validation with deterministic replies and explicit close limits.
     engine: k6
+    equivalent_profile_id: ws-jmeter-echo-smoke
     script_path: engines/k6/target_apps_ws_echo_smoke.js
     target_url: http://127.0.0.1:18088
     parameters:
@@ -15,6 +16,7 @@ profiles:
     display_name: WebSocket Broadcast Smoke via k6
     description: Bounded WebSocket broadcast validation with two peers in one room.
     engine: k6
+    equivalent_profile_id: ws-jmeter-broadcast-smoke
     script_path: engines/k6/target_apps_ws_broadcast_smoke.js
     target_url: http://127.0.0.1:18088
     parameters:
@@ -26,6 +28,7 @@ profiles:
     display_name: WebSocket Echo Smoke via JMeter
     description: JMeter bounded WebSocket echo validation using the Java 11 WebSocket client.
     engine: jmeter
+    equivalent_profile_id: ws-k6-echo-smoke
     script_path: engines/jmeter/target_apps_ws_flow_plan.jmx
     target_url: http://127.0.0.1:18088
     parameters:
@@ -39,6 +42,7 @@ profiles:
     display_name: WebSocket Broadcast Smoke via JMeter
     description: JMeter bounded WebSocket broadcast validation using a publisher and subscriber pair.
     engine: jmeter
+    equivalent_profile_id: ws-k6-broadcast-smoke
     script_path: engines/jmeter/target_apps_ws_flow_plan.jmx
     target_url: http://127.0.0.1:18088
     parameters:
