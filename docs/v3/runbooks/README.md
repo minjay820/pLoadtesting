@@ -16,6 +16,7 @@ This area is for operator-facing procedures, validation flows, troubleshooting g
 - JMeter non-GUI execution and report generation.
 - InfluxDB and Grafana observability validation.
 - CI validation and release readiness checks.
+- WebSocket and DB-heavy scale-up validation once bounded smoke coverage stabilizes.
 
 ## Legacy Sources To Review
 

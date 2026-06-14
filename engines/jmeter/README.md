@@ -38,6 +38,12 @@ SSE note:
 - There is currently no JMeter SSE sample plan in this repo.
 - SSE is validated through bounded k6 HTTP reads first because that path is cheaper and more stable for CI.
 
+WebSocket and SQLite-heavy note:
+
+- There is currently no JMeter WebSocket sample plan in this repo.
+- There is currently no JMeter SQLite DB-heavy sample plan in this repo.
+- Both are deferred in favor of bounded k6 coverage first because the current repo phase prioritizes CI-stable smoke validation over heavier JMeter protocol workarounds.
+
 ---
 
 ## 🚀 Execution Guide

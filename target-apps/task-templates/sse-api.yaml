@@ -22,4 +22,14 @@ profiles:
       SSE_ENDPOINT_PATH: /api/ticker
       SSE_COUNT: "6"
       SSE_INTERVAL_MS: "75"
-
+  - target_profile_id: sse-k6-progress-heavy
+    display_name: SSE Progress Heavy via k6
+    description: Bounded richer progress stream with denser per-step metadata.
+    engine: k6
+    script_path: engines/k6/target_apps_sse_smoke.js
+    target_url: http://127.0.0.1:18087
+    parameters:
+      TARGET_URL: http://127.0.0.1:18087
+      SSE_ENDPOINT_PATH: /api/progress-heavy
+      SSE_STEPS: "24"
+      SSE_INTERVAL_MS: "25"

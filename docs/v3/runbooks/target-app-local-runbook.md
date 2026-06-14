@@ -9,7 +9,7 @@ Use this suite when you need local, reproducible HTTP targets for load-shape val
 ## Prerequisites
 
 - Docker Desktop or equivalent Docker Engine
-- Local ports `18080` through `18087` available on `127.0.0.1`
+- Local ports `18080` through `18089` available on `127.0.0.1`
 
 ## Start The Suite
 
@@ -31,6 +31,8 @@ curl http://127.0.0.1:18084/health
 curl http://127.0.0.1:18085/health
 curl http://127.0.0.1:18086/health
 curl http://127.0.0.1:18087/health
+curl http://127.0.0.1:18088/health
+curl http://127.0.0.1:18089/health
 ```
 
 Expected response shape:
@@ -50,6 +52,8 @@ curl "http://127.0.0.1:18084/api/download?kb=32"
 curl -X POST http://127.0.0.1:18085/api/items -H "Content-Type: application/json" -d '{"name":"demo","value":1}'
 curl -X POST http://127.0.0.1:18086/api/login -H "Content-Type: application/json" -d '{"username":"alice","password":"demo-password"}'
 curl -N "http://127.0.0.1:18087/api/events?count=3&interval_ms=10"
+curl -N "http://127.0.0.1:18087/api/progress-heavy?steps=6&interval_ms=10"
+curl http://127.0.0.1:18089/api/records?category=sales&limit=5
 ```
 
 ## Docker Runtime Smoke Validation
@@ -66,6 +70,7 @@ The script:
 - boots the compose stack
 - retries `/health` checks with bounded waits
 - calls one representative endpoint per target app
+- includes a bounded in-container WebSocket runtime probe for `ws-api`
 - dumps `docker compose ps` and logs on failure
 - always runs cleanup on exit
 
@@ -112,7 +117,32 @@ k6 run \
   engines/k6/target_apps_sse_smoke.js
 ```
 
-JMeter SSE coverage is intentionally deferred for now because the current repo priorities favor low-cost, deterministic streaming validation. SSE in JMeter would require a less stable workaround than the bounded k6 HTTP path.
+Progress-heavy SSE profile:
+
+```bash
+k6 run \
+  -e TARGET_URL=http://127.0.0.1:18087 \
+  -e SSE_ENDPOINT_PATH=/api/progress-heavy \
+  -e SSE_STEPS=24 \
+  -e SSE_INTERVAL_MS=25 \
+  engines/k6/target_apps_sse_smoke.js
+```
+
+WebSocket smoke samples:
+
+```bash
+k6 run -e TARGET_URL=http://127.0.0.1:18088 engines/k6/target_apps_ws_echo_smoke.js
+k6 run -e TARGET_URL=http://127.0.0.1:18088 engines/k6/target_apps_ws_broadcast_smoke.js
+```
+
+SQLite DB-heavy smoke samples:
+
+```bash
+k6 run -e TARGET_URL=http://127.0.0.1:18089 engines/k6/target_apps_db_crud_flow.js
+k6 run -e TARGET_URL=http://127.0.0.1:18089 engines/k6/target_apps_db_list_filter.js
+```
+
+JMeter SSE, WebSocket, and SQLite-heavy sample plans are intentionally deferred for now because the current repo priorities favor low-cost, deterministic validation paths. The bounded k6 scripts cover these transports and flows with less CI and tooling risk.
 
 Optional overrides are still allowed:
 
@@ -146,7 +176,9 @@ docker compose -f target-apps/docker-compose.target-apps.yml down
 - `payload-api`: download `512KB`, upload `262144` bytes
 - `crud-api`: in-memory only
 - `auth-flow-api`: demo-only credentials and bounded checkout quantity
-- `sse-api`: `count <= 100`, `steps <= 100`, `interval_ms <= 5000`, no infinite streaming
+- `sse-api`: `count <= 100`, `steps <= 100`, `progress-heavy steps <= 60`, `interval_ms <= 5000`, no infinite streaming
+- `ws-api`: message size `1024` bytes, `10` messages per connection, `20` connections per process, room size `5`, idle timeout `5s`
+- `db-api`: page size `50`, total rows `500`, deterministic SQLite seed rows, no external database dependency
 
 If a request exceeds a safe limit, the app should return `422`.
 
@@ -159,6 +191,7 @@ If a request exceeds a safe limit, the app should return `422`.
 - Existing Control Plane checks remain:
   - `python manage.py check`
   - `python manage.py test apps/ --verbosity=2`
+- WebSocket representative runtime behavior is covered in the Docker smoke script instead of the always-on pytest path.
 
 ## Troubleshooting
 

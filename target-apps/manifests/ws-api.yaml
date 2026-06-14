@@ -1,0 +1,25 @@
+target_app_id: ws-api
+display_name: WebSocket API
+runtime: python-fastapi
+protocol: websocket
+base_url: http://127.0.0.1:18088
+workload_types:
+  - websocket
+  - echo
+  - broadcast
+  - connection-lifecycle
+endpoints:
+  - path: /health
+    method: GET
+  - path: /ws/echo
+    method: WS
+  - path: /ws/broadcast/{room}
+    method: WS
+safe_limits:
+  max_message_size_bytes: 1024
+  max_messages_per_connection: 10
+  max_concurrent_connections: 20
+  max_room_size: 5
+  idle_timeout_seconds: 5
+default_profile: ws-k6-echo-smoke
+notes: Bounded WebSocket echo and broadcast target for local and CI-safe validation only.

@@ -118,3 +118,33 @@ services:
       interval: 15s
       timeout: 5s
       retries: 3
+
+  ws-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      TARGET_APP_MODULE: ws_api
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - "127.0.0.1:18088:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  db-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      TARGET_APP_MODULE: db_api
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - "127.0.0.1:18089:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3

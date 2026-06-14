@@ -123,6 +123,9 @@ class TaskTemplateApiTests(TestCase):
         self.assertTrue(any(row["target_profile_id"] == "echo-k6-smoke" for row in templates))
         self.assertTrue(any(row["target_profile_id"] == "payload-jmeter-download" for row in templates))
         self.assertTrue(any(row["target_app_id"] == "sse-api" for row in templates))
+        self.assertTrue(any(row["target_profile_id"] == "sse-k6-progress-heavy" for row in templates))
+        self.assertTrue(any(row["target_app_id"] == "ws-api" for row in templates))
+        self.assertTrue(any(row["target_app_id"] == "db-api" for row in templates))
 
     def test_create_task_from_template(self):
         response = self.client.post(
@@ -195,3 +198,87 @@ class TaskTemplateApiTests(TestCase):
         self.assertEqual(task.script_path, "engines/k6/target_apps_sse_smoke.js")
         self.assertEqual(task.target_url, "http://127.0.0.1:18087")
         self.assertEqual(task.parameters["SSE_ENDPOINT_PATH"], "/api/events")
+
+    def test_create_progress_heavy_sse_task_from_template(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "sse-api",
+                "target_profile_id": "sse-k6-progress-heavy",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.script_path, "engines/k6/target_apps_sse_smoke.js")
+        self.assertEqual(task.parameters["SSE_ENDPOINT_PATH"], "/api/progress-heavy")
+        self.assertEqual(task.parameters["SSE_STEPS"], "24")
+
+    def test_create_ws_echo_task_from_template(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "ws-api",
+                "target_profile_id": "ws-k6-echo-smoke",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.engine, "k6")
+        self.assertEqual(task.script_path, "engines/k6/target_apps_ws_echo_smoke.js")
+        self.assertEqual(task.target_url, "http://127.0.0.1:18088")
+        self.assertEqual(task.parameters["WS_PATH"], "/ws/echo")
+
+    def test_create_ws_broadcast_task_from_template(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "ws-api",
+                "target_profile_id": "ws-k6-broadcast-smoke",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.engine, "k6")
+        self.assertEqual(task.script_path, "engines/k6/target_apps_ws_broadcast_smoke.js")
+        self.assertEqual(task.target_url, "http://127.0.0.1:18088")
+        self.assertEqual(task.parameters["WS_ROOM"], "smoke-room")
+
+    def test_create_db_crud_task_from_template(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "db-api",
+                "target_profile_id": "db-k6-crud-smoke",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.engine, "k6")
+        self.assertEqual(task.script_path, "engines/k6/target_apps_db_crud_flow.js")
+        self.assertEqual(task.target_url, "http://127.0.0.1:18089")
+        self.assertEqual(task.parameters["DB_RECORD_NAME"], "smoke-record")
+
+    def test_create_db_task_from_template(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "db-api",
+                "target_profile_id": "db-k6-list-filter",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.engine, "k6")
+        self.assertEqual(task.script_path, "engines/k6/target_apps_db_list_filter.js")
+        self.assertEqual(task.target_url, "http://127.0.0.1:18089")
+        self.assertEqual(task.parameters["DB_LIST_CATEGORY"], "sales")

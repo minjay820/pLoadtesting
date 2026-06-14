@@ -19,6 +19,8 @@ SERVICES=(
   "crud-api|http://127.0.0.1:18085/health|GET|http://127.0.0.1:18085/api/items|"
   "auth-flow-api|http://127.0.0.1:18086/health|POST|http://127.0.0.1:18086/api/login|{\"username\":\"smoke\",\"password\":\"demo-password\"}"
   "sse-api|http://127.0.0.1:18087/health|GET|http://127.0.0.1:18087/api/events?count=2&interval_ms=1|"
+  "ws-api|http://127.0.0.1:18088/health|WS|ws-api|"
+  "db-api|http://127.0.0.1:18089/health|POST|http://127.0.0.1:18089/api/records|{\"name\":\"smoke-record\",\"category\":\"smoke\",\"value\":11,\"status\":\"ready\"}"
 )
 
 dump_diagnostics() {
@@ -69,6 +71,40 @@ call_representative() {
   local method="$1"
   local url="$2"
   local payload="$3"
+  if [[ "${method}" == "WS" ]]; then
+    docker compose -p "${COMPOSE_PROJECT_NAME}" -f "${COMPOSE_FILE}" exec -T "${url}" python - <<'PY'
+import asyncio
+import json
+
+import websockets
+
+
+async def main():
+    async with websockets.connect("ws://127.0.0.1:8000/ws/echo?deterministic=true") as echo_ws:
+        welcome = await asyncio.wait_for(echo_ws.recv(), timeout=3)
+        welcome_payload = json.loads(welcome)
+        assert welcome_payload["event"] == "welcome"
+        await echo_ws.send("smoke-echo")
+        echoed = await asyncio.wait_for(echo_ws.recv(), timeout=3)
+        echoed_payload = json.loads(echoed)
+        assert echoed_payload["event"] == "echo"
+        assert echoed_payload["message"] == "smoke-echo"
+
+    async with websockets.connect("ws://127.0.0.1:8000/ws/broadcast/smoke-room?client_id=subscriber&deterministic=true") as subscriber:
+        subscriber_welcome = json.loads(await asyncio.wait_for(subscriber.recv(), timeout=3))
+        assert subscriber_welcome["event"] == "welcome"
+        async with websockets.connect("ws://127.0.0.1:8000/ws/broadcast/smoke-room?client_id=publisher&deterministic=true") as publisher:
+            publisher_welcome = json.loads(await asyncio.wait_for(publisher.recv(), timeout=3))
+            assert publisher_welcome["event"] == "welcome"
+            await publisher.send("smoke-broadcast")
+            subscriber_message = json.loads(await asyncio.wait_for(subscriber.recv(), timeout=3))
+            assert subscriber_message["event"] == "broadcast"
+            assert subscriber_message["message"] == "smoke-broadcast"
+
+asyncio.run(main())
+PY
+    return 0
+  fi
   if [[ "${method}" == "POST" ]]; then
     curl -fsS --max-time "${CURL_MAX_TIME_SECONDS}" \
       -H "Content-Type: application/json" \

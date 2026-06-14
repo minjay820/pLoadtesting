@@ -20,6 +20,8 @@ APP_MODULES = {
     "crud-api": "crud_api",
     "auth-flow-api": "auth_flow_api",
     "sse-api": "sse_api",
+    "ws-api": "ws_api",
+    "db-api": "db_api",
 }
 
 
@@ -93,6 +95,7 @@ def test_delay_error_payload_and_resource_limits():
     sse_client = TestClient(import_module("sse_api").app)
     assert sse_client.get("/api/events?count=101").status_code == 422
     assert sse_client.get("/api/events?interval_ms=5001").status_code == 422
+    assert sse_client.get("/api/progress-heavy?steps=61").status_code == 422
 
 
 def test_crud_and_auth_flow_workloads():
@@ -117,6 +120,55 @@ def test_crud_and_auth_flow_workloads():
     assert "text/event-stream" in response.headers["content-type"]
     assert "event: ticker" in response.text
     assert '"sequence":1' in response.text
+    progress_heavy = sse_client.get("/api/progress-heavy?steps=4&interval_ms=0&deterministic=true")
+    assert progress_heavy.status_code == 200
+    assert "event: progress-heavy" in progress_heavy.text
+    assert '"phase":"queued"' in progress_heavy.text
+
+
+def test_websocket_and_db_heavy_workloads():
+    ws_client = TestClient(import_module("ws_api").app)
+    with ws_client.websocket_connect("/ws/echo?deterministic=true") as websocket:
+        welcome = websocket.receive_json()
+        assert welcome["event"] == "welcome"
+        websocket.send_text("hello")
+        echoed = websocket.receive_json()
+        assert echoed["event"] == "echo"
+        assert echoed["message"] == "hello"
+
+    with ws_client.websocket_connect("/ws/echo?deterministic=true") as websocket:
+        websocket.receive_json()
+        websocket.send_text("x" * 1025)
+        closed = websocket.receive()
+        assert closed["type"] == "websocket.close"
+        assert closed["code"] == 1009
+
+    with ws_client.websocket_connect("/ws/broadcast/room-a?client_id=subscriber&deterministic=true") as subscriber:
+        subscriber.receive_json()
+        with ws_client.websocket_connect("/ws/broadcast/room-a?client_id=publisher&deterministic=true") as publisher:
+            publisher.receive_json()
+            publisher.send_text("fanout")
+            broadcast = subscriber.receive_json()
+            assert broadcast["event"] == "broadcast"
+            assert broadcast["message"] == "fanout"
+
+    db_client = TestClient(import_module("db_api").app)
+    created = db_client.post(
+        "/api/records",
+        json={"name": "zeta", "category": "ops", "value": 91, "status": "ready"},
+    )
+    assert created.status_code == 201
+    record_id = created.json()["id"]
+    fetched = db_client.get(f"/api/records/{record_id}")
+    assert fetched.status_code == 200
+    assert fetched.json()["name"] == "zeta"
+    updated = db_client.patch(f"/api/records/{record_id}", json={"status": "archived"})
+    assert updated.status_code == 200
+    assert updated.json()["status"] == "archived"
+    listed = db_client.get("/api/records?category=ops&limit=5&sort_by=id&sort_order=asc")
+    assert listed.status_code == 200
+    assert listed.json()["count"] <= 5
+    assert db_client.get("/api/records?limit=51").status_code == 422
 
 
 def test_compose_and_readme_commands_are_consistent():

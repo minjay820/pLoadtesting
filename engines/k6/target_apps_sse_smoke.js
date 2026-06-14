@@ -12,17 +12,20 @@ export const options = {
 
 const BASE_URL = __ENV.TARGET_URL || 'http://127.0.0.1:18087';
 const SSE_ENDPOINT_PATH = __ENV.SSE_ENDPOINT_PATH || '/api/events';
-const SSE_COUNT = __ENV.SSE_COUNT || '5';
+const SSE_COUNT = __ENV.SSE_COUNT || __ENV.SSE_STEPS || '5';
 const SSE_INTERVAL_MS = __ENV.SSE_INTERVAL_MS || '50';
 const EXPECTED_EVENT = SSE_ENDPOINT_PATH.includes('ticker')
   ? 'event: ticker'
+  : SSE_ENDPOINT_PATH.includes('progress-heavy')
+    ? 'event: progress-heavy'
   : SSE_ENDPOINT_PATH.includes('progress')
     ? 'event: progress'
     : 'event: message';
+const COUNT_PARAM = SSE_ENDPOINT_PATH.includes('progress') ? 'steps' : 'count';
 
 export default function () {
   const response = http.get(
-    `${BASE_URL}${SSE_ENDPOINT_PATH}?count=${SSE_COUNT}&interval_ms=${SSE_INTERVAL_MS}&deterministic=true`,
+    `${BASE_URL}${SSE_ENDPOINT_PATH}?${COUNT_PARAM}=${SSE_COUNT}&interval_ms=${SSE_INTERVAL_MS}&deterministic=true`,
     { timeout: '10s' }
   );
 
@@ -31,6 +34,7 @@ export default function () {
     'sse content-type is event-stream': (r) => String(r.headers['Content-Type'] || '').includes('text/event-stream'),
     'sse body contains expected event': (r) => r.body.includes(EXPECTED_EVENT),
     'sse body contains data lines': (r) => r.body.includes('data:'),
+    'sse progress-heavy contains richer metadata': (r) =>
+      !SSE_ENDPOINT_PATH.includes('progress-heavy') || (r.body.includes('"phase":"') && r.body.includes('"metrics":')),
   });
 }
-

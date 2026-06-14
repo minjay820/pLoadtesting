@@ -13,6 +13,7 @@ This area is for stable domain explanations: system concepts, business or produc
 - Control Plane, Worker Agent, and Target App responsibilities.
 - Engine model for k6, JMeter, and future LoadRunner integration.
 - Observability concepts for InfluxDB and Grafana metrics.
+- Future bounded target families such as file-heavy and deeper auth-heavy.
 
 ## Legacy Sources To Review
 

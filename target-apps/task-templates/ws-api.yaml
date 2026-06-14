@@ -1,0 +1,24 @@
+target_app_id: ws-api
+profiles:
+  - target_profile_id: ws-k6-echo-smoke
+    display_name: WebSocket Echo Smoke via k6
+    description: Bounded WebSocket echo validation with deterministic replies and explicit close limits.
+    engine: k6
+    script_path: engines/k6/target_apps_ws_echo_smoke.js
+    target_url: http://127.0.0.1:18088
+    parameters:
+      TARGET_URL: http://127.0.0.1:18088
+      WS_PATH: /ws/echo
+      WS_MESSAGE: smoke-echo
+      WS_MAX_MESSAGES: "2"
+  - target_profile_id: ws-k6-broadcast-smoke
+    display_name: WebSocket Broadcast Smoke via k6
+    description: Bounded WebSocket broadcast validation with two peers in one room.
+    engine: k6
+    script_path: engines/k6/target_apps_ws_broadcast_smoke.js
+    target_url: http://127.0.0.1:18088
+    parameters:
+      TARGET_URL: http://127.0.0.1:18088
+      WS_ROOM: smoke-room
+      WS_MESSAGE: smoke-broadcast
+      WS_CLIENT_ID: publisher

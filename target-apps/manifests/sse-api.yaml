@@ -7,6 +7,7 @@ workload_types:
   - streaming
   - sse
   - progress
+  - progress-heavy
 endpoints:
   - path: /health
     method: GET
@@ -16,10 +17,12 @@ endpoints:
     method: GET
   - path: /api/progress
     method: GET
+  - path: /api/progress-heavy
+    method: GET
 safe_limits:
   max_count: 100
+  max_progress_heavy_steps: 60
   max_interval_ms: 5000
   infinite_streaming: disabled
 default_profile: sse-smoke
-notes: Finite SSE streams only, suitable for local and CI-safe streaming validation.
-
+notes: Finite SSE streams only, including a bounded progress-heavy profile for denser progress metadata validation.

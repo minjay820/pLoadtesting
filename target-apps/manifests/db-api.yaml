@@ -1,0 +1,29 @@
+target_app_id: db-api
+display_name: DB API
+runtime: python-fastapi-sqlite
+protocol: http-rest
+base_url: http://127.0.0.1:18089
+workload_types:
+  - db-heavy
+  - crud
+  - list-filter
+  - sqlite
+endpoints:
+  - path: /health
+    method: GET
+  - path: /api/records
+    method: POST
+  - path: /api/records
+    method: GET
+  - path: /api/records/{id}
+    method: GET
+  - path: /api/records/{id}
+    method: PATCH
+safe_limits:
+  max_page_size: 50
+  max_total_rows: 500
+  max_name_length: 128
+  max_category_length: 64
+  max_status_length: 32
+default_profile: db-k6-crud-smoke
+notes: SQLite-backed disposable CRUD and list-filter target for local and CI-safe DB-like workload validation.

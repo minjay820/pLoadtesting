@@ -8,6 +8,7 @@ from common import DEFAULT_SEED, deterministic_fraction
 
 MAX_EVENT_COUNT = 100
 MAX_INTERVAL_MS = 5_000
+MAX_PROGRESS_HEAVY_STEPS = 60
 
 app = FastAPI(
     title="pLoadtesting Target Suite - SSE API",
@@ -122,3 +123,43 @@ async def progress(
 
     return StreamingResponse(generator(), media_type="text/event-stream")
 
+
+@app.get("/api/progress-heavy")
+async def progress_heavy(
+    steps: int = Query(default=24, ge=1, le=MAX_PROGRESS_HEAVY_STEPS),
+    interval_ms: int = Query(default=50, ge=0, le=MAX_INTERVAL_MS),
+    deterministic: bool = Query(default=True),
+    seed: int = Query(default=DEFAULT_SEED),
+):
+    _validate_stream_args(steps, interval_ms)
+    if steps > MAX_PROGRESS_HEAVY_STEPS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"steps must be between 1 and {MAX_PROGRESS_HEAVY_STEPS} for progress-heavy streams.",
+        )
+
+    async def generator():
+        def payload_factory(index: int) -> dict:
+            step = index + 1
+            phase_index = min((step - 1) * 4 // steps, 3)
+            phases = ["queued", "preparing", "processing", "finalizing"]
+            base_eta_ms = max((steps - step) * interval_ms, 0)
+            work_units = 100 + step * 3 if deterministic else 100 + step
+            return {
+                "step": step,
+                "steps": steps,
+                "phase": phases[phase_index],
+                "progress_pct": round((step / steps) * 100, 2),
+                "eta_ms": base_eta_ms,
+                "metrics": {
+                    "completed_units": work_units,
+                    "remaining_units": max(steps * 3 - step * 3, 0),
+                    "seed": seed,
+                },
+                "deterministic": deterministic,
+            }
+
+        async for chunk in _stream_events("progress-heavy", steps, interval_ms, payload_factory):
+            yield chunk
+
+    return StreamingResponse(generator(), media_type="text/event-stream")

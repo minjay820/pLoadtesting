@@ -37,6 +37,10 @@ engines/k6/
 | `target_apps_crud_flow.js` | `POST /api/items` + `GET /api/items/{id}` | 5 | 20s run | CRUD flow sample |
 | `target_apps_auth_checkout.js` | login/profile/checkout | 5 | 20s run | Auth-style business flow sample |
 | `target_apps_sse_smoke.js` | finite SSE stream | 1 | 3 iterations | SSE streaming smoke for `sse-api` |
+| `target_apps_ws_echo_smoke.js` | `WS /ws/echo` | 1 | 2 iterations | Bounded WebSocket echo smoke |
+| `target_apps_ws_broadcast_smoke.js` | `WS /ws/broadcast/{room}` | 1 | 2 iterations | Bounded WebSocket broadcast smoke |
+| `target_apps_db_crud_flow.js` | `POST/GET /api/records` | 2 | 4 iterations | SQLite CRUD smoke |
+| `target_apps_db_list_filter.js` | `GET /api/records` | 2 | 4 iterations | SQLite list/filter smoke |
 
 ---
 
@@ -76,6 +80,26 @@ k6 run stress_data.js
 
 # Run SSE Smoke
 k6 run -e TARGET_URL=http://127.0.0.1:18087 target_apps_sse_smoke.js
+
+# Run SSE progress-heavy
+k6 run \
+  -e TARGET_URL=http://127.0.0.1:18087 \
+  -e SSE_ENDPOINT_PATH=/api/progress-heavy \
+  -e SSE_STEPS=24 \
+  -e SSE_INTERVAL_MS=25 \
+  target_apps_sse_smoke.js
+
+# Run WebSocket echo smoke
+k6 run -e TARGET_URL=http://127.0.0.1:18088 target_apps_ws_echo_smoke.js
+
+# Run WebSocket broadcast smoke
+k6 run -e TARGET_URL=http://127.0.0.1:18088 target_apps_ws_broadcast_smoke.js
+
+# Run SQLite CRUD smoke
+k6 run -e TARGET_URL=http://127.0.0.1:18089 target_apps_db_crud_flow.js
+
+# Run SQLite list/filter smoke
+k6 run -e TARGET_URL=http://127.0.0.1:18089 target_apps_db_list_filter.js
 ```
 
 ---
@@ -128,6 +152,8 @@ k6 run \
   --out json=results/stress_cpu.json \
   stress_cpu.js
 ```
+
+WebSocket scripts derive `ws://` from `TARGET_URL` automatically, so the same `TARGET_URL=http://127.0.0.1:18088` convention still applies.
 
 ---
 
