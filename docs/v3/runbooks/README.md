@@ -5,12 +5,12 @@ This area is for operator-facing procedures, validation flows, troubleshooting g
 ## Current Active Runbooks
 
 - [CI Control Plane diagnostics](ci-control-plane-diagnostics.md)
+- [Distributed deployment](distributed-deployment.md)
 - [JMeter observability validation](jmeter-observability-validation.md)
 - [Target app local runbook](target-app-local-runbook.md)
 
 ## Likely Future Runbooks
 
-- Local Docker Compose validation.
 - Control Plane and Worker Agent startup troubleshooting.
 - k6 smoke and stress execution.
 - JMeter non-GUI execution and report generation.

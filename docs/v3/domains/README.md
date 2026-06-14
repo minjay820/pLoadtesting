@@ -5,17 +5,17 @@ This area is for stable domain explanations: system concepts, business or produc
 ## Current Active Domain Documents
 
 - [pLoadtesting system overview](p-loadtesting-system-overview.md)
+- [pLoadtesting phase completion assessment](p-loadtesting-phase-completion.md)
 - [pLoadtesting target apps](p-loadtesting-target-apps.md)
 - [pLoadtesting target profile coverage](p-loadtesting-target-profile-coverage.md)
 - [pLoadtesting engine coverage matrix](p-loadtesting-engine-coverage-matrix.md)
+- [pLoadtesting web dashboard plan](p-loadtesting-web-dashboard.md)
 
 ## Likely Future Domain Topics
 
-- Load testing ecosystem overview.
-- Control Plane, Worker Agent, and Target App responsibilities.
 - Engine model for k6, JMeter, and future LoadRunner integration.
 - Observability concepts for InfluxDB and Grafana metrics.
-- Future bounded target families such as file-heavy and deeper auth-heavy.
+- Dashboard information architecture after API v1 is implemented.
 
 ## Legacy Sources To Review
 

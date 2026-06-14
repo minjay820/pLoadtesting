@@ -4,11 +4,11 @@ This area is for implementation-facing contracts: APIs, data models, worker prot
 
 ## Current Active Specs
 
-No normalized active specs have been created yet.
+- [External API v1 planning spec](external-api-v1.md)
+- [API token access planning spec](api-token-auth.md)
 
 ## Likely Future Specs
 
-- Control Plane API and data model contract.
 - Worker Agent heartbeat, execution, and result callback contract.
 - k6 script contract and output parsing expectations.
 - JMeter plan and JTL parsing contract.

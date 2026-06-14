@@ -20,6 +20,7 @@ Before any substantive change, read this file first, then follow only the direct
 - Specifications: [specs/README.md](specs/README.md)
 - Architecture decision records: [adr/README.md](adr/README.md)
 - Runbooks: [runbooks/README.md](runbooks/README.md)
+- Roadmap drafts: [roadmap/README.md](roadmap/README.md)
 - Legacy migration staging: [legacy/README.md](legacy/README.md)
 - Legacy leaf normalization map: [legacy/leaf-normalization-map.md](legacy/leaf-normalization-map.md)
 
@@ -34,6 +35,12 @@ This project is a multi-engine load testing ecosystem:
 - `engines/k6/`: k6 JavaScript load test scripts.
 - `engines/jmeter/`: JMeter `.jmx` plans and report assets.
 - `docs/v3/domains/p-loadtesting-target-profile-coverage.md`: authoritative profile-level k6/JMeter parity matrix.
+- `docs/v3/domains/p-loadtesting-phase-completion.md`: current Phase 0-4 completion assessment.
+- `docs/v3/domains/p-loadtesting-web-dashboard.md`: future dashboard MVP plan.
+- `docs/v3/specs/external-api-v1.md`: future stable external API contract plan.
+- `docs/v3/specs/api-token-auth.md`: future scoped API access plan.
+- `docs/v3/runbooks/distributed-deployment.md`: cross-host deployment planning runbook.
+- `docs/v3/roadmap/github-issues-dashboard-api-deployment.md`: issue-sized roadmap drafts for dashboard, API, access, and deployment work.
 - `docker-compose.yml`: local ecosystem orchestration for target app, control plane, worker, Redis, InfluxDB, and Grafana.
 - `.github/workflows/ci.yml`: CI workflow.
 
