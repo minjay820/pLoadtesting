@@ -1,0 +1,26 @@
+target_app_id: echo-api
+profiles:
+  - target_profile_id: echo-k6-smoke
+    display_name: Echo Smoke via k6
+    description: Lightweight smoke run against echo-api health endpoint.
+    engine: k6
+    script_path: engines/k6/target_apps_echo_smoke.js
+    target_url: http://127.0.0.1:18080
+    parameters:
+      TARGET_URL: http://127.0.0.1:18080
+      ECHO_MESSAGE: smoke
+      ECHO_REPEAT: "1"
+  - target_profile_id: echo-jmeter-smoke
+    display_name: Echo Smoke via JMeter
+    description: JMeter smoke run against echo-api GET echo endpoint.
+    engine: jmeter
+    script_path: engines/jmeter/target_apps_echo_latency_plan.jmx
+    target_url: http://127.0.0.1:18080
+    parameters:
+      target_url: http://127.0.0.1:18080
+      TARGET_HOST: 127.0.0.1
+      TARGET_PORT: "18080"
+      TARGET_PATH: /api/echo
+      TARGET_METHOD: GET
+      TARGET_QUERY: message=jmeter&repeat=1
+

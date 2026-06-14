@@ -1,0 +1,16 @@
+target_app_id: payload-api
+profiles:
+  - target_profile_id: payload-jmeter-download
+    display_name: Payload Download via JMeter
+    description: JMeter download-oriented profile against payload-api.
+    engine: jmeter
+    script_path: engines/jmeter/target_apps_payload_crud_plan.jmx
+    target_url: http://127.0.0.1:18084
+    parameters:
+      target_url: http://127.0.0.1:18084
+      TARGET_HOST: 127.0.0.1
+      TARGET_PORT: "18084"
+      TARGET_PATH: /api/download
+      TARGET_METHOD: GET
+      TARGET_QUERY: kb=32
+

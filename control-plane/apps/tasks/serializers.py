@@ -11,6 +11,7 @@ from rest_framework import serializers
 
 from apps.results.serializers import TestResultSerializer
 from .models import LoadTestTask
+from .template_registry import TaskTemplateError, get_task_template
 
 
 class LoadTestTaskSerializer(serializers.ModelSerializer):
@@ -69,6 +70,9 @@ class LoadTestTaskCreateSerializer(serializers.ModelSerializer):
     均不在此設定（由 Control Plane 生命週期管理）。
     """
 
+    target_app_id = serializers.CharField(write_only=True, required=False)
+    target_profile_id = serializers.CharField(write_only=True, required=False)
+
     class Meta:
         model  = LoadTestTask
         fields = [
@@ -79,14 +83,55 @@ class LoadTestTaskCreateSerializer(serializers.ModelSerializer):
             "target_url",
             "scheduled_at",
             "created_by",
+            "target_app_id",
+            "target_profile_id",
         ]
         extra_kwargs = {
+            "name":         {"required": False},
+            "engine":       {"required": False},
+            "script_path":  {"required": False},
+            "target_url":   {"required": False},
             "parameters":   {"required": False},
             "scheduled_at": {"required": False},
             "created_by":   {"required": False},
         }
 
+    def validate(self, attrs: dict) -> dict:
+        target_app_id = attrs.get("target_app_id")
+        target_profile_id = attrs.get("target_profile_id")
+
+        if target_app_id or target_profile_id:
+            if not target_app_id or not target_profile_id:
+                raise serializers.ValidationError(
+                    "target_app_id and target_profile_id must be provided together."
+                )
+            try:
+                template = get_task_template(target_app_id, target_profile_id)
+            except TaskTemplateError as exc:
+                raise serializers.ValidationError(str(exc)) from exc
+
+            attrs["_resolved_template"] = template
+            attrs.setdefault("name", template["display_name"])
+            attrs.setdefault("engine", template["engine"])
+            attrs.setdefault("script_path", template["script_path"])
+            attrs.setdefault("target_url", template["target_url"])
+            merged_parameters = dict(template.get("parameters", {}))
+            merged_parameters.update(attrs.get("parameters") or {})
+            merged_parameters["target_url"] = attrs["target_url"]
+            attrs["parameters"] = merged_parameters
+
+        required_fields = ("name", "engine", "script_path", "target_url")
+        missing = [field for field in required_fields if not attrs.get(field)]
+        if missing:
+            raise serializers.ValidationError(
+                f"Missing required task fields: {', '.join(missing)}."
+            )
+        return attrs
+
     def create(self, validated_data: dict) -> LoadTestTask:
         """強制 status=PENDING，確保狀態機從正確起點出發。"""
+        validated_data.pop("_resolved_template", None)
+        validated_data.pop("target_app_id", None)
+        validated_data.pop("target_profile_id", None)
         validated_data["status"] = LoadTestTask.Status.PENDING
         return super().create(validated_data)

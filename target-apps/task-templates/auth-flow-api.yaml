@@ -1,0 +1,15 @@
+target_app_id: auth-flow-api
+profiles:
+  - target_profile_id: auth-k6-checkout
+    display_name: Auth Checkout via k6
+    description: Login, profile fetch, and checkout flow against auth-flow-api.
+    engine: k6
+    script_path: engines/k6/target_apps_auth_checkout.js
+    target_url: http://127.0.0.1:18086
+    parameters:
+      TARGET_URL: http://127.0.0.1:18086
+      DEMO_USERNAME: alice
+      DEMO_PASSWORD: demo-password
+      DEMO_SKU: sku-1
+      DEMO_QUANTITY: "1"
+

@@ -16,6 +16,8 @@ This directory contains a diversified local target suite for pLoadtesting. These
 
 Each app exposes `/health`, explicit safe limits, deterministic behavior where randomness exists, and a manifest in `target-apps/manifests/`.
 
+Task templates live in `target-apps/task-templates/` and point to ready-to-use k6 or JMeter sample scenarios under `engines/`.
+
 ## Local Run
 
 ```bash
@@ -45,4 +47,4 @@ curl http://127.0.0.1:18086/health
 - Ports are bound to `127.0.0.1` only.
 - The suite is intentionally capped to avoid overwhelming laptops or CI runners.
 - `auth-flow-api` uses demo-only credentials: any username with password `demo-password`.
-
+- Manifest-driven Control Plane task creation can use `target_app_id` plus `target_profile_id`, for example `echo-api` + `echo-k6-smoke`.

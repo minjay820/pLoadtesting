@@ -12,9 +12,11 @@ Tasks API Views：
 from rest_framework import generics, status
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .models import LoadTestTask
 from .serializers import LoadTestTaskCreateSerializer, LoadTestTaskSerializer
+from .template_registry import list_task_templates
 
 
 class TaskListCreateView(generics.ListCreateAPIView):
@@ -57,3 +59,12 @@ class TaskDetailView(generics.RetrieveAPIView):
     queryset         = LoadTestTask.objects.select_related("worker", "result").all()
     serializer_class = LoadTestTaskSerializer
     lookup_field     = "pk"
+
+
+class TaskTemplateListView(APIView):
+    """
+    GET /api/tasks/templates/  ─ 列出可供 manifest-driven 建立流程使用的 task templates
+    """
+
+    def get(self, request: Request) -> Response:
+        return Response({"templates": list_task_templates()}, status=status.HTTP_200_OK)

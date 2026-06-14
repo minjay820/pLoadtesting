@@ -112,6 +112,7 @@ A diversified local target suite for broader HTTP/REST workload coverage.
 | Compose | `docker compose -f target-apps/docker-compose.target-apps.yml up --build -d` |
 | Catalog | `echo-api`, `latency-api`, `error-api`, `resource-api`, `payload-api`, `crud-api`, `auth-flow-api` |
 | Manifests | `target-apps/manifests/*.yaml` |
+| Task Templates | `target-apps/task-templates/*.yaml` |
 | Runbook | `docs/v3/runbooks/target-app-local-runbook.md` |
 
 ---

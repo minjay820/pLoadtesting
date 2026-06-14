@@ -103,6 +103,34 @@ Each target app has a manifest under `target-apps/manifests/` with these fields:
 
 These manifests are intended to be machine-readable metadata for future target selection, task templating, and validation automation.
 
+## Task Templates And Sample Scenarios
+
+The suite now includes task templates under `target-apps/task-templates/` and engine samples under `engines/k6/` plus `engines/jmeter/`.
+
+Template flow:
+
+1. `target_app_id` selects the target family.
+2. `target_profile_id` selects a ready-made scenario profile.
+3. The Control Plane resolves that profile into the existing task fields:
+   - `engine`
+   - `script_path`
+   - `target_url`
+   - `parameters`
+
+Examples:
+
+| Target App | Profile | Engine | Purpose |
+|---|---|---|---|
+| `echo-api` | `echo-k6-smoke` | k6 | basic smoke and response validation |
+| `latency-api` | `latency-k6-delay` | k6 | reproducible delay behavior |
+| `error-api` | `error-k6-flaky` | k6 | deterministic flaky response validation |
+| `resource-api` | `resource-k6-cpu` | k6 | bounded CPU workload |
+| `payload-api` | `payload-jmeter-download` | JMeter | payload download throughput |
+| `crud-api` | `crud-k6-flow` | k6 | create-and-fetch flow |
+| `auth-flow-api` | `auth-k6-checkout` | k6 | login and checkout business flow |
+
+This keeps the Worker and task model unchanged while allowing manifest-driven selection.
+
 ## CI Validation Approach
 
 Current CI coverage for the suite is intentionally minimal and stable:
@@ -115,12 +143,13 @@ Current CI coverage for the suite is intentionally minimal and stable:
 
 ## Future Extensions
 
-Future work may add:
+Future work may add the following, with the current evaluation posture:
 
-- WebSocket targets
-- gRPC targets
-- SSE targets
-- DB-heavy targets backed by disposable SQLite or Postgres containers
-- file-heavy targets with bounded fixture sets
-- auth-heavy targets with token refresh, session expiry, and policy branches
-
+| Extension | Current Assessment | Recommended Next Step |
+|---|---|---|
+| WebSocket | Reasonable next step if we need connection-lifecycle and broadcast tests; moderate CI cost | Add one bounded echo/broadcast target with strict client caps |
+| gRPC | Useful for protocol coverage, but adds tooling/runtime complexity to CI | Defer until there is a real gRPC consumer requirement |
+| SSE | Lower complexity than WebSocket and fits streaming-read cases | Good candidate after manifest-driven HTTP flow stabilizes |
+| DB-heavy | Valuable, but should use disposable SQLite or isolated Postgres only | Start with SQLite-backed bounded write/read target |
+| file-heavy | Valuable for upload/download and local artifact churn | Add bounded fixture packs and strict size caps |
+| auth-heavy | Valuable, but easy to drift into secret-like behavior | Extend demo-only auth-flow with refresh/expiry branches, still no real secrets |

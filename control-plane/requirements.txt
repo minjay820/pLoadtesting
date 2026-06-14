@@ -17,5 +17,8 @@ redis>=5.0,<6.0
 # Celery 與 Django 整合（django-celery-results 可選，MVP 先用 Redis backend）
 django-celery-beat>=2.6,<3.0
 
+# Template registry metadata loading
+PyYAML>=6.0,<7.0
+
 # Dev 工具
 ipython

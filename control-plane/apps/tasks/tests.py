@@ -107,3 +107,72 @@ class TaskResultCreateTests(TestCase):
         self.assertTrue(TestResult.objects.filter(task=task).exists())
         self.assertEqual(task.status, LoadTestTask.Status.FAILED)
         self.assertEqual(task.error_message, "k6 exited with code 107")
+
+
+@override_settings(PLOADTESTING_API_TOKEN=API_TOKEN)
+class TaskTemplateApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.client.credentials(HTTP_X_PLOADTESTING_API_TOKEN=API_TOKEN)
+
+    def test_list_task_templates(self):
+        response = self.client.get("/api/tasks/templates/")
+
+        self.assertEqual(response.status_code, 200)
+        templates = response.json()["templates"]
+        self.assertTrue(any(row["target_profile_id"] == "echo-k6-smoke" for row in templates))
+        self.assertTrue(any(row["target_profile_id"] == "payload-jmeter-download" for row in templates))
+
+    def test_create_task_from_template(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "echo-api",
+                "target_profile_id": "echo-k6-smoke",
+                "created_by": "template-test",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.name, "Echo Smoke via k6")
+        self.assertEqual(task.engine, "k6")
+        self.assertEqual(task.script_path, "engines/k6/target_apps_echo_smoke.js")
+        self.assertEqual(task.target_url, "http://127.0.0.1:18080")
+        self.assertEqual(task.parameters["TARGET_URL"], "http://127.0.0.1:18080")
+        self.assertEqual(task.parameters["target_url"], "http://127.0.0.1:18080")
+
+    def test_create_task_from_template_with_overrides(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "latency-api",
+                "target_profile_id": "latency-k6-delay",
+                "name": "Custom Latency Task",
+                "target_url": "http://127.0.0.1:19081",
+                "parameters": {
+                    "TARGET_URL": "http://127.0.0.1:19081",
+                    "DELAY_MS": "400",
+                },
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.name, "Custom Latency Task")
+        self.assertEqual(task.target_url, "http://127.0.0.1:19081")
+        self.assertEqual(task.parameters["TARGET_URL"], "http://127.0.0.1:19081")
+        self.assertEqual(task.parameters["DELAY_MS"], "400")
+        self.assertEqual(task.parameters["target_url"], "http://127.0.0.1:19081")
+
+    def test_template_fields_must_be_complete(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {"target_app_id": "echo-api"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("target_app_id and target_profile_id", str(response.json()))

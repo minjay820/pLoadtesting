@@ -7,8 +7,10 @@ from fastapi.testclient import TestClient
 ROOT_DIR = Path(__file__).resolve().parents[2]
 TARGET_APPS_DIR = ROOT_DIR / "target-apps"
 MANIFESTS_DIR = TARGET_APPS_DIR / "manifests"
+TEMPLATES_DIR = TARGET_APPS_DIR / "task-templates"
 
 MANIFEST_FILES = sorted(MANIFESTS_DIR.glob("*.yaml"))
+TEMPLATE_FILES = sorted(TEMPLATES_DIR.glob("*.yaml"))
 APP_MODULES = {
     "echo-api": "echo_api",
     "latency-api": "latency_api",
@@ -42,6 +44,19 @@ def test_manifest_metadata_schema_is_loadable():
         ):
             assert field in manifest
         assert manifest["target_app_id"] in APP_MODULES
+
+
+def test_task_templates_are_loadable_and_point_to_real_assets():
+    assert len(TEMPLATE_FILES) == len(APP_MODULES)
+    for template_path in TEMPLATE_FILES:
+        template_doc = load_manifest(template_path)
+        assert template_doc["target_app_id"] in APP_MODULES
+        assert template_doc["profiles"]
+        for profile in template_doc["profiles"]:
+            assert profile["engine"] in {"k6", "jmeter"}
+            script_path = ROOT_DIR / profile["script_path"]
+            assert script_path.exists(), f"Missing sample script or plan: {script_path}"
+            assert profile["target_url"].startswith("http://127.0.0.1:")
 
 
 def test_every_target_health_endpoint_is_stable():

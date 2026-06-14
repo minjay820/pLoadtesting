@@ -1,0 +1,25 @@
+target_app_id: latency-api
+profiles:
+  - target_profile_id: latency-k6-delay
+    display_name: Latency Delay via k6
+    description: Reproducible k6 delay profile against latency-api.
+    engine: k6
+    script_path: engines/k6/target_apps_latency_delay.js
+    target_url: http://127.0.0.1:18081
+    parameters:
+      TARGET_URL: http://127.0.0.1:18081
+      DELAY_MS: "250"
+  - target_profile_id: latency-jmeter-delay
+    display_name: Latency Delay via JMeter
+    description: JMeter delay profile hitting the latency-api delay endpoint.
+    engine: jmeter
+    script_path: engines/jmeter/target_apps_echo_latency_plan.jmx
+    target_url: http://127.0.0.1:18081
+    parameters:
+      target_url: http://127.0.0.1:18081
+      TARGET_HOST: 127.0.0.1
+      TARGET_PORT: "18081"
+      TARGET_PATH: /api/delay/250
+      TARGET_METHOD: GET
+      TARGET_QUERY: ""
+

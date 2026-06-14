@@ -30,6 +30,12 @@ engines/k6/
 | `stress_cpu.js` | `GET /api/cpu-bound?n=1000000` | 0→50→0 | 30s ramp + 60s sustain + 10s down | p(95) < 2000ms, Errors < 5% |
 | `stress_io.js` | `GET /api/io-bound?delay=1.0` | 200 | 200 VUs direct, 60s sustain | p(95) < 3500ms, Errors < 1% |
 | `stress_data.js` | `POST /api/data` | 0→20 | 10s ramp + 60s sustain | p(95) < 1500ms, count = 100 |
+| `target_apps_echo_smoke.js` | `GET /api/echo` | 1 | 10s run | Smoke for `echo-api` |
+| `target_apps_latency_delay.js` | `GET /api/delay/{ms}` | 0→10 | 30s total | Delay profile for `latency-api` |
+| `target_apps_error_flaky.js` | `GET /api/flaky` | 5 | 15s run | Deterministic flaky checks |
+| `target_apps_resource_cpu.js` | `GET /api/cpu` | 0→10 | 30s total | Bounded CPU profile |
+| `target_apps_crud_flow.js` | `POST /api/items` + `GET /api/items/{id}` | 5 | 20s run | CRUD flow sample |
+| `target_apps_auth_checkout.js` | login/profile/checkout | 5 | 20s run | Auth-style business flow sample |
 
 ---
 

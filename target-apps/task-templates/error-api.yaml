@@ -1,0 +1,13 @@
+target_app_id: error-api
+profiles:
+  - target_profile_id: error-k6-flaky
+    display_name: Deterministic Flaky via k6
+    description: Deterministic flaky run that produces stable CI-visible failures.
+    engine: k6
+    script_path: engines/k6/target_apps_error_flaky.js
+    target_url: http://127.0.0.1:18082
+    parameters:
+      TARGET_URL: http://127.0.0.1:18082
+      FLAKY_RATE: "0.5"
+      FLAKY_REQUEST_KEY: ci
+

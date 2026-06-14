@@ -1,0 +1,26 @@
+target_app_id: crud-api
+profiles:
+  - target_profile_id: crud-k6-flow
+    display_name: CRUD Flow via k6
+    description: Create and fetch item flow against crud-api.
+    engine: k6
+    script_path: engines/k6/target_apps_crud_flow.js
+    target_url: http://127.0.0.1:18085
+    parameters:
+      TARGET_URL: http://127.0.0.1:18085
+      ITEM_NAME: smoke-item
+      ITEM_VALUE: "42"
+  - target_profile_id: crud-jmeter-flow
+    display_name: CRUD Flow via JMeter
+    description: JMeter GET profile against crud-api item listing.
+    engine: jmeter
+    script_path: engines/jmeter/target_apps_payload_crud_plan.jmx
+    target_url: http://127.0.0.1:18085
+    parameters:
+      target_url: http://127.0.0.1:18085
+      TARGET_HOST: 127.0.0.1
+      TARGET_PORT: "18085"
+      TARGET_PATH: /api/items
+      TARGET_METHOD: GET
+      TARGET_QUERY: ""
+

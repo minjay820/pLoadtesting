@@ -1,0 +1,12 @@
+target_app_id: resource-api
+profiles:
+  - target_profile_id: resource-k6-cpu
+    display_name: Resource CPU via k6
+    description: CPU-focused k6 run against bounded resource-api workload.
+    engine: k6
+    script_path: engines/k6/target_apps_resource_cpu.js
+    target_url: http://127.0.0.1:18083
+    parameters:
+      TARGET_URL: http://127.0.0.1:18083
+      CPU_ITERATIONS: "250000"
+

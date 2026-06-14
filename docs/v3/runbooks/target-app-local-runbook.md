@@ -50,6 +50,48 @@ curl -X POST http://127.0.0.1:18085/api/items -H "Content-Type: application/json
 curl -X POST http://127.0.0.1:18086/api/login -H "Content-Type: application/json" -d '{"username":"alice","password":"demo-password"}'
 ```
 
+## Manifest-Driven Task Creation
+
+The Control Plane can now create tasks from local target templates without manually specifying `engine`, `script_path`, and `target_url`.
+
+List templates:
+
+```bash
+curl http://127.0.0.1:9000/api/tasks/templates/ \
+  -H "X-PLOADTESTING-API-TOKEN: ci-test-token"
+```
+
+Create a task from a template:
+
+```bash
+curl -X POST http://127.0.0.1:9000/api/tasks/ \
+  -H "Content-Type: application/json" \
+  -H "X-PLOADTESTING-API-TOKEN: ci-test-token" \
+  -d '{
+    "target_app_id": "echo-api",
+    "target_profile_id": "echo-k6-smoke",
+    "created_by": "local-runbook"
+  }'
+```
+
+Optional overrides are still allowed:
+
+```bash
+curl -X POST http://127.0.0.1:9000/api/tasks/ \
+  -H "Content-Type: application/json" \
+  -H "X-PLOADTESTING-API-TOKEN: ci-test-token" \
+  -d '{
+    "target_app_id": "latency-api",
+    "target_profile_id": "latency-k6-delay",
+    "name": "latency-400ms",
+    "target_url": "http://127.0.0.1:19081",
+    "parameters": {
+      "TARGET_URL": "http://127.0.0.1:19081",
+      "DELAY_MS": "400"
+    }
+  }'
+```
+
 ## Stop The Suite
 
 ```bash
@@ -71,6 +113,7 @@ If a request exceeds a safe limit, the app should return `422`.
 
 - CI does not need to boot the suite in Docker for basic validation.
 - Metadata and endpoint behavior are covered by `pytest target-app/ target-apps/tests -v`.
+- Template registry and manifest-driven task creation are covered by `python manage.py test apps/ --verbosity=2`.
 - Existing Control Plane checks remain:
   - `python manage.py check`
   - `python manage.py test apps/ --verbosity=2`
@@ -80,4 +123,3 @@ If a request exceeds a safe limit, the app should return `422`.
 - If a port is already in use, stop the conflicting process or temporarily remap the port in `target-apps/docker-compose.target-apps.yml`.
 - If health checks fail, inspect container logs with `docker compose -f target-apps/docker-compose.target-apps.yml logs <service>`.
 - If CI-safe behavior becomes flaky, prefer deterministic mode instead of adding retries.
-

@@ -26,6 +26,13 @@ engines/jmeter/
 | TG3 | I/O Stress | `GET /api/io-bound?delay=1.0` | 200 | 5s | 60s |
 | TG4 | Data API | `POST /api/data` | 20 | 10s | 60s |
 
+Additional target-suite sample plans:
+
+| Plan | Purpose |
+|---|---|
+| `target_apps_echo_latency_plan.jmx` | Parametric echo or latency GET profile via `TARGET_HOST`, `TARGET_PORT`, `TARGET_PATH`, `TARGET_QUERY` |
+| `target_apps_payload_crud_plan.jmx` | Parametric payload download or CRUD listing profile via the same variable set |
+
 ---
 
 ## 🚀 Execution Guide
