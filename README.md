@@ -1,6 +1,6 @@
 # 🌌 pLoadtesting
 
-> **Multi-engine automated load testing ecosystem for k6, JMeter, worker agents, control plane orchestration, and reproducible performance reports.**
+> **Multi-engine automated load testing ecosystem for k6, JMeter, worker agents, Control Plane orchestration, local target app suites, and reproducible performance reports.**
 
 [![CI](https://github.com/minjay820/pLoadtesting/actions/workflows/ci.yml/badge.svg)](https://github.com/minjay820/pLoadtesting/actions/workflows/ci.yml)
 [![Phase](https://img.shields.io/badge/Phase-MVP%20Preview-blueviolet)](ROADMAP.md)
@@ -51,7 +51,7 @@
 | **Worker Agent** | FastAPI + k6 + JMeter 5.6.3 | `8100` (internal) |
 | **Message Broker** | Redis 7 | `6379` (internal) |
 | **Metrics Store** | InfluxDB v2.7 | `8086` |
-| **Dashboard** | Grafana OSS 11.6 | `3000` |
+| **Observability Dashboard** | Grafana OSS 11.6 | `3000` |
 
 ---
 
@@ -63,23 +63,27 @@ pLoadtesting/
 ├── target-app/               # Original reference API server used as a load testing target
 ├── target-apps/              # Diversified local target app suite with manifests and compose
 ├── engines/                  # Load testing scripts and scenario assets
-│   ├── k6/                   # k6 test scripts (smoke, stress_cpu, stress_io, stress_data)
+│   ├── k6/                   # k6 test scripts and target-app scenarios
 │   ├── jmeter/               # JMeter test plans (.jmx)
 │   └── loadrunner/           # Optional future enterprise engine adapter
 │
 ├── control-plane/            # Orchestration API (Django + Celery + Redis)
 │   └── ARCHITECTURE.md       # Detailed Control Plane design document
 ├── workers/                  # Remote execution agent (FastAPI)
-├── docs/                     # Documentation
+├── docs/                     # Legacy documentation pending docs/v3 normalization
 │   ├── architecture-interaction.md   # Mermaid interaction diagrams
 │   ├── k6-smoke-test-guide.md        # k6 usage guide & expected output
-│   ├── local-validation-guide.md     # Docker Compose debugging guide
-│   └── oss-readiness-checklist.md   # OSS release checklist
+│   └── local-validation-guide.md     # Docker Compose debugging guide
+├── docs/v3/                  # Active documentation trunk
+│   ├── domains/              # Active domain documents
+│   ├── specs/                # Active planning and contract specs
+│   ├── runbooks/             # Active validation and operation runbooks
+│   └── roadmap/              # Issue-sized future work drafts
 ├── docker-compose.yml        # Full ecosystem orchestration
 └── README.md                 # This file
 ```
 
-Active Codex-governed documentation lives in [`docs/v3/README.md`](docs/v3/README.md), including the current target profile coverage matrix, Phase completion assessment, dashboard/API planning specs, and distributed deployment runbook.
+Active governed documentation lives in [`docs/v3/README.md`](docs/v3/README.md), including the current target profile coverage matrix, Phase completion assessment, dashboard/API planning specs, and distributed deployment runbook.
 
 ---
 
@@ -117,6 +121,7 @@ A diversified local target suite for broader HTTP/REST workload coverage.
 | Task Templates | `target-apps/task-templates/*.yaml` |
 | Docker Smoke | `target-apps/scripts/smoke_docker_target_apps.sh` |
 | Runbook | `docs/v3/runbooks/target-app-local-runbook.md` |
+| Profile Matrix | `docs/v3/domains/p-loadtesting-target-profile-coverage.md` |
 
 ---
 
@@ -125,12 +130,12 @@ A diversified local target suite for broader HTTP/REST workload coverage.
 Core script warehouse organized by engine type.
 
 #### `engines/k6/`
-* **Scenarios**: `smoke.js`, `stress_cpu.js`, `stress_io.js`, `stress_data.js`
-* **Usage**: See [k6 Smoke Test Guide](docs/k6-smoke-test-guide.md)
+* **Scenarios**: Original reference target scripts plus target-app catalog profiles.
+* **Usage**: See [k6 Smoke Test Guide](docs/k6-smoke-test-guide.md) and [engines/k6/README.md](engines/k6/README.md)
 
 #### `engines/jmeter/`
-* **Scenarios**: `ploadtesting_test_plan.jmx`
-* **Execution**: `jmeter -n -t ploadtesting_test_plan.jmx -l results.jtl`
+* **Scenarios**: Original reference plans plus target-app catalog profile plans.
+* **Execution**: `jmeter -n -t <plan>.jmx -l results.jtl`
 
 #### `engines/loadrunner/` (Optional Future Integration)
 > **Licensing Note**: pLoadtesting does not include, redistribute, sublicense, or modify LoadRunner binaries. This adapter requires a user-provided licensed installation.
@@ -170,10 +175,13 @@ Remote agent nodes that execute load test scripts and report results.
 | Control Plane REST API | ✅ Complete |
 | Worker ↔ Control Plane Heartbeat | ✅ Complete |
 | Celery Task Dispatch | ✅ Complete |
-| API Token Authentication | ✅ Complete |
+| Shared Preview API Token | ✅ Complete for local preview |
+| Scoped API Token Model | 📋 Planned |
 | Docker Compose Full Stack | ✅ Complete |
-| Grafana + InfluxDB Observability | ✅ Complete (Phase 6) |
-| Web UI Dashboard | 🔜 Planned (Phase 7) |
+| Grafana + InfluxDB Observability | ✅ Complete for local compose |
+| Web UI Dashboard | 📋 Planned |
+| External API v1 | 📋 Planned |
+| Distributed Deployment Runbook | 📋 Planned |
 
 ---
 
@@ -199,7 +207,7 @@ curl http://localhost:8000/api/health
 
 # 6. Verify Control Plane (Worker Agent should have registered via heartbeat after ~10s)
 curl http://localhost:9000/api/workers/ \
-  -H "X-PLoadtesting-Api-Token: dev-api-token-change-me"
+  -H "X-PLOADTESTING-API-TOKEN: dev-api-token-change-me"
 
 # 7. Run k6 smoke test locally (requires k6 installed)
 k6 run engines/k6/smoke.js
@@ -213,11 +221,18 @@ For full local validation steps, troubleshooting, and end-to-end test flows, see
 
 | Document | Description |
 |---|---|
-| [docs/architecture-interaction.md](docs/architecture-interaction.md) | Mermaid interaction & state machine diagrams |
+| [docs/v3/README.md](docs/v3/README.md) | Active documentation trunk and current docs index |
+| [docs/v3/domains/p-loadtesting-target-profile-coverage.md](docs/v3/domains/p-loadtesting-target-profile-coverage.md) | Authoritative target profile k6/JMeter coverage matrix |
+| [docs/v3/domains/p-loadtesting-phase-completion.md](docs/v3/domains/p-loadtesting-phase-completion.md) | Phase 0-4 completion assessment and current gaps |
+| [docs/v3/specs/external-api-v1.md](docs/v3/specs/external-api-v1.md) | Planned external API v1 contract |
+| [docs/v3/specs/api-token-auth.md](docs/v3/specs/api-token-auth.md) | Planned scoped API access model |
+| [docs/v3/runbooks/distributed-deployment.md](docs/v3/runbooks/distributed-deployment.md) | Three-host/cross-subnet deployment planning runbook |
+| [docs/v3/roadmap/github-issues-dashboard-api-deployment.md](docs/v3/roadmap/github-issues-dashboard-api-deployment.md) | Issue-sized roadmap drafts |
+| [docs/architecture-interaction.md](docs/architecture-interaction.md) | Legacy Mermaid interaction & state machine diagrams |
 | [docs/k6-smoke-test-guide.md](docs/k6-smoke-test-guide.md) | k6 smoke test usage guide & expected output |
 | [docs/local-validation-guide.md](docs/local-validation-guide.md) | Docker Compose debugging & validation guide |
 | [docs/observability-guide.md](docs/observability-guide.md) | InfluxDB v2 + Grafana 快速啟動與 Dashboard 說明 |
-| [docs/oss-readiness-checklist.md](docs/oss-readiness-checklist.md) | OSS release checklist |
+| [docs/oss-readiness-checklist.md](docs/oss-readiness-checklist.md) | Legacy project-readiness checklist |
 | [control-plane/ARCHITECTURE.md](control-plane/ARCHITECTURE.md) | Control Plane detailed design |
 | [ROADMAP.md](ROADMAP.md) | Project roadmap & milestones |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |

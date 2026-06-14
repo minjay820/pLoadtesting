@@ -22,6 +22,8 @@ Documentation should be:
 
 Do not present planned behavior as implemented behavior.
 
+Root public documents should stay concise. When they need detailed behavior, link to the relevant active `docs/v3/` document instead of copying large sections that can drift.
+
 ## New Documents
 
 When adding a new document:
@@ -50,3 +52,5 @@ Governance changes must update the complete governance set in one session:
 - the current daily change log
 
 This prevents future Codex sessions from receiving conflicting documentation rules.
+
+If a governance change affects root public documents, also check `README.md`, `CONTRIBUTING.md`, `ROADMAP.md`, `SECURITY.md`, `THIRD_PARTY_NOTICES.md`, and `LICENSE` for contradictions.

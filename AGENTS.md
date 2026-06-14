@@ -87,6 +87,20 @@ Commit messages should concisely describe the governance or documentation change
 For this repository, common documentation entry points include:
 
 - Root overview: `README.md`
+- Contributor workflow: `CONTRIBUTING.md`
+- Public roadmap: `ROADMAP.md`
+- Security policy: `SECURITY.md`
+- Third-party notices: `THIRD_PARTY_NOTICES.md`
 - Active Codex documentation trunk: `docs/v3/README.md`
 - Existing legacy docs pending migration: `docs/`, `control-plane/ARCHITECTURE.md`, engine READMEs, and root project docs
 - Runtime stack: Docker Compose, Django/DRF control plane, FastAPI target app, FastAPI worker agent, Redis/Celery, k6, JMeter, InfluxDB, and Grafana
+
+## Public Project Document Updates
+
+When updating root-level public project documents, keep them aligned with `docs/v3/` rather than treating them as separate sources of truth.
+
+- `README.md` should remain a concise public orientation and link into active `docs/v3/` material for deeper operational detail.
+- `ROADMAP.md` should summarize current horizons and point to issue-sized roadmap drafts under `docs/v3/roadmap/`.
+- `SECURITY.md` should state the current preview security boundary accurately and avoid implying production-grade access controls before they are implemented.
+- `CONTRIBUTING.md` should reference the current validation commands and docs/v3 update expectations.
+- `THIRD_PARTY_NOTICES.md` should be updated when new committed integrations, runtime dependencies, or redistributed assets materially affect notice obligations.

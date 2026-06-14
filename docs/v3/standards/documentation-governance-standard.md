@@ -27,6 +27,8 @@ If the change modifies governance itself, update all governance surfaces togethe
 - `docs/v3/standards/*`
 - the current daily change log
 
+Root-level public documents such as `README.md`, `CONTRIBUTING.md`, `ROADMAP.md`, `SECURITY.md`, `THIRD_PARTY_NOTICES.md`, and `LICENSE` should stay aligned with the active trunk and link into `docs/v3/` for detailed current behavior.
+
 ## Traceability
 
 Every active `docs/v3/` document must be reachable from `docs/v3/README.md` or a child README index.
@@ -51,6 +53,7 @@ Before finishing, check:
 - `AGENTS.md` points future Codex sessions to `docs/v3/`.
 - `docs/v3/README.md` indexes every new or changed documentation area.
 - Standards describe update timing and daily log requirements.
+- Root public documents do not contradict the active `docs/v3/` source of truth.
 - The daily log records the session.
 - Legacy migration rules avoid deletion of old files.
 - Commit requirements have been followed or the exception is stated.

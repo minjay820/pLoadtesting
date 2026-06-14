@@ -34,6 +34,8 @@ Each daily log should include:
 - follow-ups or unresolved migration work
 - commit hash, if a commit was created
 
+When root public documents are updated, the daily log should identify whether the change is public orientation, contributor workflow, roadmap, security posture, licensing, or third-party notice maintenance.
+
 ## Non-Substantive Sessions
 
 No daily log is required for pure questions, pure review, analysis-only work, typo-only edits, or sessions with no tracked file change unless the user asks for a record.

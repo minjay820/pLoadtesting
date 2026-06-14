@@ -61,3 +61,16 @@ Use [templates/codex-daily-change-log-template.md](templates/codex-daily-change-
 Substantive changes include code behavior, data models, APIs, UI behavior, runtime scripts, deployment configuration, Docker, CI/CD, tracked execution configuration, documentation governance, documentation structure, ADRs, runbooks, specs, domain docs, legacy migration, test strategy, validation flow, operating procedure, or system behavior documentation changes.
 
 Typo-only edits, formatting-only edits, pure review, pure inventory, or analysis-only work are not necessarily substantive when they do not modify tracked files or change meaning.
+
+## Root Public Documents
+
+Root-level public project documents are concise entry points and should stay aligned with the active docs trunk:
+
+- `README.md`
+- `CONTRIBUTING.md`
+- `ROADMAP.md`
+- `SECURITY.md`
+- `THIRD_PARTY_NOTICES.md`
+- `LICENSE`
+
+When these files describe implemented behavior, planned behavior, validation, security posture, or third-party obligations, prefer linking to the relevant `docs/v3/` source of truth instead of duplicating long operational detail.

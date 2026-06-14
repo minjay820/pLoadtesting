@@ -14,6 +14,7 @@ Use this matrix to decide which `docs/v3/` surfaces must be updated for a change
 | Docker or Compose change | Runbook and deployment/operations docs | Yes | Yes |
 | CI/CD change | Runbook or validation workflow docs | Yes | Yes |
 | Documentation governance change | `AGENTS.md`, `docs/v3/README.md`, all standards, daily log | Yes | Yes |
+| Root public document posture update | Relevant root file plus linked `docs/v3/` source or index | Yes, if semantic | Usually |
 | New ADR | `docs/v3/adr/README.md` and the ADR | Yes | Usually |
 | Legacy mirroring | `docs/v3/legacy/`, leaf normalization map, target-area README if normalized | Yes | Usually |
 | Test strategy or validation flow change | Runbook or spec | Yes | Usually |
@@ -27,3 +28,4 @@ Use this matrix to decide which `docs/v3/` surfaces must be updated for a change
 - Changes to `engines/k6/` or `engines/jmeter/` usually require engine specs or runbooks.
 - Changes to `docker-compose.yml`, Dockerfiles, InfluxDB, Grafana, or Redis/Celery settings usually require deployment or local validation runbook updates.
 - Changes to `.github/workflows/ci.yml` usually require validation workflow documentation updates.
+- Changes to `README.md`, `CONTRIBUTING.md`, `ROADMAP.md`, `SECURITY.md`, or `THIRD_PARTY_NOTICES.md` should be checked against the active `docs/v3/` source of truth.
