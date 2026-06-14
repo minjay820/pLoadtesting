@@ -53,6 +53,8 @@ curl http://127.0.0.1:18084/api/files/manifest?count=2\&kb_per_file=8
 curl http://127.0.0.1:18084/api/files/fixture-1?kb=8 -o /tmp/fixture-1.bin
 curl -X POST http://127.0.0.1:18085/api/items -H "Content-Type: application/json" -d '{"name":"demo","value":1}'
 curl -X POST http://127.0.0.1:18086/api/login -H "Content-Type: application/json" -d '{"username":"alice","password":"demo-password"}'
+curl -X POST http://127.0.0.1:18086/api/session/login -H "Content-Type: application/json" -d '{"username":"alice","password":"demo-password","session_uses":2}' -c /tmp/auth-cookies.txt
+curl http://127.0.0.1:18086/api/session/profile -b /tmp/auth-cookies.txt
 curl -N "http://127.0.0.1:18087/api/events?count=3&interval_ms=10"
 curl -N "http://127.0.0.1:18087/api/progress-heavy?steps=6&interval_ms=10"
 curl http://127.0.0.1:18089/api/records?category=sales&limit=5
@@ -159,6 +161,13 @@ k6 run -e TARGET_URL=http://127.0.0.1:18086 engines/k6/target_apps_auth_refresh_
 k6 run -e TARGET_URL=http://127.0.0.1:18086 -e ASSERT_FAILURE_BRANCHES=1 engines/k6/target_apps_auth_refresh_flow.js
 ```
 
+Auth-heavy session and MFA-like samples:
+
+```bash
+k6 run -e TARGET_URL=http://127.0.0.1:18086 -e FLOW_MODE=session engines/k6/target_apps_auth_session_mfa_flow.js
+k6 run -e TARGET_URL=http://127.0.0.1:18086 -e FLOW_MODE=mfa -e MFA_CHANNEL=sms engines/k6/target_apps_auth_session_mfa_flow.js
+```
+
 JMeter SSE, WebSocket, and SQLite-heavy sample plans are intentionally deferred for now because the current repo priorities favor low-cost, deterministic validation paths. The bounded k6 scripts cover these transports and flows with less CI and tooling risk.
 
 Optional overrides are still allowed:
@@ -193,7 +202,7 @@ docker compose -f target-apps/docker-compose.target-apps.yml down
 - `payload-api`: download `512KB`, upload `262144` bytes
 - `payload-api`: file fixture `256KB`, file manifest count `20`, deterministic in-memory file bytes only
 - `crud-api`: in-memory only
-- `auth-flow-api`: demo-only credentials, checkout quantity `10`, access-token uses `5`, refresh uses `3`
+- `auth-flow-api`: demo-only credentials, checkout quantity `10`, access-token uses `5`, refresh uses `3`, session uses `5`, active MFA challenges `20`
 - `sse-api`: `count <= 100`, `steps <= 100`, `progress-heavy steps <= 60`, `interval_ms <= 5000`, no infinite streaming
 - `ws-api`: message size `1024` bytes, `10` messages per connection, `20` connections per process, room size `5`, idle timeout `5s`
 - `db-api`: page size `50`, total rows `500`, deterministic SQLite seed rows, no external database dependency

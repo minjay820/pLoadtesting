@@ -100,9 +100,17 @@ PY
   fi
   if [[ "${method}" == "AUTH" ]]; then
     python3 - <<'PY'
+import http.cookiejar
 import json
 import urllib.error
 import urllib.request
+
+def mfa_code(username, channel):
+    total = sum(f"{username}|{channel}".encode("utf-8"))
+    return f"{(total * 137) % 1_000_000:06d}"
+
+cookie_jar = http.cookiejar.CookieJar()
+opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookie_jar))
 
 def post(url, payload, headers=None):
     request = urllib.request.Request(
@@ -111,7 +119,7 @@ def post(url, payload, headers=None):
         headers={"Content-Type": "application/json", **(headers or {})},
         method="POST",
     )
-    return urllib.request.urlopen(request, timeout=10)
+    return opener.open(request, timeout=10)
 
 login = post(
     "http://127.0.0.1:18086/api/login",
@@ -122,14 +130,14 @@ access_token = login_payload["access_token"]
 refresh_token = login_payload["refresh_token"]
 auth_headers = {"Authorization": f"Bearer {access_token}"}
 
-profile = urllib.request.urlopen(
+profile = opener.open(
     urllib.request.Request("http://127.0.0.1:18086/api/profile", headers=auth_headers),
     timeout=10,
 )
 assert profile.status == 200
 
 try:
-    urllib.request.urlopen(
+    opener.open(
         urllib.request.Request("http://127.0.0.1:18086/api/profile", headers=auth_headers),
         timeout=10,
     )
@@ -145,11 +153,49 @@ refresh_payload = json.loads(refresh.read().decode("utf-8"))
 refreshed_token = refresh_payload["access_token"]
 refreshed_headers = {"Authorization": f"Bearer {refreshed_token}"}
 
-logout = urllib.request.urlopen(
+logout = opener.open(
     urllib.request.Request("http://127.0.0.1:18086/api/logout", headers=refreshed_headers, method="POST"),
     timeout=10,
 )
 assert logout.status == 200
+
+session_login = post(
+    "http://127.0.0.1:18086/api/session/login",
+    {"username": "smoke", "password": "demo-password", "session_uses": 2},
+)
+assert session_login.status == 200
+session_profile = opener.open("http://127.0.0.1:18086/api/session/profile", timeout=10)
+assert session_profile.status == 200
+session_logout = opener.open(
+    urllib.request.Request("http://127.0.0.1:18086/api/session/logout", method="POST"),
+    timeout=10,
+)
+assert session_logout.status == 200
+
+mfa_start = post(
+    "http://127.0.0.1:18086/api/mfa/login/start",
+    {"username": "smoke", "password": "demo-password", "channel": "sms"},
+)
+mfa_start_payload = json.loads(mfa_start.read().decode("utf-8"))
+mfa_verify = post(
+    "http://127.0.0.1:18086/api/mfa/login/verify",
+    {
+        "challenge_id": mfa_start_payload["challenge_id"],
+        "code": mfa_code("smoke", "sms"),
+        "issue_mode": "bearer",
+        "access_token_uses": 2,
+        "refresh_uses": 1,
+    },
+)
+mfa_verify_payload = json.loads(mfa_verify.read().decode("utf-8"))
+mfa_profile = opener.open(
+    urllib.request.Request(
+        "http://127.0.0.1:18086/api/profile",
+        headers={"Authorization": f"Bearer {mfa_verify_payload['access_token']}"},
+    ),
+    timeout=10,
+)
+assert mfa_profile.status == 200
 PY
     return 0
   fi

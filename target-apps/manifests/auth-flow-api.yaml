@@ -10,14 +10,24 @@ workload_types:
   - refresh
   - expiry
   - failure-branches
+  - cookie-session
+  - mfa-demo
 endpoints:
   - path: /health
     method: GET
   - path: /api/login
     method: POST
+  - path: /api/session/login
+    method: POST
   - path: /api/refresh
     method: POST
+  - path: /api/mfa/login/start
+    method: POST
+  - path: /api/mfa/login/verify
+    method: POST
   - path: /api/profile
+    method: GET
+  - path: /api/session/profile
     method: GET
   - path: /api/checkout
     method: POST
@@ -25,10 +35,14 @@ endpoints:
     method: GET
   - path: /api/logout
     method: POST
+  - path: /api/session/logout
+    method: POST
 safe_limits:
   max_quantity: 10
   max_access_token_uses: 5
   max_refresh_uses: 3
+  max_session_uses: 5
+  max_active_mfa_challenges: 20
   credential_mode: demo-only
 default_profile: scenario
-notes: Demo credentials only; includes bounded refresh, expiry, and logout branches without any real identity or secret handling.
+notes: Demo credentials only; includes bounded refresh, expiry, cookie-session, and MFA-like branches without any real identity provider or secret handling.

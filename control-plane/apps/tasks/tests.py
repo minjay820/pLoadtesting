@@ -125,6 +125,8 @@ class TaskTemplateApiTests(TestCase):
         self.assertTrue(any(row["target_profile_id"] == "payload-k6-file-download" for row in templates))
         self.assertTrue(any(row["target_profile_id"] == "auth-k6-refresh-flow" for row in templates))
         self.assertTrue(any(row["target_profile_id"] == "auth-k6-failure-branches" for row in templates))
+        self.assertTrue(any(row["target_profile_id"] == "auth-k6-session-flow" for row in templates))
+        self.assertTrue(any(row["target_profile_id"] == "auth-k6-mfa-flow" for row in templates))
         self.assertTrue(any(row["target_app_id"] == "sse-api" for row in templates))
         self.assertTrue(any(row["target_profile_id"] == "sse-k6-progress-heavy" for row in templates))
         self.assertTrue(any(row["target_app_id"] == "ws-api" for row in templates))
@@ -336,3 +338,38 @@ class TaskTemplateApiTests(TestCase):
         self.assertEqual(task.script_path, "engines/k6/target_apps_auth_refresh_flow.js")
         self.assertEqual(task.target_url, "http://127.0.0.1:18086")
         self.assertEqual(task.parameters["ASSERT_FAILURE_BRANCHES"], "1")
+
+    def test_create_auth_session_task_from_template(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "auth-flow-api",
+                "target_profile_id": "auth-k6-session-flow",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.engine, "k6")
+        self.assertEqual(task.script_path, "engines/k6/target_apps_auth_session_mfa_flow.js")
+        self.assertEqual(task.target_url, "http://127.0.0.1:18086")
+        self.assertEqual(task.parameters["FLOW_MODE"], "session")
+
+    def test_create_auth_mfa_task_from_template(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "auth-flow-api",
+                "target_profile_id": "auth-k6-mfa-flow",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.engine, "k6")
+        self.assertEqual(task.script_path, "engines/k6/target_apps_auth_session_mfa_flow.js")
+        self.assertEqual(task.target_url, "http://127.0.0.1:18086")
+        self.assertEqual(task.parameters["FLOW_MODE"], "mfa")
+        self.assertEqual(task.parameters["MFA_CHANNEL"], "sms")

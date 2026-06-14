@@ -29,6 +29,11 @@ def load_manifest(path: Path) -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
+def demo_mfa_code(username: str, channel: str) -> str:
+    total = sum(f"{username}|{channel}".encode("utf-8"))
+    return f"{(total * 137) % 1_000_000:06d}"
+
+
 def test_manifest_metadata_schema_is_loadable():
     assert len(MANIFEST_FILES) == len(APP_MODULES)
     for manifest_path in MANIFEST_FILES:
@@ -130,6 +135,38 @@ def test_crud_and_auth_flow_workloads():
     assert auth_client.post("/api/logout", headers=refreshed_headers).status_code == 200
     assert auth_client.get("/api/profile", headers=refreshed_headers).status_code == 401
     assert auth_client.post("/api/login", json={"username": "alice", "password": "bad-password"}).status_code == 401
+    session_login = auth_client.post(
+        "/api/session/login",
+        json={"username": "alice", "password": "demo-password", "session_uses": 2},
+    )
+    assert session_login.status_code == 200
+    assert auth_client.get("/api/session/profile").status_code == 200
+    assert auth_client.post("/api/session/logout").status_code == 200
+    assert auth_client.get("/api/session/profile").status_code == 401
+    mfa_start = auth_client.post(
+        "/api/mfa/login/start",
+        json={"username": "alice", "password": "demo-password", "channel": "sms"},
+    )
+    assert mfa_start.status_code == 200
+    challenge_id = mfa_start.json()["challenge_id"]
+    mfa_verify = auth_client.post(
+        "/api/mfa/login/verify",
+        json={
+            "challenge_id": challenge_id,
+            "code": demo_mfa_code("alice", "sms"),
+            "issue_mode": "bearer",
+            "access_token_uses": 2,
+            "refresh_uses": 1,
+        },
+    )
+    assert mfa_verify.status_code == 200
+    mfa_access_token = mfa_verify.json()["access_token"]
+    assert auth_client.get("/api/profile", headers={"Authorization": f"Bearer {mfa_access_token}"}).status_code == 200
+    reused_challenge = auth_client.post(
+        "/api/mfa/login/verify",
+        json={"challenge_id": challenge_id, "code": demo_mfa_code("alice", "sms"), "issue_mode": "bearer"},
+    )
+    assert reused_challenge.status_code == 401
 
     payload_client = TestClient(import_module("payload_api").app)
     manifest = payload_client.get("/api/files/manifest?count=2&kb_per_file=8")

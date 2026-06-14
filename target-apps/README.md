@@ -12,7 +12,7 @@ This directory contains a diversified local target suite for pLoadtesting. These
 | `resource-api` | `18083` | CPU-bound / memory-bound / I-O-bound |
 | `payload-api` | `18084` | payload size / upload / download / file-heavy |
 | `crud-api` | `18085` | CRUD / DB-like workload |
-| `auth-flow-api` | `18086` | auth-like workload / auth-heavy refresh / expiry / failure |
+| `auth-flow-api` | `18086` | auth-like workload / auth-heavy refresh / expiry / session-cookie / MFA-demo |
 | `sse-api` | `18087` | SSE / streaming / progress |
 | `ws-api` | `18088` | WebSocket echo / broadcast |
 | `db-api` | `18089` | SQLite DB-heavy / CRUD / list-filter |
@@ -70,3 +70,4 @@ curl http://127.0.0.1:18089/health
 - `db-api` uses disposable SQLite state inside the app container and auto-seeds a small deterministic dataset.
 - `payload-api` now includes bounded file-like manifest, binary download, and binary upload endpoints for file-heavy smoke paths.
 - `auth-flow-api` now includes bounded refresh, expiry, invalid-credential, and logout branches without any real identity provider or secret.
+- `auth-flow-api` also includes demo-only cookie/session and MFA-like challenge/verify branches with deterministic behavior.

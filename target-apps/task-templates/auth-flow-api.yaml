@@ -37,3 +37,28 @@ profiles:
       ACCESS_TOKEN_USES: "1"
       REFRESH_USES: "1"
       ASSERT_FAILURE_BRANCHES: "1"
+  - target_profile_id: auth-k6-session-flow
+    display_name: Auth Session Flow via k6
+    description: Demo-only cookie login, session profile, and session logout flow against auth-flow-api.
+    engine: k6
+    script_path: engines/k6/target_apps_auth_session_mfa_flow.js
+    target_url: http://127.0.0.1:18086
+    parameters:
+      TARGET_URL: http://127.0.0.1:18086
+      DEMO_USERNAME: alice
+      DEMO_PASSWORD: demo-password
+      FLOW_MODE: session
+      SESSION_USES: "2"
+  - target_profile_id: auth-k6-mfa-flow
+    display_name: Auth MFA Flow via k6
+    description: Deterministic MFA-like challenge and verify flow with bearer issuance against auth-flow-api.
+    engine: k6
+    script_path: engines/k6/target_apps_auth_session_mfa_flow.js
+    target_url: http://127.0.0.1:18086
+    parameters:
+      TARGET_URL: http://127.0.0.1:18086
+      DEMO_USERNAME: alice
+      DEMO_PASSWORD: demo-password
+      FLOW_MODE: mfa
+      MFA_CHANNEL: sms
+      MFA_ISSUE_MODE: bearer

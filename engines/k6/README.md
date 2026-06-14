@@ -37,6 +37,7 @@ engines/k6/
 | `target_apps_crud_flow.js` | `POST /api/items` + `GET /api/items/{id}` | 5 | 20s run | CRUD flow sample |
 | `target_apps_auth_checkout.js` | login/profile/checkout | 5 | 20s run | Auth-style business flow sample |
 | `target_apps_auth_refresh_flow.js` | login/expiry/refresh/logout | 3 | 4 iterations | Auth-heavy refresh and failure branches |
+| `target_apps_auth_session_mfa_flow.js` | session-cookie or MFA demo flow | 3 | 4 iterations | Cookie/session and deterministic MFA-like auth flow |
 | `target_apps_sse_smoke.js` | finite SSE stream | 1 | 3 iterations | SSE streaming smoke for `sse-api` |
 | `target_apps_payload_file_flow.js` | file manifest/download/upload | 3 | 4 iterations | File-heavy bounded payload flow |
 | `target_apps_ws_echo_smoke.js` | `WS /ws/echo` | 1 | 2 iterations | Bounded WebSocket echo smoke |
@@ -88,6 +89,12 @@ k6 run -e TARGET_URL=http://127.0.0.1:18084 target_apps_payload_file_flow.js
 
 # Run auth refresh flow
 k6 run -e TARGET_URL=http://127.0.0.1:18086 target_apps_auth_refresh_flow.js
+
+# Run auth session flow
+k6 run -e TARGET_URL=http://127.0.0.1:18086 -e FLOW_MODE=session target_apps_auth_session_mfa_flow.js
+
+# Run auth MFA flow
+k6 run -e TARGET_URL=http://127.0.0.1:18086 -e FLOW_MODE=mfa -e MFA_CHANNEL=sms target_apps_auth_session_mfa_flow.js
 
 # Run SSE progress-heavy
 k6 run \
@@ -165,6 +172,7 @@ WebSocket scripts derive `ws://` from `TARGET_URL` automatically, so the same `T
 
 `target_apps_payload_file_flow.js` supports `FILE_UPLOAD_MODE=1` for roundtrip upload checks.
 `target_apps_auth_refresh_flow.js` supports `ASSERT_FAILURE_BRANCHES=1` to include invalid-credential and revoked-token assertions.
+`target_apps_auth_session_mfa_flow.js` supports `FLOW_MODE=session|mfa` and `MFA_ISSUE_MODE=bearer|session`.
 
 ---
 
