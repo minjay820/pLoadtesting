@@ -6,6 +6,7 @@ Use this runbook when the GitHub Actions `Control Plane Tests` job fails without
 
 - The CI workflow now records basic Python and package-version diagnostics before running the Control Plane test suite.
 - The diagnostic step runs `python --version`, `python -m pip --version`, `python -m pip freeze | sort`, and `python manage.py check` inside `control-plane/`.
+- The workflow uses `DJANGO_SETTINGS_MODULE=config.settings`, matching `control-plane/manage.py` and the repository's only active settings module.
 - The worker lint failure `workers/agent.py: WritePrecision imported but unused` was removed so `pyflakes` can pass cleanly in CI.
 
 ## How to Read the Output

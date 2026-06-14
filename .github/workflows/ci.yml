@@ -60,7 +60,7 @@ jobs:
         python -m pip freeze | sort
         python manage.py check
       env:
-        DJANGO_SETTINGS_MODULE: config.settings.development
+        DJANGO_SETTINGS_MODULE: config.settings
         PLOADTESTING_API_TOKEN: ci-test-token
 
     - name: Run Django tests
@@ -68,7 +68,7 @@ jobs:
         cd control-plane
         python manage.py test apps/ --verbosity=2
       env:
-        DJANGO_SETTINGS_MODULE: config.settings.development
+        DJANGO_SETTINGS_MODULE: config.settings
         PLOADTESTING_API_TOKEN: ci-test-token
 
   # ── Job 3: Worker Agent Lint ────────────────────────────────────────────────
