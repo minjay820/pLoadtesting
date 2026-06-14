@@ -50,7 +50,10 @@ curl "http://127.0.0.1:18082/api/flaky?rate=1&deterministic=true&request_key=ci"
 curl "http://127.0.0.1:18083/api/cpu?iterations=250000"
 curl "http://127.0.0.1:18084/api/download?kb=32"
 curl http://127.0.0.1:18084/api/files/manifest?count=2\&kb_per_file=8
+curl http://127.0.0.1:18084/api/files/fixture-pack?count=3\&kb_per_file=10
 curl http://127.0.0.1:18084/api/files/fixture-1?kb=8 -o /tmp/fixture-1.bin
+curl http://127.0.0.1:18084/api/files/archive?count=3\&kb_per_file=10 -o /tmp/fixture-pack.zip
+curl http://127.0.0.1:18084/api/files/read-many?count=3\&kb_per_file=10
 curl -X POST http://127.0.0.1:18085/api/items -H "Content-Type: application/json" -d '{"name":"demo","value":1}'
 curl -X POST http://127.0.0.1:18086/api/login -H "Content-Type: application/json" -d '{"username":"alice","password":"demo-password"}'
 curl -X POST http://127.0.0.1:18086/api/session/login -H "Content-Type: application/json" -d '{"username":"alice","password":"demo-password","session_uses":2}' -c /tmp/auth-cookies.txt
@@ -152,6 +155,7 @@ Payload file-heavy samples:
 ```bash
 k6 run -e TARGET_URL=http://127.0.0.1:18084 engines/k6/target_apps_payload_file_flow.js
 k6 run -e TARGET_URL=http://127.0.0.1:18084 -e FILE_UPLOAD_MODE=1 engines/k6/target_apps_payload_file_flow.js
+k6 run -e TARGET_URL=http://127.0.0.1:18084 engines/k6/target_apps_payload_archive_flow.js
 ```
 
 Auth-heavy refresh and failure samples:
@@ -200,7 +204,7 @@ docker compose -f target-apps/docker-compose.target-apps.yml down
 - `error-api`: flaky rate limited to `0.0` through `1.0`
 - `resource-api`: CPU `2,000,000` iterations, memory `64MB`, I-O `1024KB`
 - `payload-api`: download `512KB`, upload `262144` bytes
-- `payload-api`: file fixture `256KB`, file manifest count `20`, deterministic in-memory file bytes only
+- `payload-api`: file fixture `256KB`, file manifest count `20`, archive file count `10`, archive file size `64KB`, deterministic in-memory file bytes only
 - `crud-api`: in-memory only
 - `auth-flow-api`: demo-only credentials, checkout quantity `10`, access-token uses `5`, refresh uses `3`, session uses `5`, active MFA challenges `20`
 - `sse-api`: `count <= 100`, `steps <= 100`, `progress-heavy steps <= 60`, `interval_ms <= 5000`, no infinite streaming

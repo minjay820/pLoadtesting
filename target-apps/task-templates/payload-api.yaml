@@ -36,3 +36,13 @@ profiles:
       FILE_KB: "24"
       FILE_DISPOSITION: attachment
       FILE_UPLOAD_MODE: "1"
+  - target_profile_id: payload-k6-archive-read-many
+    display_name: Payload Archive Read-Many via k6
+    description: Fixture-pack metadata, zip archive, and read-many summary flow against payload-api.
+    engine: k6
+    script_path: engines/k6/target_apps_payload_archive_flow.js
+    target_url: http://127.0.0.1:18084
+    parameters:
+      TARGET_URL: http://127.0.0.1:18084
+      PACK_COUNT: "4"
+      PACK_KB_PER_FILE: "12"

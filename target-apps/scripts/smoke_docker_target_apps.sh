@@ -81,9 +81,22 @@ manifest = urllib.request.urlopen("http://127.0.0.1:18084/api/files/manifest?cou
 manifest_payload = json.loads(manifest.read().decode("utf-8"))
 assert manifest_payload["count"] == 2
 
+fixture_pack = urllib.request.urlopen("http://127.0.0.1:18084/api/files/fixture-pack?count=3&kb_per_file=10", timeout=10)
+fixture_pack_payload = json.loads(fixture_pack.read().decode("utf-8"))
+assert fixture_pack_payload["count"] == 3
+
 download = urllib.request.urlopen("http://127.0.0.1:18084/api/files/fixture-1?kb=8", timeout=10)
 body = download.read()
 assert len(body) == 8 * 1024
+
+archive = urllib.request.urlopen("http://127.0.0.1:18084/api/files/archive?count=3&kb_per_file=10", timeout=10)
+archive_body = archive.read()
+assert archive_body.startswith(b"PK")
+
+read_many = urllib.request.urlopen("http://127.0.0.1:18084/api/files/read-many?count=3&kb_per_file=10", timeout=10)
+read_many_payload = json.loads(read_many.read().decode("utf-8"))
+assert read_many_payload["count"] == 3
+assert len(read_many_payload["combined_sha256_prefix"]) == 16
 
 request = urllib.request.Request(
     "http://127.0.0.1:18084/api/files/upload?filename=fixture-1.bin",

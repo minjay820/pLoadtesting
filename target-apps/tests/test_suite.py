@@ -93,6 +93,8 @@ def test_delay_error_payload_and_resource_limits():
     assert payload_client.post("/api/upload", content=oversized_body).status_code == 422
     assert payload_client.get("/api/files/manifest?count=21").status_code == 422
     assert payload_client.get("/api/files/fixture-1?kb=257").status_code == 422
+    assert payload_client.get("/api/files/archive?count=11").status_code == 422
+    assert payload_client.get("/api/files/read-many?kb_per_file=65").status_code == 422
     assert payload_client.post("/api/files/upload?filename=demo.bin", content=b"x" * (262_144 + 1)).status_code == 422
 
     resource_client = TestClient(import_module("resource_api").app)
@@ -183,6 +185,17 @@ def test_crud_and_auth_flow_workloads():
     )
     assert file_upload.status_code == 200
     assert file_upload.json()["received_bytes"] == 8 * 1024
+    fixture_pack = payload_client.get("/api/files/fixture-pack?count=3&kb_per_file=10")
+    assert fixture_pack.status_code == 200
+    assert fixture_pack.json()["count"] == 3
+    archive = payload_client.get("/api/files/archive?count=3&kb_per_file=10")
+    assert archive.status_code == 200
+    assert archive.headers["content-type"] == "application/zip"
+    assert archive.content.startswith(b"PK")
+    read_many = payload_client.get("/api/files/read-many?count=3&kb_per_file=10")
+    assert read_many.status_code == 200
+    assert read_many.json()["count"] == 3
+    assert len(read_many.json()["combined_sha256_prefix"]) == 16
 
     sse_client = TestClient(import_module("sse_api").app)
     response = sse_client.get("/api/ticker?count=3&interval_ms=0&deterministic=true")

@@ -40,6 +40,7 @@ engines/k6/
 | `target_apps_auth_session_mfa_flow.js` | session-cookie or MFA demo flow | 3 | 4 iterations | Cookie/session and deterministic MFA-like auth flow |
 | `target_apps_sse_smoke.js` | finite SSE stream | 1 | 3 iterations | SSE streaming smoke for `sse-api` |
 | `target_apps_payload_file_flow.js` | file manifest/download/upload | 3 | 4 iterations | File-heavy bounded payload flow |
+| `target_apps_payload_archive_flow.js` | fixture-pack/archive/read-many | 3 | 4 iterations | Archive-style file-heavy flow |
 | `target_apps_ws_echo_smoke.js` | `WS /ws/echo` | 1 | 2 iterations | Bounded WebSocket echo smoke |
 | `target_apps_ws_broadcast_smoke.js` | `WS /ws/broadcast/{room}` | 1 | 2 iterations | Bounded WebSocket broadcast smoke |
 | `target_apps_db_crud_flow.js` | `POST/GET /api/records` | 2 | 4 iterations | SQLite CRUD smoke |
@@ -86,6 +87,9 @@ k6 run -e TARGET_URL=http://127.0.0.1:18087 target_apps_sse_smoke.js
 
 # Run payload file flow
 k6 run -e TARGET_URL=http://127.0.0.1:18084 target_apps_payload_file_flow.js
+
+# Run payload archive flow
+k6 run -e TARGET_URL=http://127.0.0.1:18084 target_apps_payload_archive_flow.js
 
 # Run auth refresh flow
 k6 run -e TARGET_URL=http://127.0.0.1:18086 target_apps_auth_refresh_flow.js

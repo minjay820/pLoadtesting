@@ -10,7 +10,7 @@ The original repository shipped one reference FastAPI target with a small set of
 - deterministic latency and timeout-style responses
 - status-code, flaky, and 429 handling
 - upload and download payload size stress
-- bounded file-heavy manifest, binary download, and binary upload flows
+- bounded file-heavy manifest, binary download, binary upload, archive, fixture-pack, and read-many flows
 - CPU, memory, and disk I/O pressure
 - CRUD and DB-like request patterns
 - auth-like session handling
@@ -38,7 +38,7 @@ The `target-apps/` suite addresses that gap without changing the core Control Pl
 | `latency-api` | `http://127.0.0.1:18081` | latency / timeout | Caps delay at 5 seconds and converts timeout simulation into explicit 504 responses |
 | `error-api` | `http://127.0.0.1:18082` | error / flaky / 429 | Supports deterministic flaky mode for CI |
 | `resource-api` | `http://127.0.0.1:18083` | CPU-bound / memory-bound / I-O-bound | Uses bounded synthetic work only |
-| `payload-api` | `http://127.0.0.1:18084` | payload size / upload / download / file-heavy | Uses deterministic filler payloads and file-like fixture bytes instead of external files |
+| `payload-api` | `http://127.0.0.1:18084` | payload size / upload / download / file-heavy | Uses deterministic filler payloads, fixture-pack metadata, zip archives, and read-many summaries instead of external files |
 | `crud-api` | `http://127.0.0.1:18085` | CRUD / DB-like workload | Uses in-memory state for low-cost reproducibility |
 | `auth-flow-api` | `http://127.0.0.1:18086` | auth-like / auth-heavy / scenario-style business flow | Demo-only bearer token plus bounded refresh, expiry, cookie/session, and MFA-like branches |
 | `sse-api` | `http://127.0.0.1:18087` | SSE / streaming / progress | Finite `text/event-stream` responses only, including progress-heavy profile |
@@ -79,7 +79,10 @@ The `target-apps/` suite addresses that gap without changing the core Control Pl
 - `GET /api/download?kb=...`
 - `POST /api/upload`
 - `GET /api/files/manifest?count=...&kb_per_file=...`
+- `GET /api/files/fixture-pack?count=...&kb_per_file=...`
 - `GET /api/files/{file_id}?kb=...`
+- `GET /api/files/archive?count=...&kb_per_file=...`
+- `GET /api/files/read-many?count=...&kb_per_file=...`
 - `POST /api/files/upload`
 
 ### crud-api
@@ -168,6 +171,7 @@ Examples:
 | `payload-api` | `payload-jmeter-download` | JMeter | payload download throughput |
 | `payload-api` | `payload-k6-file-download` | k6 | bounded file-like download |
 | `payload-api` | `payload-k6-file-roundtrip` | k6 | bounded manifest, download, and upload roundtrip |
+| `payload-api` | `payload-k6-archive-read-many` | k6 | bounded fixture-pack, zip archive, and read-many flow |
 | `crud-api` | `crud-k6-flow` | k6 | create-and-fetch flow |
 | `auth-flow-api` | `auth-k6-checkout` | k6 | login and checkout business flow |
 | `auth-flow-api` | `auth-k6-refresh-flow` | k6 | expiry, refresh, and logout flow |
@@ -242,6 +246,8 @@ The first streaming target intentionally stays narrow:
 - `max_upload_bytes = 262144`
 - `max_file_kb = 256`
 - `max_file_manifest_count = 20`
+- `max_archive_file_count = 10`
+- `max_archive_kb_per_file = 64`
 - deterministic file bytes only; no host filesystem reads
 
 ## Auth-Heavy Safety Limits
@@ -264,7 +270,7 @@ Future work may add the following, with the current evaluation posture:
 | gRPC | Useful for protocol coverage, but adds tooling/runtime complexity to CI | Defer until there is a real gRPC consumer requirement |
 | SSE | Implemented first because it is finite, HTTP-native, and cheap to validate | Expand through richer bounded profiles such as progress-heavy before larger payload experiments |
 | DB-heavy | Implemented with SQLite-backed bounded write/read and list/filter coverage | Revisit heavier joins, seed control, or file-backed artifacts only if current target proves insufficient |
-| file-heavy | Implemented by extending `payload-api` with bounded manifest, binary download, and binary upload flows | Expand only if current fixture-style bytes are insufficient for worker or artifact testing |
+| file-heavy | Implemented by extending `payload-api` with bounded manifest, binary download, binary upload, archive, and read-many flows | Revisit only if real tar-like packaging or heavier artifact churn is needed and can still stay deterministic |
 | auth-heavy | Implemented by extending `auth-flow-api` with refresh, expiry, logout, cookie/session, MFA-like, and failure branches | Revisit only deeper browser-like or multi-factor variants that can still stay fully demo-only and deterministic |
 
 gRPC remains deferred because it would add additional protocol tooling and CI surface area without an immediate repo-driven use case. Deeper file-heavy and auth-heavy expansions should stay bounded, demo-only, and local-first.

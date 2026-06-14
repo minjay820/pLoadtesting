@@ -123,6 +123,7 @@ class TaskTemplateApiTests(TestCase):
         self.assertTrue(any(row["target_profile_id"] == "echo-k6-smoke" for row in templates))
         self.assertTrue(any(row["target_profile_id"] == "payload-jmeter-download" for row in templates))
         self.assertTrue(any(row["target_profile_id"] == "payload-k6-file-download" for row in templates))
+        self.assertTrue(any(row["target_profile_id"] == "payload-k6-archive-read-many" for row in templates))
         self.assertTrue(any(row["target_profile_id"] == "auth-k6-refresh-flow" for row in templates))
         self.assertTrue(any(row["target_profile_id"] == "auth-k6-failure-branches" for row in templates))
         self.assertTrue(any(row["target_profile_id"] == "auth-k6-session-flow" for row in templates))
@@ -168,6 +169,23 @@ class TaskTemplateApiTests(TestCase):
         self.assertEqual(task.script_path, "engines/k6/target_apps_payload_file_flow.js")
         self.assertEqual(task.target_url, "http://127.0.0.1:18084")
         self.assertEqual(task.parameters["FILE_UPLOAD_MODE"], "1")
+
+    def test_create_payload_archive_task_from_template(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "payload-api",
+                "target_profile_id": "payload-k6-archive-read-many",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.engine, "k6")
+        self.assertEqual(task.script_path, "engines/k6/target_apps_payload_archive_flow.js")
+        self.assertEqual(task.target_url, "http://127.0.0.1:18084")
+        self.assertEqual(task.parameters["PACK_COUNT"], "4")
 
     def test_create_task_from_template_with_overrides(self):
         response = self.client.post(
