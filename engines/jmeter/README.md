@@ -42,6 +42,11 @@ Common properties:
 - `stop_policy`
 - `graceful_stop_seconds`
 - `iteration_limit`
+- `shard_id`
+- `dataset_source`
+- `dataset_format`
+- `dataset_offset`
+- `dataset_limit`
 
 Phase 5.8 duration property coverage is intentionally limited to these representative plans:
 
@@ -50,6 +55,8 @@ Phase 5.8 duration property coverage is intentionally limited to these represent
 - `target_apps_auth_flow_plan.jmx`
 
 Other JMeter plans continue using their existing duration or loop settings until follow-up coverage expands.
+
+Phase 5.9 shard dataset properties are metadata only. Current JMeter plans can receive the properties, but automatic dataset loading from `artifact://` or `inline://` sources is future work.
 
 Flow-specific properties depend on the plan, for example:
 
@@ -85,6 +92,11 @@ jmeter -n \
   -JTARGET_QUERY='rate=0.5&deterministic=true&request_key=ci' \
   -Jduration_seconds=20 \
   -Jramp_up_seconds=5 \
+  -Jshard_id=users-a \
+  -Jdataset_source=artifact://datasets/users.csv \
+  -Jdataset_format=csv \
+  -Jdataset_offset=0 \
+  -Jdataset_limit=2000 \
   -JEXPECTED_STATUS_PREFIX=5
 ```
 

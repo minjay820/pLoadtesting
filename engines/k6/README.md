@@ -211,6 +211,16 @@ The helper at `engines/k6/lib/execution.js` builds k6 `options` from these value
 
 Other k6 scripts continue using their existing hard-coded options until follow-up coverage expands.
 
+Phase 5.9 also lets a worker pass one manual shard dataset assignment to k6 through environment variables:
+
+- `SHARD_ID`
+- `DATASET_SOURCE`
+- `DATASET_FORMAT`
+- `DATASET_OFFSET`
+- `DATASET_LIMIT`
+
+These variables are metadata only. The current k6 scripts do not automatically load `artifact://` or `inline://` datasets; script-specific dataset consumption remains future work.
+
 Example:
 
 ```bash
@@ -221,6 +231,19 @@ k6 run \
   -e RAMP_DOWN_SECONDS=30 \
   -e GRACEFUL_STOP_SECONDS=30 \
   -e DATA_POLICY=duration_first \
+  target_apps_payload_download.js
+```
+
+Shard metadata example:
+
+```bash
+k6 run \
+  -e TARGET_URL=http://127.0.0.1:18084 \
+  -e SHARD_ID=users-a \
+  -e DATASET_SOURCE=artifact://datasets/users.csv \
+  -e DATASET_FORMAT=csv \
+  -e DATASET_OFFSET=0 \
+  -e DATASET_LIMIT=2000 \
   target_apps_payload_download.js
 ```
 

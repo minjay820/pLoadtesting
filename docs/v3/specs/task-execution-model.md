@@ -1,6 +1,6 @@
 # Task Execution Model
 
-This spec defines the current single-agent duration-based execution MVP and the remaining future execution controls. Phase 5.8 does not add database schema, distributed shards, dataset partition runtime, dashboard UI, token-system changes, or scheduler behavior changes.
+This spec defines the current duration-based execution MVP, worker timeout protection, and shard metadata mapping. Phase 5.9 adds manual shard distribution metadata and dataset partition metadata without adding database schema, distributed scheduling, dashboard UI, token-system changes, or new target apps.
 
 ## Current Runtime Boundary
 
@@ -104,7 +104,7 @@ For a 1-hour graceful task, the current intended behavior is:
 | `duration_first` | Duration is the primary bound. Dataset rows can be reused or left unused depending on script behavior. | Supported in the MVP contract. |
 | `iteration_first` | Iteration count is the primary bound when `iteration_limit` is provided. | Supported in the MVP contract and representative k6 helper. |
 
-Dataset-bounded and whichever-first data semantics remain future work because row-level progress, dataset assignment, and distributed aggregation are not implemented.
+Dataset-bounded and whichever-first data semantics remain future work. Phase 5.9 supports dataset partition metadata for manual shards, but workers do not load or track row-level dataset progress.
 
 ## k6 Mapping
 
@@ -117,6 +117,14 @@ The worker passes these environment variables to k6 when `parameters["execution"
 - `ITERATION_LIMIT`
 - `STOP_POLICY`
 - `DATA_POLICY`
+
+When a worker receives one shard through `parameters["shard"]` or `parameters["shard_metadata"]`, it also passes:
+
+- `SHARD_ID`
+- `DATASET_SOURCE`
+- `DATASET_FORMAT`
+- `DATASET_OFFSET`
+- `DATASET_LIMIT`
 
 The helper at `engines/k6/lib/execution.js` builds k6 `options` from these values. Phase 5.8 updates exactly these representative scripts to use the helper:
 
@@ -137,6 +145,14 @@ The worker passes matching JMeter properties when `parameters["execution"]` is p
 - `-Jstop_policy`
 - `-Jgraceful_stop_seconds`
 - `-Jiteration_limit`
+
+When a worker receives one shard through `parameters["shard"]` or `parameters["shard_metadata"]`, it also passes:
+
+- `-Jshard_id`
+- `-Jdataset_source`
+- `-Jdataset_format`
+- `-Jdataset_offset`
+- `-Jdataset_limit`
 
 Phase 5.8 updates these representative plans to read duration and ramp-up properties:
 
@@ -178,7 +194,7 @@ Timeout results are posted with the existing failed task state, not a new databa
 
 ## Dashboard Create Task Wizard
 
-Dashboard implementation is not part of Phase 5.8. A future dashboard wizard can expose execution controls because the preview API now accepts and returns `parameters.execution`.
+Dashboard implementation is not part of Phase 5.9. A future dashboard wizard can expose execution controls because the preview API now accepts and returns `parameters.execution`.
 
 The wizard should show:
 
@@ -187,7 +203,8 @@ The wizard should show:
 - Stop policy selector limited to `graceful_stop` and `hard_stop` until future policies are implemented.
 - Optional iteration limit for bounded validation profiles.
 - Data policy selector limited to `duration_first` and `iteration_first` until dataset runtime exists.
+- Optional manual shard rows with `agent_selector.labels` and dataset `source`, `format`, `offset`, and `limit`.
 
 ## Contract Status
 
-Single-agent duration-based execution is implemented as an additive preview API and worker runtime feature. Distributed shards, dataset partition runtime, advanced stop policies, dashboard UI, and long-term `/api/v1` compatibility remain future work.
+Duration-based execution and manual shard metadata are implemented as additive preview API and worker runtime features. Full distributed scheduling, dataset loading, advanced stop policies, dashboard UI, and long-term `/api/v1` compatibility remain future work.

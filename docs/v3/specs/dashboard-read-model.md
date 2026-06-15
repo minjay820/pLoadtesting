@@ -1,6 +1,6 @@
 # Dashboard Read Model
 
-This planning spec defines the read models a future pLoadtesting dashboard should consume. It does not implement a dashboard or add a frontend stack. The current Control Plane API now includes an additive single-agent `execution` object on task creation.
+This planning spec defines the read models a future pLoadtesting dashboard should consume. It does not implement a dashboard or add a frontend stack. The current Control Plane API now includes additive `execution` and manual shard `distribution` objects on task creation.
 
 ## Runtime Sources
 
@@ -11,6 +11,7 @@ The dashboard should read through Control Plane APIs only:
 - `POST /api/tasks/`
 - `GET /api/tasks/`
 - `GET /api/tasks/{id}/`
+- `GET /api/tasks/{id}/shard-plan/`
 - `GET /api/workers/`
 
 Dashboard consumers should not parse Markdown coverage tables and should not read the database directly.
@@ -52,6 +53,8 @@ Dashboard models should keep API field names intact where possible:
 | `workload_types` | Target workload categories from the manifest |
 | `safe_limits` | Bounded target-app safety metadata from the manifest |
 | `execution` | Optional profile duration default from `GET /api/tasks/templates/` rows |
+| `distribution` | Optional manual shard metadata stored in task `parameters` |
+| `shard_execution_plan` | Generated manual shard plan stored in task `parameters` and exposed by shard-plan endpoint |
 
 ## Target Catalog
 
@@ -115,7 +118,7 @@ The Create Task Wizard should create tasks by profile rather than by free-form s
 
 1. Load profile rows from `GET /api/tasks/templates/`.
 2. Let the user select `target_app_id` and `target_profile_id`.
-3. Optionally let the user override documented parameters and the current single-agent `execution` fields.
+3. Optionally let the user override documented parameters, `execution` fields, and manual shard `distribution` rows.
 4. Submit `POST /api/tasks/`.
 
 Minimum create payload:
@@ -132,17 +135,16 @@ The wizard should not probe target URLs by itself. Target URLs are controlled ru
 
 The future wizard can add an `execution` section after the profile selection step because the preview API already accepts it. The default should be `stop_policy=graceful_stop`, with common duration presets such as 10 minutes and 1 hour. For a 1-hour task, the dashboard should explain through field labels and validation state that supported engine assets stop new load at 1 hour and the worker timeout remains the final safety guard.
 
-Future distributed execution should add a separate `distribution` section only after the basic single-agent flow is stable. The section should let operators choose single-agent or sharded execution, select agent labels, and attach a `dataset` object when dataset partitioning is needed. The dashboard should show `shards` as explicit rows so a 5000-row dataset split into 2000 and 3000 rows is visible before submission.
+Manual shard metadata can be represented as a separate `distribution` section. The section should let operators choose single-agent or manual-shard mode, enter agent labels, and attach per-shard dataset source, format, offset, and limit. The dashboard should show `shards` as explicit rows so a 5000-row dataset split into 2000 and 3000 rows is visible before submission.
 
 Planned create-task objects:
 
 | Object | Dashboard Use |
 |---|---|
 | `execution` | Current single-agent duration, ramp-up, ramp-down, stop policy, grace period, worker timeout, iteration limit, and data policy controls. |
-| `distribution` | Single-agent or sharded execution mode plus agent selectors and shard definitions. |
-| `dataset` | Dataset source, format, partition strategy, and shard ranges. |
-| `shards` | Per-agent execution and dataset shard rows. |
-| `result_aggregation` | Read-only task detail object that explains whether global metrics are exact, conservative, or shard-only. |
+| `distribution` | Manual shard mode plus agent selector labels and dataset partition rows. |
+| `shards` | Per-shard id, agent selector labels, dataset source, format, offset, and limit. |
+| `result_aggregation` | Read-only shard-plan object that documents summary-only aggregation limits. |
 
 ## Run Monitor
 
@@ -150,13 +152,13 @@ Run Monitor is outside the Phase 6 MVP but should later read `GET /api/tasks/` a
 
 Expected fields include task id, name, engine, script path, target URL, status, worker assignment, timestamps, error message, and nested result summary when available.
 
-Distributed runs should show logical task state separately from shard state. Partial success should be visible when at least one shard completes and at least one shard fails, times out, or is cancelled.
+Future full distributed runs should show logical task state separately from shard state. The current preview only exposes manual shard metadata and a shard execution plan.
 
 ## Result And Artifact Browser
 
 The full artifact browser is outside the Phase 6 MVP. A later implementation may show result summaries from task detail responses, including request totals, failure rate, response-time percentiles, throughput, threshold status, and a raw report reference or inline raw report depending on future artifact storage policy.
 
-For distributed runs, the browser should show per-agent and per-shard summaries. Total requests and failed requests can be summed, error rate can be recalculated, and throughput should be recalculated over the run time window. Average latency, p95, and p99 must not be presented as global values unless the API provides mergeable samples, histogram buckets, HDR histogram, t-digest, or engine-supported merged output.
+For future distributed runs, the browser should show per-agent and per-shard summaries. Total requests and failed requests can be summed, error rate can be recalculated, and throughput should be recalculated over the run time window. Average latency, p95, and p99 must not be presented as global values unless the API provides mergeable samples, histogram buckets, HDR histogram, t-digest, or engine-supported merged output.
 
 ## Agent Health
 
@@ -168,4 +170,4 @@ Agent health is outside the Phase 6 MVP. A later implementation may read `GET /a
 - Future `/api/v1` should preserve the dashboard concepts before promising long-term compatibility.
 - Clients should treat new response fields as additive.
 - Clients should tolerate unknown workload types and safe-limit keys.
-- Clients can treat `execution` as an additive preview runtime field. `distribution`, `dataset`, `shards`, and `result_aggregation` remain future contract objects until implemented by runtime APIs.
+- Clients can treat `execution`, `distribution`, `shard_execution_plan`, and `result_aggregation` as additive preview runtime fields. Full distributed scheduling and result-shard persistence remain future work.

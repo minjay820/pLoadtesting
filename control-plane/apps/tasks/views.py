@@ -77,3 +77,20 @@ class TaskTemplateCoverageView(APIView):
 
     def get(self, request: Request) -> Response:
         return Response(get_template_coverage_export(), status=status.HTTP_200_OK)
+
+
+class TaskShardPlanView(APIView):
+    """
+    GET /api/tasks/{id}/shard-plan/ returns the stored manual shard execution plan.
+    """
+
+    def get(self, request: Request, pk: str) -> Response:
+        try:
+            task = LoadTestTask.objects.get(pk=pk)
+        except LoadTestTask.DoesNotExist:
+            return Response({"detail": f"Task '{pk}' not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        plan = (task.parameters or {}).get("shard_execution_plan")
+        if not plan:
+            return Response({"detail": "No shard execution plan exists for this task."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(plan, status=status.HTTP_200_OK)

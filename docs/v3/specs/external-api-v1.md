@@ -1,6 +1,6 @@
 # External API v1 Planning Spec
 
-This spec defines the intended stable external API shape for future pLoadtesting consumers. The preview `/api/` runtime already implements single-agent duration execution as an additive `POST /api/tasks/` field, while stable `/api/v1` routes remain future work.
+This spec defines the intended stable external API shape for future pLoadtesting consumers. The preview `/api/` runtime already implements duration execution and manual shard distribution metadata as additive task fields, while stable `/api/v1` routes remain future work.
 
 ## Current Runtime Baseline
 
@@ -12,6 +12,7 @@ The current Control Plane exposes preview endpoints under `/api/`:
 - `GET /api/tasks/`
 - `POST /api/tasks/`
 - `GET /api/tasks/{id}/`
+- `GET /api/tasks/{id}/shard-plan/`
 - `GET /api/tasks/templates/`
 - `GET /api/tasks/templates/coverage/`
 - `POST /api/tasks/{id}/results/`
@@ -96,53 +97,34 @@ See [Task execution model](task-execution-model.md) for k6, JMeter, and worker t
 
 ### Distribution And Dataset Objects
 
-Future v1 task creation should accept a `distribution` object for single-agent or sharded execution:
+The preview `POST /api/tasks/` endpoint accepts a `distribution` object for manual shard metadata and stores it in `parameters.distribution`. It also generates `parameters.shard_execution_plan`, which is available through `GET /api/tasks/{id}/shard-plan/`.
 
 ```json
 {
   "distribution": {
-    "mode": "sharded",
-    "claim_model": "agent_claim",
-    "agent_selector": {
-      "engine": "k6",
-      "labels": {
-        "target_network": "internal-a"
-      }
-    },
-    "shards": []
-  }
-}
-```
-
-`mode=single_agent` should preserve the current one-task-one-worker behavior. `mode=sharded` should create a task run with one or more shard sub-runs. Shards can each define `agent_selector`, `execution` overrides, and `dataset_shard`.
-
-Dataset partitioning should use a top-level `dataset` object when the run needs row-level input assignment:
-
-```json
-{
-  "dataset": {
-    "source": "artifact://datasets/users.csv",
-    "format": "csv",
-    "partition_strategy": "manual_ranges",
+    "mode": "manual_shards",
+    "result_merge_policy": "summary_only",
     "shards": [
       {
         "shard_id": "users-a",
-        "offset": 0,
-        "limit": 2000
-      },
-      {
-        "shard_id": "users-b",
-        "offset": 2000,
-        "limit": 3000
+        "agent_selector": {
+          "labels": ["zone:a", "engine:k6"]
+        },
+        "dataset": {
+          "source": "artifact://datasets/users.csv",
+          "format": "csv",
+          "offset": 0,
+          "limit": 2000
+        }
       }
     ]
   }
 }
 ```
 
-MVP partition strategies should be `range`, `manual`, and `manual_ranges`. `hash`, `weighted`, and `round_robin` should remain future extensions until dataset metadata and agent capacity are modeled.
+Current preview support is limited to `mode=manual_shards`, `result_merge_policy=summary_only`, `agent_selector.labels`, and per-shard dataset `source`, `format`, `offset`, and `limit`. Dataset source values must use `artifact://` or `inline://`. Dataset formats are `csv`, `jsonl`, and `json`.
 
-See [Distributed agent execution](distributed-agent-execution.md) for shard lifecycle, agent claim, retry, partial success, cancellation, artifact, and aggregation behavior.
+Full shard lifecycle, worker claim, retry, partial success, cancellation, artifact storage, hash partitioning, weighted partitioning, round-robin partitioning, and dynamic balancing remain future work.
 
 ### POST /api/v1/tasks Examples
 
@@ -186,7 +168,7 @@ Single agent, 1 hour graceful stop:
 }
 ```
 
-Multi-agent, 5000 rows split into 2000 and 3000:
+Manual shard metadata, 5000 rows split into 2000 and 3000:
 
 ```json
 {
@@ -200,36 +182,18 @@ Multi-agent, 5000 rows split into 2000 and 3000:
     "max_run_seconds": 2100,
     "data_policy": "duration_first"
   },
-  "dataset": {
-    "source": "artifact://datasets/users.csv",
-    "format": "csv",
-    "partition_strategy": "manual_ranges",
-    "shards": [
-      {
-        "shard_id": "users-a",
-        "offset": 0,
-        "limit": 2000
-      },
-      {
-        "shard_id": "users-b",
-        "offset": 2000,
-        "limit": 3000
-      }
-    ]
-  },
   "distribution": {
-    "mode": "sharded",
-    "claim_model": "agent_claim",
+    "mode": "manual_shards",
+    "result_merge_policy": "summary_only",
     "shards": [
       {
         "shard_id": "users-a",
         "agent_selector": {
-          "engine": "k6",
-          "labels": {
-            "target_network": "internal-a"
-          }
+          "labels": ["zone:a", "engine:k6"]
         },
-        "dataset_shard": {
+        "dataset": {
+          "source": "artifact://datasets/users.csv",
+          "format": "csv",
           "offset": 0,
           "limit": 2000
         }
@@ -237,12 +201,11 @@ Multi-agent, 5000 rows split into 2000 and 3000:
       {
         "shard_id": "users-b",
         "agent_selector": {
-          "engine": "k6",
-          "labels": {
-            "target_network": "internal-a"
-          }
+          "labels": ["zone:b", "engine:k6"]
         },
-        "dataset_shard": {
+        "dataset": {
+          "source": "artifact://datasets/users.csv",
+          "format": "csv",
           "offset": 2000,
           "limit": 3000
         }
@@ -252,7 +215,7 @@ Multi-agent, 5000 rows split into 2000 and 3000:
 }
 ```
 
-Multi-agent, different target network labels:
+Manual shard metadata, different target network labels:
 
 ```json
 {
@@ -267,25 +230,31 @@ Multi-agent, different target network labels:
     "data_policy": "duration_first"
   },
   "distribution": {
-    "mode": "sharded",
-    "claim_model": "agent_claim",
+    "mode": "manual_shards",
+    "result_merge_policy": "summary_only",
     "shards": [
       {
         "shard_id": "network-a",
         "agent_selector": {
-          "engine": "jmeter",
-          "labels": {
-            "target_network": "internal-a"
-          }
+          "labels": ["zone:a", "engine:jmeter"]
+        },
+        "dataset": {
+          "source": "artifact://datasets/payload.csv",
+          "format": "csv",
+          "offset": 0,
+          "limit": 1000
         }
       },
       {
         "shard_id": "network-b",
         "agent_selector": {
-          "engine": "jmeter",
-          "labels": {
-            "target_network": "internal-b"
-          }
+          "labels": ["zone:b", "engine:jmeter"]
+        },
+        "dataset": {
+          "source": "artifact://datasets/payload.csv",
+          "format": "csv",
+          "offset": 1000,
+          "limit": 1000
         }
       }
     ]
@@ -309,24 +278,23 @@ Result responses should expose summary fields already represented by `TestResult
 
 The current model stores `raw_report` inline. A future artifact store can move large raw output without changing the summary contract.
 
-Distributed result responses should add a `result_aggregation` object:
+Shard plan responses include a `result_aggregation` contract object:
 
 ```json
 {
   "result_aggregation": {
-    "mode": "per_shard_with_conservative_global",
-    "total_requests": 5000,
-    "failed_requests": 12,
-    "error_rate_pct": 0.24,
-    "throughput_rps": 83.3,
-    "latency_percentiles_merge_method": "not_available",
-    "global_percentiles_available": false,
-    "shards": []
+    "policy": "summary_only",
+    "shard_count": 2,
+    "completed_shards": 0,
+    "failed_shards": 0,
+    "total_requests": 0,
+    "total_errors": 0,
+    "per_shard": []
   }
 }
 ```
 
-`total_requests` and `failed_requests` can be summed. Error rate can be recalculated from those sums. Throughput should be recalculated across the run window. Average latency must be request-count weighted if only shard averages are available. p95 and p99 must not be averaged across agents; correct percentile aggregation requires raw samples, histogram buckets, HDR histogram, t-digest, or engine-supported merge output.
+`total_requests` and error counts can be summed. Error rate can be recalculated from those sums. Average latency must not be directly averaged across shards. p95 and p99 must not be averaged across agents; correct percentile aggregation requires raw samples, histogram buckets, HDR histogram, t-digest, or engine-supported merge output.
 
 ## Template Coverage Contract
 
@@ -388,5 +356,5 @@ Implementation can map existing DRF validation errors into this shape during the
 - Whether v1 should initially be a thin route alias over current serializers or a separate serializer layer.
 - Whether raw reports should stay inline for v1 or be moved behind artifact references first.
 - Whether task creation should allow arbitrary `script_path` for external consumers or require manifest-driven templates by default.
-- Whether duration and distribution should be introduced as preview-only additive fields before the full shard schema is persisted.
+- How long preview-only duration and distribution fields should remain before a persisted shard schema is added.
 - Which histogram or engine-native output format should be the first supported global percentile merge source.

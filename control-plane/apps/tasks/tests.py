@@ -116,6 +116,34 @@ class TaskTemplateApiTests(TestCase):
         self.client = APIClient()
         self.client.credentials(HTTP_X_PLOADTESTING_API_TOKEN=API_TOKEN)
 
+    def manual_distribution(self):
+        return {
+            "mode": "manual_shards",
+            "result_merge_policy": "summary_only",
+            "shards": [
+                {
+                    "shard_id": "users-a",
+                    "agent_selector": {"labels": ["zone:a", "engine:k6"]},
+                    "dataset": {
+                        "source": "artifact://datasets/users.csv",
+                        "format": "csv",
+                        "offset": 0,
+                        "limit": 2000,
+                    },
+                },
+                {
+                    "shard_id": "users-b",
+                    "agent_selector": {"labels": ["zone:b", "engine:k6"]},
+                    "dataset": {
+                        "source": "artifact://datasets/users.csv",
+                        "format": "csv",
+                        "offset": 2000,
+                        "limit": 3000,
+                    },
+                },
+            ],
+        }
+
     def test_list_task_templates(self):
         response = self.client.get("/api/tasks/templates/")
 
@@ -396,6 +424,124 @@ class TaskTemplateApiTests(TestCase):
         self.assertEqual(execution["duration_seconds"], 10)
         self.assertEqual(execution["stop_policy"], "graceful_stop")
 
+    def test_create_task_accepts_distribution_and_builds_shard_plan(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "auth-flow-api",
+                "target_profile_id": "auth-k6-refresh-flow",
+                "distribution": self.manual_distribution(),
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        distribution = task.parameters["distribution"]
+        self.assertEqual(distribution["mode"], "manual_shards")
+        self.assertEqual(distribution["result_merge_policy"], "summary_only")
+        self.assertEqual(len(distribution["shards"]), 2)
+
+        plan = task.parameters["shard_execution_plan"]
+        self.assertEqual(plan["distribution"]["shard_count"], 2)
+        self.assertEqual(plan["result_aggregation"]["policy"], "summary_only")
+        self.assertEqual(plan["result_aggregation"]["shard_count"], 2)
+        self.assertEqual(plan["shards"][0]["shard_id"], "users-a")
+        self.assertEqual(plan["shards"][0]["target_app_id"], "auth-flow-api")
+        self.assertEqual(plan["shards"][0]["target_profile_id"], "auth-k6-refresh-flow")
+        self.assertEqual(plan["shards"][0]["dataset"]["offset"], 0)
+        self.assertEqual(plan["shards"][1]["dataset"]["limit"], 3000)
+
+        plan_response = self.client.get(f"/api/tasks/{task.id}/shard-plan/")
+        self.assertEqual(plan_response.status_code, 200)
+        self.assertEqual(plan_response.json(), plan)
+
+    def test_create_task_combines_execution_and_distribution(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "payload-api",
+                "target_profile_id": "payload-k6-download",
+                "execution": {
+                    "duration_seconds": 600,
+                    "ramp_up_seconds": 30,
+                    "ramp_down_seconds": 0,
+                    "stop_policy": "graceful_stop",
+                    "graceful_stop_seconds": 30,
+                    "max_run_seconds": 660,
+                    "iteration_limit": None,
+                    "data_policy": "duration_first",
+                },
+                "distribution": self.manual_distribution(),
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        shard = task.parameters["shard_execution_plan"]["shards"][0]
+        self.assertEqual(shard["execution"]["duration_seconds"], 600)
+        self.assertEqual(shard["execution"]["max_run_seconds"], 660)
+
+    def test_duplicate_shard_id_is_rejected(self):
+        distribution = self.manual_distribution()
+        distribution["shards"][1]["shard_id"] = "users-a"
+
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "payload-api",
+                "target_profile_id": "payload-k6-download",
+                "distribution": distribution,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Duplicate shard_id", str(response.json()))
+
+    def test_distribution_dataset_validation_rejects_invalid_values(self):
+        cases = [
+            ("offset", -1, "offset"),
+            ("limit", 0, "limit"),
+            ("format", "parquet", "format"),
+            ("source", "/tmp/users.csv", "source"),
+        ]
+
+        for field, value, expected_message in cases:
+            with self.subTest(field=field):
+                distribution = self.manual_distribution()
+                distribution["shards"][0]["dataset"][field] = value
+                response = self.client.post(
+                    "/api/tasks/",
+                    {
+                        "target_app_id": "payload-api",
+                        "target_profile_id": "payload-k6-download",
+                        "distribution": distribution,
+                    },
+                    format="json",
+                )
+
+                self.assertEqual(response.status_code, 400)
+                self.assertIn(expected_message, str(response.json()))
+
+    def test_distribution_agent_selector_labels_must_be_string_array(self):
+        distribution = self.manual_distribution()
+        distribution["shards"][0]["agent_selector"]["labels"] = "zone:a"
+
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "payload-api",
+                "target_profile_id": "payload-k6-download",
+                "distribution": distribution,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("string array", str(response.json()))
+
     def test_create_task_from_template(self):
         response = self.client.post(
             "/api/tasks/",
@@ -415,6 +561,11 @@ class TaskTemplateApiTests(TestCase):
         self.assertEqual(task.target_url, "http://127.0.0.1:18080")
         self.assertEqual(task.parameters["TARGET_URL"], "http://127.0.0.1:18080")
         self.assertEqual(task.parameters["target_url"], "http://127.0.0.1:18080")
+        self.assertNotIn("shard_execution_plan", task.parameters)
+
+        plan_response = self.client.get(f"/api/tasks/{task.id}/shard-plan/")
+        self.assertEqual(plan_response.status_code, 404)
+
 
     def test_create_crud_jmeter_task_from_template(self):
         response = self.client.post(

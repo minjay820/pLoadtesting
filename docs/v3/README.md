@@ -41,8 +41,8 @@ This project is a multi-engine load testing ecosystem:
 - `docs/v3/specs/dashboard-read-model.md`: future dashboard read model over current preview APIs.
 - `docs/v3/specs/api-consumer-guide.md`: preview API consumer guide for templates, coverage, and task creation.
 - `docs/v3/specs/external-api-v1.md`: future stable external API contract plan.
-- `docs/v3/specs/task-execution-model.md`: future duration, stop policy, and worker timeout contract.
-- `docs/v3/specs/distributed-agent-execution.md`: future multi-agent shard, dataset partition, and aggregation contract.
+- `docs/v3/specs/task-execution-model.md`: duration, stop policy, worker timeout, and shard metadata contract.
+- `docs/v3/specs/distributed-agent-execution.md`: manual shard distribution metadata, dataset partition, and aggregation contract.
 - `docs/v3/specs/api-token-auth.md`: future scoped API access plan.
 - `docs/v3/runbooks/distributed-deployment.md`: cross-host deployment planning runbook.
 - `docs/v3/roadmap/github-issues-dashboard-api-deployment.md`: issue-sized roadmap drafts for dashboard, API, access, and deployment work.

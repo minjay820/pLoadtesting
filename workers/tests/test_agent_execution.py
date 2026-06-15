@@ -72,6 +72,19 @@ def completed_process(cmd):
     return subprocess.CompletedProcess(cmd, 0, stdout="ok", stderr="")
 
 
+def sample_shard():
+    return {
+        "shard_id": "users-a",
+        "agent_selector": {"labels": ["zone:a", "engine:k6"]},
+        "dataset": {
+            "source": "artifact://datasets/users.csv",
+            "format": "csv",
+            "offset": 0,
+            "limit": 2000,
+        },
+    }
+
+
 def test_k6_env_includes_execution_settings():
     execution = {
         "duration_seconds": 600,
@@ -103,6 +116,31 @@ def test_k6_env_includes_execution_settings():
     assert kwargs["env"]["GRACEFUL_STOP_SECONDS"] == "30"
     assert kwargs["env"]["STOP_POLICY"] == "graceful_stop"
     assert kwargs["env"]["DATA_POLICY"] == "duration_first"
+
+
+def test_k6_env_includes_shard_metadata():
+    shard = sample_shard()
+
+    with mock.patch.object(agent.subprocess, "run", return_value=completed_process(["k6"])) as run_mock, \
+        mock.patch.object(agent, "calculate_k6_summary", return_value={"raw_report": {}}), \
+        mock.patch.object(agent, "post_task_result") as post_mock, \
+        mock.patch.object(agent, "push_summary_to_influxdb"):
+        agent.execute_task(
+            "task-shard-k6",
+            "k6",
+            "engines/k6/target_apps_payload_download.js",
+            {"TARGET_URL": "http://target", "shard": shard},
+        )
+
+    kwargs = run_mock.call_args.kwargs
+    assert kwargs["env"]["SHARD_ID"] == "users-a"
+    assert kwargs["env"]["DATASET_SOURCE"] == "artifact://datasets/users.csv"
+    assert kwargs["env"]["DATASET_FORMAT"] == "csv"
+    assert kwargs["env"]["DATASET_OFFSET"] == "0"
+    assert kwargs["env"]["DATASET_LIMIT"] == "2000"
+    assert "shard" not in kwargs["env"]
+    payload = post_mock.call_args.args[1]
+    assert payload["raw_report"]["shard"] == shard
 
 
 def test_jmeter_command_includes_execution_properties():
@@ -138,6 +176,31 @@ def test_jmeter_command_includes_execution_properties():
     assert run_mock.call_args.kwargs["timeout"] == 40
 
 
+def test_jmeter_command_includes_shard_properties():
+    shard = sample_shard()
+
+    with mock.patch.object(agent.subprocess, "run", return_value=completed_process(["jmeter"])) as run_mock, \
+        mock.patch.object(agent, "calculate_jmeter_summary", return_value={"raw_report": {}}), \
+        mock.patch.object(agent, "post_task_result") as post_mock, \
+        mock.patch.object(agent, "push_summary_to_influxdb"):
+        agent.execute_task(
+            "task-shard-jmeter",
+            "jmeter",
+            "engines/jmeter/target_apps_payload_crud_plan.jmx",
+            {"target_url": "http://127.0.0.1:18084", "shard_metadata": shard},
+        )
+
+    cmd = run_mock.call_args.args[0]
+    assert "-Jshard_id=users-a" in cmd
+    assert "-Jdataset_source=artifact://datasets/users.csv" in cmd
+    assert "-Jdataset_format=csv" in cmd
+    assert "-Jdataset_offset=0" in cmd
+    assert "-Jdataset_limit=2000" in cmd
+    assert not any(item.startswith("-Jshard_metadata=") for item in cmd)
+    payload = post_mock.call_args.args[1]
+    assert payload["raw_report"]["shard"] == shard
+
+
 def test_without_execution_preserves_unbounded_subprocess_call():
     with mock.patch.object(agent.subprocess, "run", return_value=completed_process(["k6"])) as run_mock, \
         mock.patch.object(agent, "calculate_k6_summary", return_value={"raw_report": {}}), \
@@ -153,6 +216,7 @@ def test_without_execution_preserves_unbounded_subprocess_call():
     kwargs = run_mock.call_args.kwargs
     assert kwargs["timeout"] is None
     assert "DURATION_SECONDS" not in kwargs["env"]
+    assert "SHARD_ID" not in kwargs["env"]
 
 
 def test_timeout_posts_failed_result_with_diagnostics():
@@ -168,6 +232,8 @@ def test_timeout_posts_failed_result_with_diagnostics():
     }
     timeout = subprocess.TimeoutExpired(cmd="k6", timeout=10, output="partial out", stderr="partial err")
 
+    shard = sample_shard()
+
     with mock.patch.object(agent.subprocess, "run", side_effect=timeout), \
         mock.patch.object(agent, "calculate_k6_summary", return_value={"raw_report": {}}), \
         mock.patch.object(agent, "post_task_result") as post_mock, \
@@ -176,7 +242,7 @@ def test_timeout_posts_failed_result_with_diagnostics():
             "task-4",
             "k6",
             "engines/k6/target_apps_payload_download.js",
-            {"TARGET_URL": "http://target", "execution": execution},
+            {"TARGET_URL": "http://target", "execution": execution, "shard": shard},
         )
 
     payload = post_mock.call_args.args[1]
@@ -184,5 +250,6 @@ def test_timeout_posts_failed_result_with_diagnostics():
     assert "max_run_seconds" in payload["error_message"]
     assert payload["raw_report"]["error"] == "worker_timeout"
     assert payload["raw_report"]["forced_stop"] is True
+    assert payload["raw_report"]["shard"] == shard
     assert payload["raw_report"]["stdout"] == "partial out"
     assert payload["raw_report"]["stderr"] == "partial err"

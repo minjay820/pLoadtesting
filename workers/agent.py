@@ -70,6 +70,30 @@ EXECUTION_JMETER_KEYS = [
     "iteration_limit",
 ]
 
+WORKER_METADATA_PARAMETER_KEYS = {
+    "execution",
+    "distribution",
+    "shard_execution_plan",
+    "shard",
+    "shard_metadata",
+}
+
+SHARD_ENV_KEYS = {
+    "shard_id": "SHARD_ID",
+    "source": "DATASET_SOURCE",
+    "format": "DATASET_FORMAT",
+    "offset": "DATASET_OFFSET",
+    "limit": "DATASET_LIMIT",
+}
+
+SHARD_JMETER_KEYS = {
+    "shard_id": "shard_id",
+    "source": "dataset_source",
+    "format": "dataset_format",
+    "offset": "dataset_offset",
+    "limit": "dataset_limit",
+}
+
 def get_local_ip():
     """嘗試取得本機向外連線的 IP，若失敗則回傳 127.0.0.1"""
     try:
@@ -131,6 +155,53 @@ def execution_jmeter_properties(execution: dict | None) -> list[str]:
         if value is not None:
             properties.append(f"-J{key}={value}")
     return properties
+
+
+def extract_shard_metadata(parameters: dict | None) -> dict | None:
+    if not isinstance(parameters, dict):
+        return None
+    for key in ("shard", "shard_metadata"):
+        shard = parameters.get(key)
+        if isinstance(shard, dict):
+            return shard
+    return None
+
+
+def shard_env(shard: dict | None) -> dict[str, str]:
+    values = _shard_values(shard)
+    return {
+        env_key: str(values[source_key])
+        for source_key, env_key in SHARD_ENV_KEYS.items()
+        if values.get(source_key) is not None
+    }
+
+
+def shard_jmeter_properties(shard: dict | None) -> list[str]:
+    values = _shard_values(shard)
+    return [
+        f"-J{property_key}={values[source_key]}"
+        for source_key, property_key in SHARD_JMETER_KEYS.items()
+        if values.get(source_key) is not None
+    ]
+
+
+def attach_shard_metadata(summary: dict, shard: dict | None) -> None:
+    if not shard:
+        return
+    summary.setdefault("raw_report", {})["shard"] = shard
+
+
+def _shard_values(shard: dict | None) -> dict:
+    if not isinstance(shard, dict):
+        return {}
+    dataset = shard.get("dataset") if isinstance(shard.get("dataset"), dict) else {}
+    return {
+        "shard_id": shard.get("shard_id"),
+        "source": dataset.get("source"),
+        "format": dataset.get("format"),
+        "offset": dataset.get("offset"),
+        "limit": dataset.get("limit"),
+    }
 
 
 def _optional_int(value) -> int | None:
@@ -429,6 +500,7 @@ def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
     
     output_file = f"/tmp/result_{task_id}.json"
     execution = extract_execution(parameters)
+    shard_metadata = extract_shard_metadata(parameters)
     process_timeout = execution_timeout_seconds(execution)
     if os.path.isabs(script_path):
         full_script_path = script_path
@@ -455,10 +527,11 @@ def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
             env = os.environ.copy()
             if parameters:
                 for k, v in parameters.items():
-                    if k == "execution":
+                    if k in WORKER_METADATA_PARAMETER_KEYS:
                         continue
                     env[k] = str(v)
             env.update(execution_env(execution))
+            env.update(shard_env(shard_metadata))
             
             logger.info(f"Running command: {' '.join(cmd)}")
             try:
@@ -468,6 +541,7 @@ def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
                 summary = calculate_k6_summary(output_file)
                 timeout_payload = timeout_summary(exc, process_timeout, execution)
                 summary["raw_report"].update(timeout_payload["raw_report"])
+                attach_shard_metadata(summary, shard_metadata)
                 summary["execution_status"] = timeout_payload["execution_status"]
                 summary["error_message"] = timeout_payload["error_message"]
                 try:
@@ -484,6 +558,7 @@ def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
                 "stderr": process.stderr,
                 "exit_code": process.returncode,
             })
+            attach_shard_metadata(summary, shard_metadata)
             if process.returncode != 0:
                 logger.error(f"k6 execution failed: {process.stderr}")
                 summary["execution_status"] = "failed"
@@ -519,9 +594,10 @@ def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
                 
             env = os.environ.copy()
             cmd.extend(execution_jmeter_properties(execution))
+            cmd.extend(shard_jmeter_properties(shard_metadata))
             if parameters:
                 for k, v in parameters.items():
-                    if k not in {"target_url", "execution"}:
+                    if k != "target_url" and k not in WORKER_METADATA_PARAMETER_KEYS:
                         cmd.append(f"-J{k}={v}")
                         env[k] = str(v)
             
@@ -533,6 +609,7 @@ def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
                 summary = calculate_jmeter_summary(output_jtl)
                 timeout_payload = timeout_summary(exc, process_timeout, execution)
                 summary["raw_report"].update(timeout_payload["raw_report"])
+                attach_shard_metadata(summary, shard_metadata)
                 summary["execution_status"] = timeout_payload["execution_status"]
                 summary["error_message"] = timeout_payload["error_message"]
                 try:
@@ -549,6 +626,7 @@ def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
                 "stderr": process.stderr,
                 "exit_code": process.returncode,
             })
+            attach_shard_metadata(summary, shard_metadata)
             if process.returncode != 0:
                 logger.error(f"JMeter execution failed: {process.stderr}")
                 summary["execution_status"] = "failed"

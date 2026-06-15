@@ -6,7 +6,13 @@ Tasks app 的路由設定。
 
 from django.urls import path
 
-from .views import TaskDetailView, TaskListCreateView, TaskTemplateCoverageView, TaskTemplateListView
+from .views import (
+    TaskDetailView,
+    TaskListCreateView,
+    TaskShardPlanView,
+    TaskTemplateCoverageView,
+    TaskTemplateListView,
+)
 
 app_name = "tasks"
 
@@ -19,5 +25,6 @@ urlpatterns = [
     path("", TaskListCreateView.as_view(), name="task-list-create"),
 
     # GET  /api/tasks/<uuid:pk>/  — 查詢單一任務（含巢狀 result）
+    path("<uuid:pk>/shard-plan/", TaskShardPlanView.as_view(), name="task-shard-plan"),
     path("<uuid:pk>/", TaskDetailView.as_view(), name="task-detail"),
 ]

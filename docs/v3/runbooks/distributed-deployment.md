@@ -2,7 +2,7 @@
 
 This runbook describes a future three-host pLoadtesting deployment for controlled internal networks. It is an operational planning document, not a production hardening guarantee.
 
-The current preview runtime uses Control Plane push dispatch to a Worker Agent `/execute` endpoint. The future distributed execution model should move toward agent claim, where Worker Agents connect to the Control Plane to claim shard work. The claim model reduces inbound network requirements for agent hosts and aligns with [Distributed agent execution](../specs/distributed-agent-execution.md).
+The current preview runtime uses Control Plane push dispatch to a Worker Agent `/execute` endpoint. Phase 5.9 adds manual shard distribution metadata and shard execution plan export, but it does not add full distributed scheduling. The future distributed execution model should move toward agent claim, where Worker Agents connect to the Control Plane to claim shard work.
 
 ## Deployment Model
 
@@ -26,6 +26,7 @@ Do not use this system against third-party targets or systems without explicit p
 | Worker registration | Worker to Control Plane | `POST /api/workers/` |
 | Worker heartbeat | Worker to Control Plane | `POST /api/workers/{id}/heartbeat/` |
 | Current preview task dispatch | Control Plane to Worker | `POST /execute` |
+| Manual shard plan read | User network to Control Plane | `GET /api/tasks/{id}/shard-plan/` |
 | Future shard claim | Worker to Control Plane | Claim pending shard work for a matching agent selector |
 | Result callback | Worker to Control Plane | `POST /api/tasks/{id}/results/` |
 | Load generation | Worker to target app | k6/JMeter traffic |
@@ -33,7 +34,7 @@ Do not use this system against third-party targets or systems without explicit p
 
 The Control Plane must be able to reach each Worker's advertised `ip_address` and `port`. Each Worker must be able to reach the Control Plane base URL.
 
-In the future agent-claim model, the Control Plane does not need to initiate HTTP requests to each agent for normal execution. Workers still need outbound connectivity to the Control Plane for registration, heartbeat, claim, artifact metadata, and result shard submission. Target apps do not need to connect to the Control Plane.
+In the current manual shard metadata MVP, the Control Plane still uses the existing push dispatch flow. In the future agent-claim model, the Control Plane does not need to initiate HTTP requests to each agent for normal execution. Workers still need outbound connectivity to the Control Plane for registration, heartbeat, claim, artifact metadata, and result shard submission. Target apps do not need to connect to the Control Plane.
 
 ## Preflight Checklist
 
@@ -68,8 +69,9 @@ In the future agent-claim model, the Control Plane does not need to initiate HTT
 5. Start Worker Agent on Host C with the same Control Plane URL and a unique worker name.
 6. Confirm both workers appear in `GET /api/workers/`.
 7. Submit a low-cost template-driven smoke task.
-8. Confirm task dispatch or future shard claim, result callback, and worker heartbeat remain stable.
-9. For future distributed execution, submit a sharded task with one shard per worker label and confirm shard assignment, result shard collection, and aggregate status.
+8. Confirm task dispatch, result callback, and worker heartbeat remain stable.
+9. Submit a manual-shard metadata task and confirm `GET /api/tasks/{id}/shard-plan/` returns the expected shard rows.
+10. For future distributed execution, confirm shard claim, result shard collection, and aggregate status after those runtime features are implemented.
 
 ## Validation Commands
 
@@ -91,7 +93,8 @@ The Worker `/execute` endpoint expects an authenticated POST request for real di
 | Worker appears offline | heartbeat route reachable and host clocks are synchronized |
 | Task remains pending | worker is online, idle, and advertises the task engine capability |
 | Dispatch fails | Control Plane can reach Worker `/execute` on advertised address |
-| Shard remains unclaimed | agent labels, engine capability, and target network selector match the shard |
+| Shard plan missing | task was created with a valid `distribution` object |
+| Future shard remains unclaimed | agent labels, engine capability, and target network selector match the shard |
 | Result missing | Worker can reach Control Plane result callback route |
 | Partial success | inspect failed, cancelled, timed-out, and completed shard counts separately |
 | Load traffic fails | Worker can reach the authorized target URL |
@@ -107,13 +110,13 @@ For future duration-based execution:
 
 ## Dataset Partition Checks
 
-For future dataset partitioning:
+For current manual shard dataset partition metadata:
 
 - Confirm every shard has a stable `shard_id`.
-- Confirm manual ranges do not overlap unless explicitly allowed by the task contract.
+- Confirm every shard uses `artifact://` or `inline://` dataset source.
 - Confirm a 5000-row dataset can be represented as offset 0 limit 2000 and offset 2000 limit 3000.
-- Confirm each agent receives only the dataset shard assigned to its claimed shard.
-- Confirm retries preserve attempt numbers so duplicate result shards can be identified.
+- Confirm worker test payloads pass one selected shard to k6 or JMeter as engine metadata.
+- Treat actual dataset loading, overlap detection, retries, and attempt numbers as future work.
 
 ## Result Aggregation Checks
 

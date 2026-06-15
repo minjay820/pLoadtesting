@@ -107,21 +107,22 @@ Minimum request:
 }
 ```
 
-When `target_app_id` and `target_profile_id` are provided, the Control Plane expands the template into the existing task fields: `name`, `engine`, `script_path`, `target_url`, and default `parameters`. It also writes normalized execution metadata into `parameters.execution` using request override, then profile default, then engine default precedence.
+When `target_app_id` and `target_profile_id` are provided, the Control Plane expands the template into the existing task fields: `name`, `engine`, `script_path`, `target_url`, and default `parameters`. It also writes normalized execution metadata into `parameters.execution` and stores manual shard metadata in `parameters.distribution` when provided.
 
-## Execution And Planned Distribution Objects
+## Execution And Distribution Objects
 
-The current preview API implements single-agent duration-based `execution` for `POST /api/tasks/`. Distributed multi-agent execution, dataset partition runtime, shard rows, and result aggregation remain future `/api/v1` work:
+The current preview API implements duration-based `execution` and manual shard distribution metadata for `POST /api/tasks/`. Full distributed scheduling, shard rows, dataset loading, and exact result aggregation remain future `/api/v1` work:
 
 | Object | Purpose |
 |---|---|
 | `execution` | Duration, ramp-up, ramp-down, stop policy, grace period, worker timeout, iteration limit, and data policy. |
-| `distribution` | Single-agent or sharded execution mode, claim model, agent selectors, and shard definitions. |
-| `dataset` | Dataset source, format, partition strategy, and shard ranges. |
-| `shards` | Per-shard execution and dataset assignment under `distribution`. |
-| `result_aggregation` | Read-only result object describing global and per-shard aggregation confidence. |
+| `distribution` | Manual shard metadata with agent selector labels and dataset partition assignment. |
+| `shards` | Per-shard id, labels, dataset source, dataset format, offset, and limit. |
+| `result_aggregation` | Read-only shard-plan contract for summary-only aggregation. |
 
-Consumers should follow [Task execution model](task-execution-model.md) for the current execution fields and [Distributed agent execution](distributed-agent-execution.md) for future-compatible shard payloads.
+Consumers should follow [Task execution model](task-execution-model.md) for execution fields and [Distributed agent execution](distributed-agent-execution.md) for the manual shard payload.
+
+Use `GET /api/tasks/{id}/shard-plan/` to read the generated shard execution plan for tasks created with `distribution`.
 
 Current single-agent 10-minute task:
 
@@ -163,7 +164,7 @@ Current single-agent 1-hour graceful task:
 }
 ```
 
-Planned multi-agent dataset split:
+Current manual shard dataset split:
 
 ```json
 {
@@ -177,36 +178,18 @@ Planned multi-agent dataset split:
     "max_run_seconds": 2100,
     "data_policy": "duration_first"
   },
-  "dataset": {
-    "source": "artifact://datasets/users.csv",
-    "format": "csv",
-    "partition_strategy": "manual_ranges",
-    "shards": [
-      {
-        "shard_id": "users-a",
-        "offset": 0,
-        "limit": 2000
-      },
-      {
-        "shard_id": "users-b",
-        "offset": 2000,
-        "limit": 3000
-      }
-    ]
-  },
   "distribution": {
-    "mode": "sharded",
-    "claim_model": "agent_claim",
+    "mode": "manual_shards",
+    "result_merge_policy": "summary_only",
     "shards": [
       {
         "shard_id": "users-a",
         "agent_selector": {
-          "engine": "k6",
-          "labels": {
-            "target_network": "internal-a"
-          }
+          "labels": ["zone:a", "engine:k6"]
         },
-        "dataset_shard": {
+        "dataset": {
+          "source": "artifact://datasets/users.csv",
+          "format": "csv",
           "offset": 0,
           "limit": 2000
         }
@@ -214,12 +197,11 @@ Planned multi-agent dataset split:
       {
         "shard_id": "users-b",
         "agent_selector": {
-          "engine": "k6",
-          "labels": {
-            "target_network": "internal-a"
-          }
+          "labels": ["zone:b", "engine:k6"]
         },
-        "dataset_shard": {
+        "dataset": {
+          "source": "artifact://datasets/users.csv",
+          "format": "csv",
           "offset": 2000,
           "limit": 3000
         }
@@ -229,7 +211,7 @@ Planned multi-agent dataset split:
 }
 ```
 
-Planned multi-agent target network labels:
+Current manual shard target network labels:
 
 ```json
 {
@@ -244,25 +226,31 @@ Planned multi-agent target network labels:
     "data_policy": "duration_first"
   },
   "distribution": {
-    "mode": "sharded",
-    "claim_model": "agent_claim",
+    "mode": "manual_shards",
+    "result_merge_policy": "summary_only",
     "shards": [
       {
         "shard_id": "network-a",
         "agent_selector": {
-          "engine": "jmeter",
-          "labels": {
-            "target_network": "internal-a"
-          }
+          "labels": ["zone:a", "engine:jmeter"]
+        },
+        "dataset": {
+          "source": "artifact://datasets/payload.csv",
+          "format": "csv",
+          "offset": 0,
+          "limit": 1000
         }
       },
       {
         "shard_id": "network-b",
         "agent_selector": {
-          "engine": "jmeter",
-          "labels": {
-            "target_network": "internal-b"
-          }
+          "labels": ["zone:b", "engine:jmeter"]
+        },
+        "dataset": {
+          "source": "artifact://datasets/payload.csv",
+          "format": "csv",
+          "offset": 1000,
+          "limit": 1000
         }
       }
     ]
@@ -305,7 +293,7 @@ Preview and subject to future tightening:
 - per-script parameter names
 - inline `raw_report` shape
 - future `/api/v1` route names
-- `execution`, `distribution`, `dataset`, `shards`, and `result_aggregation` until the v1 runtime contract is implemented
+- `execution`, `distribution`, `shards`, `shard_execution_plan`, and `result_aggregation` until the v1 runtime contract is implemented
 
 ## Example Files
 
