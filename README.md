@@ -6,6 +6,7 @@
 [![Phase](https://img.shields.io/badge/Phase-MVP%20Preview-blueviolet)](ROADMAP.md)
 [![Status](https://img.shields.io/badge/Status-In%20Development-yellow)](ROADMAP.md)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![Code of Conduct](https://img.shields.io/badge/Code%20of%20Conduct-Contributor%20Covenant%202.1-blue)](CODE_OF_CONDUCT.md)
 
 ---
 
@@ -236,6 +237,7 @@ For full local validation steps, troubleshooting, and end-to-end test flows, see
 | [control-plane/ARCHITECTURE.md](control-plane/ARCHITECTURE.md) | Control Plane detailed design |
 | [ROADMAP.md](ROADMAP.md) | Project roadmap & milestones |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Community behavior standards |
 | [SECURITY.md](SECURITY.md) | Security policy |
 
 ---

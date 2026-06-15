@@ -72,6 +72,7 @@ Typo-only edits, formatting-only edits, pure review, pure inventory, or analysis
 Root-level public project documents are concise entry points and should stay aligned with the active docs trunk:
 
 - `README.md`
+- `CODE_OF_CONDUCT.md`
 - `CONTRIBUTING.md`
 - `ROADMAP.md`
 - `SECURITY.md`
