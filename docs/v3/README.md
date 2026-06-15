@@ -35,12 +35,15 @@ This project is a multi-engine load testing ecosystem:
 - `engines/k6/`: k6 JavaScript load test scripts.
 - `engines/jmeter/`: JMeter `.jmx` plans and report assets.
 - `docs/v3/domains/p-loadtesting-target-profile-coverage.md`: authoritative profile-level k6/JMeter parity matrix.
+- `docs/v3/domains/p-loadtesting-core-boundary.md`: Core responsibility boundary for external clients and downstream integrations.
 - `GET /api/tasks/templates/coverage/`: machine-readable profile coverage export for dashboard and API consumers.
 - `docs/v3/domains/p-loadtesting-phase-completion.md`: current Phase 0-4 completion assessment.
 - `docs/v3/domains/p-loadtesting-web-dashboard.md`: future dashboard MVP plan.
 - `docs/v3/specs/dashboard-read-model.md`: future dashboard read model over current preview APIs.
 - `docs/v3/specs/api-consumer-guide.md`: preview API consumer guide for templates, coverage, and task creation.
 - `docs/v3/specs/external-api-v1.md`: future stable external API contract plan.
+- `docs/v3/specs/external-client-contract.md`: current Core contract for external clients, downstream integrations, and compatible dashboards.
+- `docs/v3/specs/api-versioning-policy.md`: preview, stable candidate, experimental, and planning-only API compatibility policy.
 - `docs/v3/specs/task-execution-model.md`: duration, stop policy, worker timeout, and shard metadata contract.
 - `docs/v3/specs/distributed-agent-execution.md`: manual shard distribution metadata, dataset partition, and aggregation contract.
 - `docs/v3/specs/api-token-auth.md`: future scoped API access plan.

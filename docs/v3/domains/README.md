@@ -5,6 +5,7 @@ This area is for stable domain explanations: system concepts, business or produc
 ## Current Active Domain Documents
 
 - [pLoadtesting system overview](p-loadtesting-system-overview.md)
+- [pLoadtesting Core boundary](p-loadtesting-core-boundary.md)
 - [pLoadtesting phase completion assessment](p-loadtesting-phase-completion.md)
 - [pLoadtesting target apps](p-loadtesting-target-apps.md)
 - [pLoadtesting target profile coverage](p-loadtesting-target-profile-coverage.md)

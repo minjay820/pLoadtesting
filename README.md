@@ -84,7 +84,7 @@ pLoadtesting/
 └── README.md                 # This file
 ```
 
-Active governed documentation lives in [`docs/v3/README.md`](docs/v3/README.md), including the current target profile coverage matrix, Phase completion assessment, dashboard/API planning specs, and distributed deployment runbook.
+Active governed documentation lives in [`docs/v3/README.md`](docs/v3/README.md), including the current target profile coverage matrix, Phase completion assessment, dashboard/API planning specs, external client contract, API versioning policy, and distributed deployment runbook.
 
 ---
 
