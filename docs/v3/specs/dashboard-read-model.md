@@ -1,6 +1,6 @@
 # Dashboard Read Model
 
-This planning spec defines the read models a future pLoadtesting dashboard should consume. It does not implement a dashboard, add a frontend stack, or change the current Control Plane API.
+This planning spec defines the read models a future pLoadtesting dashboard should consume. It does not implement a dashboard or add a frontend stack. The current Control Plane API now includes an additive single-agent `execution` object on task creation.
 
 ## Runtime Sources
 
@@ -51,6 +51,7 @@ Dashboard models should keep API field names intact where possible:
 | `coverage_gap` | Null for exact coverage, otherwise a short gap reason |
 | `workload_types` | Target workload categories from the manifest |
 | `safe_limits` | Bounded target-app safety metadata from the manifest |
+| `execution` | Optional profile duration default from `GET /api/tasks/templates/` rows |
 
 ## Target Catalog
 
@@ -114,7 +115,7 @@ The Create Task Wizard should create tasks by profile rather than by free-form s
 
 1. Load profile rows from `GET /api/tasks/templates/`.
 2. Let the user select `target_app_id` and `target_profile_id`.
-3. Optionally let the user override documented parameters.
+3. Optionally let the user override documented parameters and the current single-agent `execution` fields.
 4. Submit `POST /api/tasks/`.
 
 Minimum create payload:
@@ -129,7 +130,7 @@ Minimum create payload:
 
 The wizard should not probe target URLs by itself. Target URLs are controlled runtime inputs and should remain within the operator's authorized environment.
 
-Future duration-based execution should add an `execution` section to the wizard after the profile selection step. The default should be `stop_policy=graceful_stop`, with common duration presets such as 10 minutes and 1 hour. For a 1-hour task, the dashboard should explain through field labels and validation state that new load stops at 1 hour, in-flight requests can finish during the grace period, and the worker timeout remains the final safety guard.
+The future wizard can add an `execution` section after the profile selection step because the preview API already accepts it. The default should be `stop_policy=graceful_stop`, with common duration presets such as 10 minutes and 1 hour. For a 1-hour task, the dashboard should explain through field labels and validation state that supported engine assets stop new load at 1 hour and the worker timeout remains the final safety guard.
 
 Future distributed execution should add a separate `distribution` section only after the basic single-agent flow is stable. The section should let operators choose single-agent or sharded execution, select agent labels, and attach a `dataset` object when dataset partitioning is needed. The dashboard should show `shards` as explicit rows so a 5000-row dataset split into 2000 and 3000 rows is visible before submission.
 
@@ -137,7 +138,7 @@ Planned create-task objects:
 
 | Object | Dashboard Use |
 |---|---|
-| `execution` | Duration, ramp-up, ramp-down, stop policy, grace period, worker timeout, iteration limit, and data policy controls. |
+| `execution` | Current single-agent duration, ramp-up, ramp-down, stop policy, grace period, worker timeout, iteration limit, and data policy controls. |
 | `distribution` | Single-agent or sharded execution mode plus agent selectors and shard definitions. |
 | `dataset` | Dataset source, format, partition strategy, and shard ranges. |
 | `shards` | Per-agent execution and dataset shard rows. |
@@ -167,4 +168,4 @@ Agent health is outside the Phase 6 MVP. A later implementation may read `GET /a
 - Future `/api/v1` should preserve the dashboard concepts before promising long-term compatibility.
 - Clients should treat new response fields as additive.
 - Clients should tolerate unknown workload types and safe-limit keys.
-- Clients should treat `execution`, `distribution`, `dataset`, `shards`, and `result_aggregation` as future contract objects until implemented by runtime APIs.
+- Clients can treat `execution` as an additive preview runtime field. `distribution`, `dataset`, `shards`, and `result_aggregation` remain future contract objects until implemented by runtime APIs.

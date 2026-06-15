@@ -51,6 +51,25 @@ worker_state = {
     "active_task_count": 0
 }
 
+EXECUTION_ENV_KEYS = {
+    "duration_seconds": "DURATION_SECONDS",
+    "ramp_up_seconds": "RAMP_UP_SECONDS",
+    "ramp_down_seconds": "RAMP_DOWN_SECONDS",
+    "graceful_stop_seconds": "GRACEFUL_STOP_SECONDS",
+    "iteration_limit": "ITERATION_LIMIT",
+    "stop_policy": "STOP_POLICY",
+    "data_policy": "DATA_POLICY",
+}
+
+EXECUTION_JMETER_KEYS = [
+    "duration_seconds",
+    "ramp_up_seconds",
+    "ramp_down_seconds",
+    "stop_policy",
+    "graceful_stop_seconds",
+    "iteration_limit",
+]
+
 def get_local_ip():
     """嘗試取得本機向外連線的 IP，若失敗則回傳 127.0.0.1"""
     try:
@@ -65,6 +84,86 @@ def get_local_ip():
 def api_headers() -> dict:
     """Headers required by the Control Plane preview API."""
     return {"X-PLOADTESTING-API-TOKEN": API_TOKEN}
+
+
+def extract_execution(parameters: dict | None) -> dict | None:
+    if not isinstance(parameters, dict):
+        return None
+    execution = parameters.get("execution")
+    return execution if isinstance(execution, dict) else None
+
+
+def execution_timeout_seconds(execution: dict | None) -> int | None:
+    if not execution:
+        return None
+    max_run_seconds = _optional_int(execution.get("max_run_seconds"))
+    if max_run_seconds:
+        return max_run_seconds
+    duration_seconds = _optional_int(execution.get("duration_seconds"))
+    if not duration_seconds:
+        return None
+    return (
+        duration_seconds
+        + (_optional_int(execution.get("ramp_up_seconds")) or 0)
+        + (_optional_int(execution.get("ramp_down_seconds")) or 0)
+        + (_optional_int(execution.get("graceful_stop_seconds")) or 0)
+        + 5
+    )
+
+
+def execution_env(execution: dict | None) -> dict[str, str]:
+    if not execution:
+        return {}
+    env = {}
+    for source_key, env_key in EXECUTION_ENV_KEYS.items():
+        value = execution.get(source_key)
+        if value is not None:
+            env[env_key] = str(value)
+    return env
+
+
+def execution_jmeter_properties(execution: dict | None) -> list[str]:
+    if not execution:
+        return []
+    properties = []
+    for key in EXECUTION_JMETER_KEYS:
+        value = execution.get(key)
+        if value is not None:
+            properties.append(f"-J{key}={value}")
+    return properties
+
+
+def _optional_int(value) -> int | None:
+    if value is None or value == "":
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _timeout_text(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return str(value)
+
+
+def timeout_summary(exc: subprocess.TimeoutExpired, timeout_seconds: int | None, execution: dict | None) -> dict:
+    return {
+        "execution_status": "failed",
+        "error_message": f"Engine process exceeded max_run_seconds ({timeout_seconds}).",
+        "raw_report": {
+            "error": "worker_timeout",
+            "stop_reason": "worker_timeout",
+            "forced_stop": True,
+            "timeout_seconds": timeout_seconds,
+            "execution": execution or {},
+            "stdout": _timeout_text(exc.stdout or exc.output),
+            "stderr": _timeout_text(exc.stderr),
+        },
+    }
 
 
 def register_worker() -> str:
@@ -329,6 +428,8 @@ def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
     logger.info(f"Starting execution for task {task_id} with script {script_path}")
     
     output_file = f"/tmp/result_{task_id}.json"
+    execution = extract_execution(parameters)
+    process_timeout = execution_timeout_seconds(execution)
     if os.path.isabs(script_path):
         full_script_path = script_path
     else:
@@ -354,10 +455,27 @@ def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
             env = os.environ.copy()
             if parameters:
                 for k, v in parameters.items():
+                    if k == "execution":
+                        continue
                     env[k] = str(v)
+            env.update(execution_env(execution))
             
             logger.info(f"Running command: {' '.join(cmd)}")
-            process = subprocess.run(cmd, env=env, capture_output=True, text=True)
+            try:
+                process = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=process_timeout)
+            except subprocess.TimeoutExpired as exc:
+                logger.error(f"k6 execution timed out after {process_timeout} seconds for task {task_id}")
+                summary = calculate_k6_summary(output_file)
+                timeout_payload = timeout_summary(exc, process_timeout, execution)
+                summary["raw_report"].update(timeout_payload["raw_report"])
+                summary["execution_status"] = timeout_payload["execution_status"]
+                summary["error_message"] = timeout_payload["error_message"]
+                try:
+                    post_task_result(task_id, summary)
+                    logger.info(f"Successfully posted timeout result for task {task_id}")
+                except requests.exceptions.RequestException as e:
+                    logger.error(f"Failed to post timeout result for task {task_id}: {e}")
+                return
             logger.info(f"Task {task_id} exited with {process.returncode}")
             
             summary = calculate_k6_summary(output_file)
@@ -400,14 +518,29 @@ def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
                 cmd.extend(["-JTARGET_HOST=" + str(host), "-JTARGET_PORT=" + str(port)])
                 
             env = os.environ.copy()
+            cmd.extend(execution_jmeter_properties(execution))
             if parameters:
                 for k, v in parameters.items():
-                    if k != "target_url":
+                    if k not in {"target_url", "execution"}:
                         cmd.append(f"-J{k}={v}")
                         env[k] = str(v)
             
             logger.info(f"Running command: {' '.join(cmd)}")
-            process = subprocess.run(cmd, env=env, capture_output=True, text=True)
+            try:
+                process = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=process_timeout)
+            except subprocess.TimeoutExpired as exc:
+                logger.error(f"JMeter execution timed out after {process_timeout} seconds for task {task_id}")
+                summary = calculate_jmeter_summary(output_jtl)
+                timeout_payload = timeout_summary(exc, process_timeout, execution)
+                summary["raw_report"].update(timeout_payload["raw_report"])
+                summary["execution_status"] = timeout_payload["execution_status"]
+                summary["error_message"] = timeout_payload["error_message"]
+                try:
+                    post_task_result(task_id, summary)
+                    logger.info(f"Successfully posted timeout result for task {task_id}")
+                except requests.exceptions.RequestException as e:
+                    logger.error(f"Failed to post timeout result for task {task_id}: {e}")
+                return
             logger.info(f"Task {task_id} exited with {process.returncode}")
             
             summary = calculate_jmeter_summary(output_jtl)

@@ -114,7 +114,7 @@ def _coverage_metadata(template: dict, template_index: dict[tuple[str, str], dic
 
 
 def _template_row(template: dict, manifest: dict, template_index: dict[tuple[str, str], dict]) -> dict:
-    return {
+    row = {
         "target_app_id": template["target_app_id"],
         "target_profile_id": template["target_profile_id"],
         "display_name": template["display_name"],
@@ -127,6 +127,9 @@ def _template_row(template: dict, manifest: dict, template_index: dict[tuple[str
         "safe_limits": manifest.get("safe_limits", {}),
         **_coverage_metadata(template, template_index),
     }
+    if "execution" in template:
+        row["execution"] = template["execution"]
+    return row
 
 
 def list_task_templates() -> list[dict]:

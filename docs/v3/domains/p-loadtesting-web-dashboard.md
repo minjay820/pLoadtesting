@@ -46,7 +46,7 @@ The following views and controls should remain outside the Phase 6 MVP:
 
 The implementation-facing read model for these views is defined in [Dashboard read model](../specs/dashboard-read-model.md).
 
-Execution duration and distributed execution controls are planned follow-on work. The dashboard should eventually read the contracts in [Task execution model](../specs/task-execution-model.md) and [Distributed agent execution](../specs/distributed-agent-execution.md), but it should not expose controls that the runtime cannot enforce.
+Execution duration controls are now available as a single-agent preview API/runtime field, but no dashboard UI is implemented in this phase. Distributed execution controls remain planned follow-on work. The dashboard should read the contracts in [Task execution model](../specs/task-execution-model.md) and [Distributed agent execution](../specs/distributed-agent-execution.md), and it should not expose distributed controls that the runtime cannot enforce.
 
 ## Initial User Flows
 
@@ -60,7 +60,7 @@ Execution duration and distributed execution controls are planned follow-on work
 Future duration and distribution flows:
 
 1. Operator selects a duration preset such as 10 minutes or 1 hour.
-2. Operator keeps the default `graceful_stop` stop policy or chooses another supported policy.
+2. Operator keeps the default `graceful_stop` stop policy or chooses `hard_stop`.
 3. Operator optionally switches from single-agent to sharded execution.
 4. Operator assigns shard rows to agent selectors and dataset ranges.
 5. Operator reviews per-shard progress, partial success, and aggregation quality after the run.
@@ -92,9 +92,9 @@ The dashboard should use `GET /api/tasks/templates/coverage/` for coverage cards
 
 API consumers should follow [API consumer guide](../specs/api-consumer-guide.md) for current preview endpoint examples and should treat future `/api/v1` routes as a compatibility target rather than current runtime behavior.
 
-Future API objects should appear in dashboard models as additive fields:
+API objects should appear in dashboard models as additive fields:
 
-- `execution` for duration, ramp, stop policy, grace period, timeout, iteration limit, and data policy.
+- `execution` for the current single-agent duration, ramp, stop policy, grace period, timeout, iteration limit, and data policy.
 - `distribution` for single-agent or sharded execution mode.
 - `dataset` for dataset source, format, partition strategy, and shard ranges.
 - `shards` for agent selector, dataset shard, shard status, and result shard status.

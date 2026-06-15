@@ -7,6 +7,15 @@ profiles:
     equivalent_profile_id: payload-k6-download
     script_path: engines/jmeter/target_apps_payload_crud_plan.jmx
     target_url: http://127.0.0.1:18084
+    execution:
+      duration_seconds: 20
+      ramp_up_seconds: 5
+      ramp_down_seconds: 0
+      stop_policy: graceful_stop
+      graceful_stop_seconds: 10
+      max_run_seconds: 40
+      iteration_limit:
+      data_policy: duration_first
     parameters:
       target_url: http://127.0.0.1:18084
       TARGET_HOST: 127.0.0.1
@@ -21,6 +30,15 @@ profiles:
     equivalent_profile_id: payload-jmeter-download
     script_path: engines/k6/target_apps_payload_download.js
     target_url: http://127.0.0.1:18084
+    execution:
+      duration_seconds: 10
+      ramp_up_seconds: 0
+      ramp_down_seconds: 0
+      stop_policy: graceful_stop
+      graceful_stop_seconds: 10
+      max_run_seconds: 30
+      iteration_limit:
+      data_policy: duration_first
     parameters:
       TARGET_URL: http://127.0.0.1:18084
       PAYLOAD_KB: "32"

@@ -36,6 +36,20 @@ Common properties:
 - `TARGET_METHOD`
 - `TARGET_QUERY`
 - `target_url`
+- `duration_seconds`
+- `ramp_up_seconds`
+- `ramp_down_seconds`
+- `stop_policy`
+- `graceful_stop_seconds`
+- `iteration_limit`
+
+Phase 5.8 duration property coverage is intentionally limited to these representative plans:
+
+- `target_apps_echo_latency_plan.jmx`
+- `target_apps_payload_crud_plan.jmx`
+- `target_apps_auth_flow_plan.jmx`
+
+Other JMeter plans continue using their existing duration or loop settings until follow-up coverage expands.
 
 Flow-specific properties depend on the plan, for example:
 
@@ -69,6 +83,8 @@ jmeter -n \
   -JTARGET_PATH=/api/flaky \
   -JTARGET_METHOD=GET \
   -JTARGET_QUERY='rate=0.5&deterministic=true&request_key=ci' \
+  -Jduration_seconds=20 \
+  -Jramp_up_seconds=5 \
   -JEXPECTED_STATUS_PREFIX=5
 ```
 

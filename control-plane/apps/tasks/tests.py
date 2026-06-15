@@ -5,6 +5,7 @@ from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
 from apps.results.models import TestResult
+from apps.tasks.execution import ENGINE_DEFAULT_EXECUTION
 from apps.tasks.models import LoadTestTask
 from apps.tasks.tasks import dispatch_pending_tasks
 from apps.workers.models import WorkerNode
@@ -238,6 +239,162 @@ class TaskTemplateApiTests(TestCase):
         self.assertEqual(targets_by_id["payload-api"]["jmeter_profile_count"], 5)
         self.assertEqual(targets_by_id["payload-api"]["gap_profile_count"], 0)
         self.assertEqual(targets_by_id["payload-api"]["exact_coverage_profile_count"], 10)
+
+    def test_create_task_accepts_valid_execution_object(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "payload-api",
+                "target_profile_id": "payload-k6-download",
+                "execution": {
+                    "duration_seconds": 600,
+                    "ramp_up_seconds": 30,
+                    "ramp_down_seconds": 15,
+                    "stop_policy": "graceful_stop",
+                    "graceful_stop_seconds": 30,
+                    "max_run_seconds": 690,
+                    "iteration_limit": None,
+                    "data_policy": "duration_first",
+                },
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(
+            task.parameters["execution"],
+            {
+                "duration_seconds": 600,
+                "ramp_up_seconds": 30,
+                "ramp_down_seconds": 15,
+                "stop_policy": "graceful_stop",
+                "graceful_stop_seconds": 30,
+                "max_run_seconds": 690,
+                "iteration_limit": None,
+                "data_policy": "duration_first",
+            },
+        )
+
+    def test_request_execution_overrides_template_default(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "echo-api",
+                "target_profile_id": "echo-k6-smoke",
+                "execution": {
+                    "duration_seconds": 45,
+                    "ramp_up_seconds": 5,
+                    "ramp_down_seconds": 0,
+                    "stop_policy": "hard_stop",
+                    "graceful_stop_seconds": 0,
+                    "max_run_seconds": 45,
+                    "iteration_limit": None,
+                    "data_policy": "duration_first",
+                },
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.parameters["execution"]["duration_seconds"], 45)
+        self.assertEqual(task.parameters["execution"]["stop_policy"], "hard_stop")
+        self.assertEqual(task.parameters["execution"]["max_run_seconds"], 45)
+
+    def test_missing_execution_uses_engine_default(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "name": "manual k6 task",
+                "engine": "k6",
+                "script_path": "engines/k6/target_apps_db_list_filter.js",
+                "target_url": "http://127.0.0.1:18089",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.parameters["execution"], ENGINE_DEFAULT_EXECUTION["k6"])
+
+    def test_invalid_stop_policy_is_rejected(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "payload-api",
+                "target_profile_id": "payload-k6-download",
+                "execution": {
+                    "duration_seconds": 10,
+                    "ramp_up_seconds": 0,
+                    "ramp_down_seconds": 0,
+                    "stop_policy": "drain_inflight",
+                    "graceful_stop_seconds": 10,
+                    "max_run_seconds": 30,
+                    "iteration_limit": None,
+                    "data_policy": "duration_first",
+                },
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("future policy", str(response.json()))
+
+    def test_invalid_duration_is_rejected(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "payload-api",
+                "target_profile_id": "payload-k6-download",
+                "execution": {
+                    "duration_seconds": 0,
+                    "ramp_up_seconds": 0,
+                    "ramp_down_seconds": 0,
+                    "stop_policy": "graceful_stop",
+                    "graceful_stop_seconds": 10,
+                    "max_run_seconds": 30,
+                    "iteration_limit": None,
+                    "data_policy": "duration_first",
+                },
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("duration_seconds", str(response.json()))
+
+    def test_max_run_seconds_must_cover_duration_and_grace(self):
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "target_app_id": "payload-api",
+                "target_profile_id": "payload-k6-download",
+                "execution": {
+                    "duration_seconds": 20,
+                    "ramp_up_seconds": 0,
+                    "ramp_down_seconds": 0,
+                    "stop_policy": "graceful_stop",
+                    "graceful_stop_seconds": 10,
+                    "max_run_seconds": 29,
+                    "iteration_limit": None,
+                    "data_policy": "duration_first",
+                },
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("max_run_seconds", str(response.json()))
+
+    def test_template_list_includes_profile_default_execution(self):
+        response = self.client.get("/api/tasks/templates/")
+
+        self.assertEqual(response.status_code, 200)
+        templates_by_profile = {row["target_profile_id"]: row for row in response.json()["templates"]}
+        execution = templates_by_profile["payload-k6-download"]["execution"]
+        self.assertEqual(execution["duration_seconds"], 10)
+        self.assertEqual(execution["stop_policy"], "graceful_stop")
 
     def test_create_task_from_template(self):
         response = self.client.post(

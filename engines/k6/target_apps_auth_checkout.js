@@ -1,14 +1,15 @@
 import http from 'k6/http';
 import { check } from 'k6';
+import { executionOptions } from './lib/execution.js';
 
-export const options = {
+export const options = executionOptions({
   vus: 5,
-  duration: '20s',
+  durationSeconds: 20,
   thresholds: {
     http_req_failed: ['rate==0'],
     http_req_duration: ['p(95)<2000'],
   },
-};
+});
 
 const BASE_URL = __ENV.TARGET_URL || 'http://127.0.0.1:18086';
 const USERNAME = __ENV.DEMO_USERNAME || 'alice';
@@ -42,4 +43,3 @@ export default function () {
   );
   check(checkout, { 'checkout ok': (r) => r.status === 200 });
 }
-

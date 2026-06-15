@@ -51,6 +51,7 @@ Each profile row includes:
 - `coverage_status`
 - `coverage_group`
 - `coverage_gap`
+- `execution` when the selected profile defines a duration default
 
 ## Read Coverage Metadata
 
@@ -106,11 +107,11 @@ Minimum request:
 }
 ```
 
-When `target_app_id` and `target_profile_id` are provided, the Control Plane expands the template into the existing task fields: `name`, `engine`, `script_path`, `target_url`, and default `parameters`.
+When `target_app_id` and `target_profile_id` are provided, the Control Plane expands the template into the existing task fields: `name`, `engine`, `script_path`, `target_url`, and default `parameters`. It also writes normalized execution metadata into `parameters.execution` using request override, then profile default, then engine default precedence.
 
-## Planned Execution And Distribution Objects
+## Execution And Planned Distribution Objects
 
-The current preview API does not yet implement duration-based execution or distributed multi-agent execution. Future `/api/v1/tasks` should accept these objects:
+The current preview API implements single-agent duration-based `execution` for `POST /api/tasks/`. Distributed multi-agent execution, dataset partition runtime, shard rows, and result aggregation remain future `/api/v1` work:
 
 | Object | Purpose |
 |---|---|
@@ -120,9 +121,9 @@ The current preview API does not yet implement duration-based execution or distr
 | `shards` | Per-shard execution and dataset assignment under `distribution`. |
 | `result_aggregation` | Read-only result object describing global and per-shard aggregation confidence. |
 
-Consumers should follow [Task execution model](task-execution-model.md) and [Distributed agent execution](distributed-agent-execution.md) when preparing future-compatible payloads.
+Consumers should follow [Task execution model](task-execution-model.md) for the current execution fields and [Distributed agent execution](distributed-agent-execution.md) for future-compatible shard payloads.
 
-Planned single-agent 10-minute task:
+Current single-agent 10-minute task:
 
 ```json
 {
@@ -137,15 +138,12 @@ Planned single-agent 10-minute task:
     "graceful_stop_seconds": 30,
     "max_run_seconds": 720,
     "iteration_limit": null,
-    "data_policy": "time_bounded"
-  },
-  "distribution": {
-    "mode": "single_agent"
+    "data_policy": "duration_first"
   }
 }
 ```
 
-Planned single-agent 1-hour graceful task:
+Current single-agent 1-hour graceful task:
 
 ```json
 {
@@ -160,10 +158,7 @@ Planned single-agent 1-hour graceful task:
     "graceful_stop_seconds": 60,
     "max_run_seconds": 3900,
     "iteration_limit": null,
-    "data_policy": "time_bounded"
-  },
-  "distribution": {
-    "mode": "single_agent"
+    "data_policy": "duration_first"
   }
 }
 ```
@@ -177,10 +172,10 @@ Planned multi-agent dataset split:
   "created_by": "api-consumer-guide",
   "execution": {
     "duration_seconds": 1800,
-    "stop_policy": "whichever_first",
+    "stop_policy": "graceful_stop",
     "graceful_stop_seconds": 30,
     "max_run_seconds": 2100,
-    "data_policy": "whichever_first"
+    "data_policy": "duration_first"
   },
   "dataset": {
     "source": "artifact://datasets/users.csv",
@@ -246,7 +241,7 @@ Planned multi-agent target network labels:
     "stop_policy": "graceful_stop",
     "graceful_stop_seconds": 30,
     "max_run_seconds": 1020,
-    "data_policy": "time_bounded"
+    "data_policy": "duration_first"
   },
   "distribution": {
     "mode": "sharded",

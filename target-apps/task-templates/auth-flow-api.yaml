@@ -7,6 +7,15 @@ profiles:
     equivalent_profile_id: auth-jmeter-checkout
     script_path: engines/k6/target_apps_auth_checkout.js
     target_url: http://127.0.0.1:18086
+    execution:
+      duration_seconds: 20
+      ramp_up_seconds: 0
+      ramp_down_seconds: 0
+      stop_policy: graceful_stop
+      graceful_stop_seconds: 10
+      max_run_seconds: 40
+      iteration_limit:
+      data_policy: duration_first
     parameters:
       TARGET_URL: http://127.0.0.1:18086
       DEMO_USERNAME: alice
@@ -20,6 +29,15 @@ profiles:
     equivalent_profile_id: auth-k6-checkout
     script_path: engines/jmeter/target_apps_auth_flow_plan.jmx
     target_url: http://127.0.0.1:18086
+    execution:
+      duration_seconds: 20
+      ramp_up_seconds: 1
+      ramp_down_seconds: 0
+      stop_policy: graceful_stop
+      graceful_stop_seconds: 10
+      max_run_seconds: 40
+      iteration_limit:
+      data_policy: duration_first
     parameters:
       target_url: http://127.0.0.1:18086
       TARGET_HOST: 127.0.0.1

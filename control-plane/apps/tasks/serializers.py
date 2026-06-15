@@ -10,6 +10,7 @@ LoadTestTask 的序列化器：
 from rest_framework import serializers
 
 from apps.results.serializers import TestResultSerializer
+from .execution import resolve_execution
 from .models import LoadTestTask
 from .template_registry import TaskTemplateError, get_task_template
 
@@ -72,6 +73,7 @@ class LoadTestTaskCreateSerializer(serializers.ModelSerializer):
 
     target_app_id = serializers.CharField(write_only=True, required=False)
     target_profile_id = serializers.CharField(write_only=True, required=False)
+    execution = serializers.JSONField(write_only=True, required=False)
 
     class Meta:
         model  = LoadTestTask
@@ -85,6 +87,7 @@ class LoadTestTaskCreateSerializer(serializers.ModelSerializer):
             "created_by",
             "target_app_id",
             "target_profile_id",
+            "execution",
         ]
         extra_kwargs = {
             "name":         {"required": False},
@@ -99,6 +102,8 @@ class LoadTestTaskCreateSerializer(serializers.ModelSerializer):
     def validate(self, attrs: dict) -> dict:
         target_app_id = attrs.get("target_app_id")
         target_profile_id = attrs.get("target_profile_id")
+        request_execution = attrs.pop("execution", None)
+        template_execution = None
 
         if target_app_id or target_profile_id:
             if not target_app_id or not target_profile_id:
@@ -111,6 +116,7 @@ class LoadTestTaskCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(str(exc)) from exc
 
             attrs["_resolved_template"] = template
+            template_execution = template.get("execution")
             attrs.setdefault("name", template["display_name"])
             attrs.setdefault("engine", template["engine"])
             attrs.setdefault("script_path", template["script_path"])
@@ -126,6 +132,11 @@ class LoadTestTaskCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 f"Missing required task fields: {', '.join(missing)}."
             )
+        parameters = dict(attrs.get("parameters") or {})
+        execution = resolve_execution(attrs["engine"], template_execution, request_execution)
+        if execution is not None:
+            parameters["execution"] = execution
+        attrs["parameters"] = parameters
         return attrs
 
     def create(self, validated_data: dict) -> LoadTestTask:

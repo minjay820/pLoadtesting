@@ -1,6 +1,6 @@
 # External API v1 Planning Spec
 
-This spec defines the intended stable external API shape for future pLoadtesting consumers. It does not change the current runtime API.
+This spec defines the intended stable external API shape for future pLoadtesting consumers. The preview `/api/` runtime already implements single-agent duration execution as an additive `POST /api/tasks/` field, while stable `/api/v1` routes remain future work.
 
 ## Current Runtime Baseline
 
@@ -73,7 +73,7 @@ Client-provided `parameters` should override template defaults only for supporte
 
 ### Execution Object
 
-Future v1 task creation should accept an `execution` object for duration-based execution:
+The preview `POST /api/tasks/` endpoint accepts an `execution` object for single-agent duration-based execution and stores it in `parameters.execution`. Future v1 task creation should preserve the same shape:
 
 ```json
 {
@@ -85,12 +85,12 @@ Future v1 task creation should accept an `execution` object for duration-based e
     "graceful_stop_seconds": 30,
     "max_run_seconds": 720,
     "iteration_limit": null,
-    "data_policy": "time_bounded"
+    "data_policy": "duration_first"
   }
 }
 ```
 
-`stop_policy` should support `hard_stop`, `graceful_stop`, `drain_inflight`, `complete_dataset`, and `whichever_first`. The default should be `graceful_stop`. For a 1-hour run, `duration_seconds=3600` means workers stop generating new traffic at 1 hour, wait within `graceful_stop_seconds` for in-flight requests, and force-stop only after the grace period or `max_run_seconds`.
+The current preview runtime supports `stop_policy=graceful_stop|hard_stop` and `data_policy=duration_first|iteration_first`. Planned stop policies such as `drain_inflight`, `complete_dataset`, and `whichever_first` remain future v1 work. For a 1-hour run, `duration_seconds=3600` means supported engine assets stop generating new traffic at 1 hour and the worker timeout remains the final safety guard through `max_run_seconds`.
 
 See [Task execution model](task-execution-model.md) for k6, JMeter, and worker timeout mapping.
 
@@ -161,10 +161,7 @@ Single agent, 10 minutes:
     "graceful_stop_seconds": 30,
     "max_run_seconds": 720,
     "iteration_limit": null,
-    "data_policy": "time_bounded"
-  },
-  "distribution": {
-    "mode": "single_agent"
+    "data_policy": "duration_first"
   }
 }
 ```
@@ -184,10 +181,7 @@ Single agent, 1 hour graceful stop:
     "graceful_stop_seconds": 60,
     "max_run_seconds": 3900,
     "iteration_limit": null,
-    "data_policy": "time_bounded"
-  },
-  "distribution": {
-    "mode": "single_agent"
+    "data_policy": "duration_first"
   }
 }
 ```
@@ -201,10 +195,10 @@ Multi-agent, 5000 rows split into 2000 and 3000:
   "created_by": "api-v1-client",
   "execution": {
     "duration_seconds": 1800,
-    "stop_policy": "whichever_first",
+    "stop_policy": "graceful_stop",
     "graceful_stop_seconds": 30,
     "max_run_seconds": 2100,
-    "data_policy": "whichever_first"
+    "data_policy": "duration_first"
   },
   "dataset": {
     "source": "artifact://datasets/users.csv",
@@ -270,7 +264,7 @@ Multi-agent, different target network labels:
     "stop_policy": "graceful_stop",
     "graceful_stop_seconds": 30,
     "max_run_seconds": 1020,
-    "data_policy": "time_bounded"
+    "data_policy": "duration_first"
   },
   "distribution": {
     "mode": "sharded",

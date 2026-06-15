@@ -1,16 +1,22 @@
 # Task Execution Model
 
-This planning spec defines the future task execution controls for duration-based execution. It does not change the current database schema, worker runtime, task templates, or scheduler behavior.
+This spec defines the current single-agent duration-based execution MVP and the remaining future execution controls. Phase 5.8 does not add database schema, distributed shards, dataset partition runtime, dashboard UI, token-system changes, or scheduler behavior changes.
 
 ## Current Runtime Boundary
 
-The current preview runtime can schedule when a task becomes eligible for dispatch through `scheduled_at`, then a Worker Agent runs the selected k6 or JMeter asset until the engine process exits. There is no current Control Plane field for requested run duration, stop policy, or worker-level execution deadline.
+The preview Control Plane accepts an additive write-only `execution` object on `POST /api/tasks/`. The serializer normalizes validated execution metadata into the existing `LoadTestTask.parameters["execution"]` object, so task responses expose it through the existing `parameters` field.
 
-Future implementation should add these controls as an explicit `execution` object instead of overloading `parameters`.
+Execution precedence is:
+
+1. Request `execution` override.
+2. Profile template `execution` default.
+3. Engine default execution.
+
+The worker reads `parameters["execution"]` only when present. Existing tasks without this object keep the previous subprocess command shape and do not receive a worker timeout from the new helper path.
 
 ## Execution Object
 
-Proposed request shape:
+Current request shape:
 
 ```json
 {
@@ -22,129 +28,166 @@ Proposed request shape:
     "graceful_stop_seconds": 30,
     "max_run_seconds": 720,
     "iteration_limit": null,
-    "data_policy": "time_bounded"
+    "data_policy": "duration_first"
   }
 }
 ```
 
 | Field | Type | Purpose |
 |---|---|---|
-| `duration_seconds` | integer or null | Target steady execution duration after ramp-up. Example: 600 for 10 minutes, 3600 for 1 hour. |
-| `ramp_up_seconds` | integer or null | Optional warm-up period for increasing load. |
-| `ramp_down_seconds` | integer or null | Optional ramp-down period after new traffic stops. |
-| `stop_policy` | string | How the worker should stop after duration, iteration, or data limits are reached. |
-| `graceful_stop_seconds` | integer | Maximum time to wait for in-flight requests after stopping new traffic. |
-| `max_run_seconds` | integer | Hard worker-level safety deadline covering ramp-up, duration, ramp-down, and grace time. |
-| `iteration_limit` | integer or null | Optional total iteration cap. Useful for bounded smoke and dataset-based tasks. |
-| `data_policy` | string | Whether task completion is time-bounded, dataset-bounded, or whichever completes first. |
+| `duration_seconds` | integer | Target execution duration. Example: 600 for 10 minutes, 3600 for 1 hour. |
+| `ramp_up_seconds` | integer | Optional warm-up period for increasing load. |
+| `ramp_down_seconds` | integer | Optional ramp-down period after steady execution. |
+| `stop_policy` | string | Runtime-supported values are `graceful_stop` and `hard_stop`. |
+| `graceful_stop_seconds` | integer | Maximum grace window for engines or worker timeout metadata. |
+| `max_run_seconds` | integer or null | Worker-level subprocess timeout. |
+| `iteration_limit` | integer or null | Optional total iteration cap for bounded validation. |
+| `data_policy` | string | Runtime-supported values are `duration_first` and `iteration_first`. |
 
-Recommended defaults:
+Engine defaults:
 
 ```json
 {
-  "duration_seconds": null,
-  "ramp_up_seconds": 0,
-  "ramp_down_seconds": 0,
-  "stop_policy": "graceful_stop",
-  "graceful_stop_seconds": 30,
-  "max_run_seconds": null,
-  "iteration_limit": null,
-  "data_policy": "time_bounded"
+  "k6": {
+    "duration_seconds": 10,
+    "ramp_up_seconds": 0,
+    "ramp_down_seconds": 0,
+    "stop_policy": "graceful_stop",
+    "graceful_stop_seconds": 10,
+    "max_run_seconds": 30,
+    "iteration_limit": null,
+    "data_policy": "duration_first"
+  },
+  "jmeter": {
+    "duration_seconds": 20,
+    "ramp_up_seconds": 5,
+    "ramp_down_seconds": 0,
+    "stop_policy": "graceful_stop",
+    "graceful_stop_seconds": 10,
+    "max_run_seconds": 40,
+    "iteration_limit": null,
+    "data_policy": "duration_first"
+  }
 }
 ```
 
-`graceful_stop` should be the default stop policy because it prevents new load at the requested boundary while still giving in-flight requests a short window to finish and report cleanly.
+Validation rules:
+
+- `duration_seconds` must be a positive integer and cannot exceed `86400`.
+- `ramp_up_seconds`, `ramp_down_seconds`, and `graceful_stop_seconds` must be non-negative integers.
+- `max_run_seconds`, when provided, must be at least `duration_seconds + graceful_stop_seconds`.
+- `stop_policy` must be `graceful_stop` or `hard_stop`; planned policies such as `drain_inflight`, `complete_dataset`, and `whichever_first` are rejected with future-policy messaging.
+- `data_policy` must be `duration_first` or `iteration_first`.
 
 ## Stop Policies
 
-| Policy | Behavior | MVP Status |
+| Policy | Behavior | Status |
 |---|---|---|
-| `hard_stop` | Stop the engine process as soon as the limit is reached. In-flight requests can be interrupted. | Future fallback for emergency cancellation and worker timeout enforcement. |
-| `graceful_stop` | Stop generating new traffic at the limit, wait up to `graceful_stop_seconds`, then force stop if still running. | MVP default. |
-| `drain_inflight` | Stop generating new traffic and wait for all in-flight requests without a short grace window unless `max_run_seconds` is reached. | Future extension for low-volume correctness tests. |
-| `complete_dataset` | Continue until the assigned dataset shard is exhausted, even if the target duration has passed, subject to `max_run_seconds`. | Future extension for dataset-completeness runs. |
-| `whichever_first` | Stop when the first configured bound is reached, such as duration, iteration limit, or dataset exhaustion. | MVP candidate for mixed time and dataset tasks. |
+| `graceful_stop` | Stop generating new traffic at the requested boundary when the engine asset supports graceful scenario control; worker timeout remains the final guard. | Supported in the MVP contract and representative assets. |
+| `hard_stop` | Use the worker subprocess timeout as the hard safety boundary. In-flight work can be interrupted if the process exceeds `max_run_seconds`. | Supported in the MVP contract. |
+| `drain_inflight` | Stop new traffic and wait for all in-flight work without a short grace window unless `max_run_seconds` is reached. | Future extension. |
+| `complete_dataset` | Continue until the assigned dataset shard is exhausted, subject to `max_run_seconds`. | Future extension. |
+| `whichever_first` | Stop when the first configured bound is reached, such as duration, iteration limit, or dataset exhaustion. | Future extension. |
 
-For a 1-hour task, the expected behavior is:
+For a 1-hour graceful task, the current intended behavior is:
 
-1. The worker starts ramp-up if configured.
-2. The worker generates load for `duration_seconds=3600`.
-3. At 1 hour, the worker stops producing new traffic.
-4. The worker waits up to `graceful_stop_seconds` for in-flight requests.
-5. If work is still active after the grace period, the worker force-stops the engine process.
-6. The worker returns a result that records whether the stop was clean, forced, timed out, cancelled, or failed.
+1. The worker passes duration metadata to the supported k6/JMeter asset.
+2. The engine generates load for `duration_seconds=3600`, with ramp-up or ramp-down where the asset supports it.
+3. New load stops at the engine duration boundary.
+4. The worker subprocess timeout remains active through `max_run_seconds`.
+5. If the process exceeds the timeout, the worker posts a failed result with `raw_report.error=worker_timeout`, stop metadata, stdout, and stderr.
 
 ## Data Policy
 
-| Data Policy | Meaning |
-|---|---|
-| `time_bounded` | Duration is the primary bound. Dataset rows can be reused or left unused depending on script behavior. |
-| `dataset_bounded` | Dataset shard completion is the primary bound. Duration is advisory unless `max_run_seconds` is reached. |
-| `iteration_bounded` | Iteration count is the primary bound. |
-| `whichever_first` | Stop at the first reached bound among duration, iteration, or dataset completion. |
+| Data Policy | Meaning | Status |
+|---|---|---|
+| `duration_first` | Duration is the primary bound. Dataset rows can be reused or left unused depending on script behavior. | Supported in the MVP contract. |
+| `iteration_first` | Iteration count is the primary bound when `iteration_limit` is provided. | Supported in the MVP contract and representative k6 helper. |
 
-The MVP should support `time_bounded` and `whichever_first` at the contract level. `dataset_bounded` and `iteration_bounded` can remain future extensions until the worker and scripts expose row-level progress consistently.
+Dataset-bounded and whichever-first data semantics remain future work because row-level progress, dataset assignment, and distributed aggregation are not implemented.
 
 ## k6 Mapping
 
-Future k6 mapping should prefer native k6 options when possible:
+The worker passes these environment variables to k6 when `parameters["execution"]` is present:
 
-- `duration_seconds` maps to `--duration` or generated `options.duration` for simple constant-load tasks.
-- `ramp_up_seconds`, `duration_seconds`, and `ramp_down_seconds` map to k6 `stages` when staged execution is requested.
-- `iteration_limit` maps to `--iterations` or scenario `iterations`.
-- `graceful_stop_seconds` maps to k6 scenario `gracefulStop` where scenarios are used.
-- `max_run_seconds` remains a worker-level subprocess timeout even when k6 has its own duration.
+- `DURATION_SECONDS`
+- `RAMP_UP_SECONDS`
+- `RAMP_DOWN_SECONDS`
+- `GRACEFUL_STOP_SECONDS`
+- `ITERATION_LIMIT`
+- `STOP_POLICY`
+- `DATA_POLICY`
 
-Existing scripts currently hard-code many `duration`, `stages`, or `iterations` values. Runtime implementation should either refactor scripts to read generated options or have the worker generate a wrapper/scenario configuration instead of assuming every script already supports these fields.
+The helper at `engines/k6/lib/execution.js` builds k6 `options` from these values. Phase 5.8 updates exactly these representative scripts to use the helper:
+
+- `engines/k6/target_apps_payload_download.js`
+- `engines/k6/target_apps_echo_smoke.js`
+- `engines/k6/target_apps_latency_delay.js`
+- `engines/k6/target_apps_auth_checkout.js`
+
+Other k6 assets continue using their existing hard-coded options until follow-up coverage expands.
 
 ## JMeter Mapping
 
-Future JMeter mapping should use properties passed by the worker:
+The worker passes matching JMeter properties when `parameters["execution"]` is present:
 
-- `duration_seconds` maps to `ThreadGroup.duration` when scheduler mode is enabled.
-- `ramp_up_seconds` maps to `ThreadGroup.ramp_time`.
-- `iteration_limit` maps to `LoopController.loops` when using loop-bounded execution.
-- `graceful_stop_seconds` maps to worker-side graceful shutdown behavior and, where available, JMeter stop/shutdown command behavior.
-- `max_run_seconds` remains a worker-level subprocess timeout.
+- `-Jduration_seconds`
+- `-Jramp_up_seconds`
+- `-Jramp_down_seconds`
+- `-Jstop_policy`
+- `-Jgraceful_stop_seconds`
+- `-Jiteration_limit`
 
-Current JMeter plans mix scheduler-based duration and fixed loop counts. Runtime implementation should standardize property names before enabling dashboard controls globally.
+Phase 5.8 updates these representative plans to read duration and ramp-up properties:
+
+- `engines/jmeter/target_apps_echo_latency_plan.jmx`
+- `engines/jmeter/target_apps_payload_crud_plan.jmx`
+- `engines/jmeter/target_apps_auth_flow_plan.jmx`
+
+Other JMeter plans continue using their existing settings until follow-up coverage expands.
 
 ## Worker Timeout Protection
 
-The worker should calculate an effective safety timeout:
+When execution metadata is present, the worker calculates an effective subprocess timeout:
 
 ```text
 effective_timeout_seconds =
-  min_non_null(max_run_seconds, ramp_up_seconds + duration_seconds + ramp_down_seconds + graceful_stop_seconds + safety_margin)
+  max_run_seconds
+  OR duration_seconds + ramp_up_seconds + ramp_down_seconds + graceful_stop_seconds + safety_margin
 ```
 
-If `max_run_seconds` is omitted, the worker should derive a bounded timeout for duration-based tasks. If no duration, iteration, or dataset limit is configured, the API should reject the task or require an explicit operational override.
+The current API defaults always provide `max_run_seconds`. If no execution object is present, the worker keeps the previous unbounded subprocess behavior for compatibility.
 
-Worker results should include stop metadata:
+Timeout results are posted with the existing failed task state, not a new database state:
 
 ```json
 {
-  "execution_status": "completed",
-  "stop_reason": "duration_reached",
-  "stop_policy": "graceful_stop",
-  "forced_stop": false,
-  "requested_duration_seconds": 3600,
-  "actual_run_seconds": 3618
+  "execution_status": "failed",
+  "error_message": "Engine process exceeded max_run_seconds (690).",
+  "raw_report": {
+    "error": "worker_timeout",
+    "stop_reason": "worker_timeout",
+    "forced_stop": true,
+    "timeout_seconds": 690,
+    "execution": {
+      "duration_seconds": 600
+    }
+  }
 }
 ```
 
 ## Dashboard Create Task Wizard
 
-The dashboard should expose execution controls as a compact section in the Create Task Wizard:
+Dashboard implementation is not part of Phase 5.8. A future dashboard wizard can expose execution controls because the preview API now accepts and returns `parameters.execution`.
+
+The wizard should show:
 
 - Preset duration choices: 10 minutes, 30 minutes, 1 hour, custom.
 - Advanced controls: ramp-up, ramp-down, graceful stop seconds, max run seconds.
-- Stop policy selector with `graceful_stop` as the default.
-- Optional iteration limit for smoke or bounded validation profiles.
-- Data policy selector only when a dataset is attached.
-
-The wizard should show that a 1-hour graceful task stops new load at 1 hour, waits for in-flight requests within the grace period, and only then force-stops if required.
+- Stop policy selector limited to `graceful_stop` and `hard_stop` until future policies are implemented.
+- Optional iteration limit for bounded validation profiles.
+- Data policy selector limited to `duration_first` and `iteration_first` until dataset runtime exists.
 
 ## Contract Status
 
-This is a planning contract for future API, dashboard, and worker work. It should be implemented behind tests before any dashboard control is treated as runtime truth.
+Single-agent duration-based execution is implemented as an additive preview API and worker runtime feature. Distributed shards, dataset partition runtime, advanced stop policies, dashboard UI, and long-term `/api/v1` compatibility remain future work.

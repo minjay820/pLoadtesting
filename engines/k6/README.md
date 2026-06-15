@@ -41,7 +41,7 @@ Profile-level k6↔JMeter parity is tracked in `docs/v3/domains/p-loadtesting-ta
 | `target_apps_auth_refresh_flow.js` | login/expiry/refresh/logout | 3 | 4 iterations | Auth-heavy refresh and failure branches |
 | `target_apps_auth_session_mfa_flow.js` | session-cookie or MFA demo flow | 3 | 4 iterations | Cookie/session and deterministic MFA-like auth flow |
 | `target_apps_sse_smoke.js` | finite SSE stream | 1 | 3 iterations | SSE streaming smoke for `sse-api` |
-| `target_apps_payload_download.js` | `GET /api/download` | 2 | 4 iterations | Bounded text payload download |
+| `target_apps_payload_download.js` | `GET /api/download` | 2 | 10s run | Bounded text payload download |
 | `target_apps_payload_file_flow.js` | file manifest/download/upload | 3 | 4 iterations | File-heavy bounded payload flow |
 | `target_apps_payload_archive_flow.js` | fixture-pack/archive/read-many | 3 | 4 iterations | Archive-style file-heavy flow |
 | `target_apps_payload_tar_selective_flow.js` | manifest/selective-fetch/tar-package | 2 | 4 iterations | Tar-like package and selective fetch flow |
@@ -190,7 +190,43 @@ WebSocket scripts derive `ws://` from `TARGET_URL` automatically, so the same `T
 
 ---
 
-### 5. Overriding VUs and Duration from CLI
+### 5. Duration-Based Execution Metadata
+
+The worker passes Phase 5.8 execution metadata to representative k6 scripts through environment variables:
+
+- `DURATION_SECONDS`
+- `RAMP_UP_SECONDS`
+- `RAMP_DOWN_SECONDS`
+- `GRACEFUL_STOP_SECONDS`
+- `ITERATION_LIMIT`
+- `STOP_POLICY`
+- `DATA_POLICY`
+
+The helper at `engines/k6/lib/execution.js` builds k6 `options` from these values. Current helper coverage is intentionally limited to:
+
+- `target_apps_payload_download.js`
+- `target_apps_echo_smoke.js`
+- `target_apps_latency_delay.js`
+- `target_apps_auth_checkout.js`
+
+Other k6 scripts continue using their existing hard-coded options until follow-up coverage expands.
+
+Example:
+
+```bash
+k6 run \
+  -e TARGET_URL=http://127.0.0.1:18084 \
+  -e DURATION_SECONDS=600 \
+  -e RAMP_UP_SECONDS=30 \
+  -e RAMP_DOWN_SECONDS=30 \
+  -e GRACEFUL_STOP_SECONDS=30 \
+  -e DATA_POLICY=duration_first \
+  target_apps_payload_download.js
+```
+
+---
+
+### 6. Overriding VUs and Duration from CLI
 
 ```bash
 # Override smoke VUs
@@ -202,7 +238,7 @@ k6 run --stage 10s:10,30s:10,10s:0 stress_cpu.js
 
 ---
 
-### 6. Executing via Docker
+### 7. Executing via Docker
 
 ```bash
 docker run --rm \
