@@ -139,6 +139,10 @@ class LoadTestTaskCreateSerializer(serializers.ModelSerializer):
                 f"Missing required task fields: {', '.join(missing)}."
             )
         parameters = dict(attrs.get("parameters") or {})
+        if target_app_id:
+            parameters["target_app_id"] = target_app_id
+        if target_profile_id:
+            parameters["target_profile_id"] = target_profile_id
         execution = resolve_execution(attrs["engine"], template_execution, request_execution)
         if execution is not None:
             parameters["execution"] = execution

@@ -12,6 +12,8 @@ The current Control Plane exposes preview endpoints under `/api/`:
 - `GET /api/tasks/`
 - `POST /api/tasks/`
 - `GET /api/tasks/{id}/`
+- `GET /api/tasks/{id}/result-summary/`
+- `GET /api/tasks/{id}/artifacts/`
 - `GET /api/tasks/{id}/shard-plan/`
 - `GET /api/tasks/templates/`
 - `GET /api/tasks/templates/coverage/`
@@ -42,6 +44,7 @@ Preview API consumers should use [API consumer guide](api-consumer-guide.md) for
 | Template coverage | `/api/v1/task-templates/coverage/` | computed registry coverage metadata |
 | Workers | `/api/v1/workers/` | `WorkerNode` |
 | Results | `/api/v1/tasks/{task_id}/result/` | `TestResult` |
+| Artifacts | `/api/v1/tasks/{task_id}/artifacts/` | artifact metadata placeholder |
 | Health | `/api/v1/health/` | Control Plane service health |
 | Catalog summary | `/api/v1/catalog/` | target manifests and task templates |
 
@@ -71,6 +74,40 @@ When `target_app_id` and `target_profile_id` are provided, the API should resolv
 - default `name`
 
 Client-provided `parameters` should override template defaults only for supported keys. The implementation should document rejected override keys when stricter validation is added.
+
+### Task History Read Contract
+
+The preview `GET /api/tasks/` endpoint now returns a read-model envelope:
+
+```json
+{
+  "source": {
+    "status": "ok"
+  },
+  "summary": {
+    "count": 1,
+    "limit": 20,
+    "total_available": 1
+  },
+  "items": [
+    {
+      "id": "task-uuid",
+      "status": "pending",
+      "target_app_id": "payload-api",
+      "target_profile_id": "payload-k6-download",
+      "engine": "k6",
+      "created_at": "2026-06-15T00:00:00Z",
+      "updated_at": "2026-06-15T00:00:00Z"
+    }
+  ]
+}
+```
+
+`limit` is supported with a bounded maximum. `status` filtering is supported for the current preview route. Future v1 pagination can add cursor or page references without changing item semantics.
+
+### Task Detail Read Contract
+
+The preview `GET /api/tasks/{id}/` endpoint returns task identity, status, engine, target/profile identifiers when available, parameter summary, execution, distribution, result status, and warnings. This detail contract avoids requiring API consumers to parse internal serializer fields or database relationships.
 
 ### Execution Object
 
@@ -295,6 +332,51 @@ Shard plan responses include a `result_aggregation` contract object:
 ```
 
 `total_requests` and error counts can be summed. Error rate can be recalculated from those sums. Average latency must not be directly averaged across shards. p95 and p99 must not be averaged across agents; correct percentile aggregation requires raw samples, histogram buckets, HDR histogram, t-digest, or engine-supported merge output.
+
+### Result Summary Read Contract
+
+The preview `GET /api/tasks/{id}/result-summary/` endpoint maps existing `TestResult` fields into:
+
+- `summary.total_requests`
+- `summary.total_errors`
+- `summary.duration_seconds`
+- `summary.throughput_rps`
+- `summary.error_rate_pct`
+- `latency.avg_ms`
+- `latency.p90_ms`
+- `latency.p95_ms`
+- `latency.p99_ms`
+- `latency.max_ms`
+- `thresholds`
+
+If no result exists, `status` is `not_available`, metric fields are `null`, and `warnings` includes `result_summary_not_available`. API consumers should handle that response as an ordinary task lifecycle state.
+
+`latency.p50_ms` is currently `null` because the stored result model does not provide a p50 field. Core must not invent missing percentile values.
+
+### Artifact Metadata Read Contract
+
+The preview `GET /api/tasks/{id}/artifacts/` endpoint returns a stable metadata envelope:
+
+```json
+{
+  "source": {
+    "status": "ok"
+  },
+  "task_id": "task-uuid",
+  "summary": {
+    "count": 0
+  },
+  "items": [],
+  "warnings": [
+    {
+      "code": "artifacts_not_available",
+      "message": "Artifact metadata is not available for this task yet."
+    }
+  ]
+}
+```
+
+Artifact download and report generation are planning-only. Future artifact metadata rows can add `artifact_id`, `kind`, `name`, `size_bytes`, `content_type`, `created_at`, and `download_url`.
 
 ## Template Coverage Contract
 

@@ -75,6 +75,22 @@ Current task creation can include:
 
 Manual task creation with direct `engine`, `script_path`, and `target_url` remains available for preview compatibility, but external clients should prefer templates when possible.
 
+## Task History And Detail Read Contracts
+
+`GET /api/tasks/` is the preview run history read contract. It returns `source`, `summary`, and `items` so external clients can show task history without depending on internal serializer shape.
+
+The list supports `limit` with a bounded maximum and a simple `status` filter. Items expose safe fields only:
+
+- `id`
+- `status`
+- `target_app_id`
+- `target_profile_id`
+- `engine`
+- `created_at`
+- `updated_at`
+
+`GET /api/tasks/{id}/` is the preview task detail read contract. It returns `source`, `task`, `parameters`, `execution`, `distribution`, `result`, and `warnings`. `target_app_id` and `target_profile_id` are returned when the task was created from a template or when existing task metadata makes them available.
+
 ## Execution Object Contract
 
 `execution` is an experimental runtime contract. The preview API validates it, normalizes it, and stores it in `LoadTestTask.parameters.execution`.
@@ -129,6 +145,20 @@ The plan includes:
 
 External clients can use the shard plan to preview or export intended shard assignments. The current scheduler does not fan out shard rows to multiple workers.
 
+## Result Summary Read Contract
+
+`GET /api/tasks/{id}/result-summary/` is a preview result summary read contract. When a `TestResult` exists, Core maps stored summary fields into a response with `summary`, `latency`, `thresholds`, and `warnings`.
+
+When no result exists, the endpoint returns `status=not_available`, null metric fields, and a `result_summary_not_available` warning. External clients should treat this as a normal waiting state, not as a task failure.
+
+Request totals and failed request counts can be read directly from stored result summary fields. Average latency and percentile values are reported only from stored engine result data. Core does not calculate cross-shard exact percentiles in this phase.
+
+## Artifact Metadata Read Contract
+
+`GET /api/tasks/{id}/artifacts/` is a stable placeholder read contract for artifact metadata. The current runtime returns an empty item list with an `artifacts_not_available` warning.
+
+The endpoint does not download files, generate reports, or expose an artifact storage lifecycle. Future artifact rows can add `artifact_id`, `kind`, `name`, `size_bytes`, `content_type`, `created_at`, and `download_url` as metadata fields.
+
 ## Engine Parameter Mapping Contract
 
 Worker execution mapping is experimental runtime behavior.
@@ -156,9 +186,9 @@ The current runtime validates source shape but does not implement a full artifac
 
 | Classification | Current Items | Compatibility Expectation |
 |---|---|---|
-| Stable candidate | `GET /api/tasks/templates/`, `GET /api/tasks/templates/coverage/`, template metadata, coverage metadata | Additive changes only where possible; clients should ignore unknown fields. |
-| Experimental runtime contract | `execution`, `distribution`, `GET /api/tasks/{id}/shard-plan/`, worker execution mapping, shard metadata mapping | Implemented in preview runtime but still subject to shape refinement before `/api/v1`. |
-| Planning-only | token API, advanced distributed scheduler, advanced result aggregation, full artifact browser API | Documented for direction only; clients should not depend on runtime availability. |
+| Stable candidate | `GET /api/tasks/`, `GET /api/tasks/{id}/`, `GET /api/tasks/templates/`, `GET /api/tasks/templates/coverage/`, template metadata, coverage metadata | Additive changes only where possible; clients should ignore unknown fields. |
+| Experimental runtime contract | `execution`, `distribution`, `GET /api/tasks/{id}/shard-plan/`, `GET /api/tasks/{id}/result-summary/`, `GET /api/tasks/{id}/artifacts/`, worker execution mapping, shard metadata mapping | Implemented in preview runtime but still subject to shape refinement before `/api/v1`. |
+| Planning-only | token API, advanced distributed scheduler, advanced result aggregation, artifact download, report generation | Documented for direction only; clients should not depend on runtime availability. |
 
 ## Compatibility Rules
 
@@ -176,4 +206,5 @@ The current runtime validates source shape but does not implement a full artifac
 - This contract does not add a dashboard UI.
 - This contract does not add distributed scheduling, worker claim, shard retry, or shard persistence.
 - This contract does not add dataset loading or artifact storage.
+- This contract does not add artifact download or report generation.
 - This contract does not define exact percentile aggregation.

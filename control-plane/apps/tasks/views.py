@@ -15,6 +15,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import LoadTestTask
+from .read_models import (
+    artifact_metadata_read_model,
+    result_summary_read_model,
+    task_detail_read_model,
+    task_history_item,
+)
 from .serializers import LoadTestTaskCreateSerializer, LoadTestTaskSerializer
 from .template_registry import get_template_coverage_export, list_task_templates
 
@@ -24,7 +30,7 @@ class TaskListCreateView(generics.ListCreateAPIView):
     GET  /api/tasks/  ─ 列出所有任務（最新建立在前）
     POST /api/tasks/  ─ 建立新壓測任務
 
-    - GET：使用 LoadTestTaskSerializer（含巢狀 result）。
+    - GET：回傳 external-client-friendly run history read model。
     - POST：使用 LoadTestTaskCreateSerializer，status 強制為 PENDING，
             回應切回完整序列化器，讓呼叫端立即得到任務 ID 與完整狀態。
     """
@@ -36,6 +42,30 @@ class TaskListCreateView(generics.ListCreateAPIView):
             return LoadTestTaskCreateSerializer
         return LoadTestTaskSerializer
 
+    def list(self, request: Request, *args, **kwargs) -> Response:
+        queryset = self.get_queryset()
+        status_filter = request.query_params.get("status")
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        try:
+            limit = int(request.query_params.get("limit", "20"))
+        except ValueError:
+            limit = 20
+        limit = max(1, min(limit, 100))
+        tasks = list(queryset[:limit])
+        return Response(
+            {
+                "source": {"status": "ok"},
+                "summary": {
+                    "count": len(tasks),
+                    "limit": limit,
+                    "total_available": queryset.count(),
+                },
+                "items": [task_history_item(task) for task in tasks],
+            },
+            status=status.HTTP_200_OK,
+        )
+
     def create(self, request: Request, *args, **kwargs) -> Response:
         create_serializer = LoadTestTaskCreateSerializer(data=request.data)
         create_serializer.is_valid(raise_exception=True)
@@ -46,7 +76,7 @@ class TaskListCreateView(generics.ListCreateAPIView):
         return Response(read_serializer.data, status=status.HTTP_201_CREATED)
 
 
-class TaskDetailView(generics.RetrieveAPIView):
+class TaskDetailView(APIView):
     """
     GET /api/tasks/{id}/  ─ 查詢單一任務詳情
 
@@ -56,9 +86,12 @@ class TaskDetailView(generics.RetrieveAPIView):
     任務未完成時 result 欄位為 null。
     """
 
-    queryset         = LoadTestTask.objects.select_related("worker", "result").all()
-    serializer_class = LoadTestTaskSerializer
-    lookup_field     = "pk"
+    def get(self, request: Request, pk: str) -> Response:
+        try:
+            task = LoadTestTask.objects.select_related("worker", "result").get(pk=pk)
+        except LoadTestTask.DoesNotExist:
+            return Response({"detail": f"Task '{pk}' not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(task_detail_read_model(task), status=status.HTTP_200_OK)
 
 
 class TaskTemplateListView(APIView):
@@ -94,3 +127,29 @@ class TaskShardPlanView(APIView):
         if not plan:
             return Response({"detail": "No shard execution plan exists for this task."}, status=status.HTTP_404_NOT_FOUND)
         return Response(plan, status=status.HTTP_200_OK)
+
+
+class TaskResultSummaryView(APIView):
+    """
+    GET /api/tasks/{id}/result-summary/ returns a safe result summary read contract.
+    """
+
+    def get(self, request: Request, pk: str) -> Response:
+        try:
+            task = LoadTestTask.objects.select_related("result").get(pk=pk)
+        except LoadTestTask.DoesNotExist:
+            return Response({"detail": f"Task '{pk}' not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(result_summary_read_model(task), status=status.HTTP_200_OK)
+
+
+class TaskArtifactsView(APIView):
+    """
+    GET /api/tasks/{id}/artifacts/ returns artifact metadata placeholder contract.
+    """
+
+    def get(self, request: Request, pk: str) -> Response:
+        try:
+            task = LoadTestTask.objects.get(pk=pk)
+        except LoadTestTask.DoesNotExist:
+            return Response({"detail": f"Task '{pk}' not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(artifact_metadata_read_model(task), status=status.HTTP_200_OK)

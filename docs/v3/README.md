@@ -37,6 +37,7 @@ This project is a multi-engine load testing ecosystem:
 - `docs/v3/domains/p-loadtesting-target-profile-coverage.md`: authoritative profile-level k6/JMeter parity matrix.
 - `docs/v3/domains/p-loadtesting-core-boundary.md`: Core responsibility boundary for external clients and downstream integrations.
 - `GET /api/tasks/templates/coverage/`: machine-readable profile coverage export for dashboard and API consumers.
+- `GET /api/tasks/`, `GET /api/tasks/{id}/`, `GET /api/tasks/{id}/result-summary/`, and `GET /api/tasks/{id}/artifacts/`: preview read contracts for run history, detail, result summary, and artifact metadata.
 - `docs/v3/domains/p-loadtesting-phase-completion.md`: current Phase 0-4 completion assessment.
 - `docs/v3/domains/p-loadtesting-web-dashboard.md`: future dashboard MVP plan.
 - `docs/v3/specs/dashboard-read-model.md`: future dashboard read model over current preview APIs.

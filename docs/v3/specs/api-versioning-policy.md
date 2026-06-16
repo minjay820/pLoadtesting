@@ -22,8 +22,11 @@ Preview clients should use [API consumer guide](api-consumer-guide.md) and [Exte
 
 The following are stable candidate contracts:
 
+- `GET /api/tasks/`
+- `GET /api/tasks/{id}/`
 - `GET /api/tasks/templates/`
 - `GET /api/tasks/templates/coverage/`
+- Task history and task detail read-model fields.
 - Template metadata rows.
 - Coverage metadata summary, target rows, profile rows, and gap rows.
 
@@ -41,6 +44,8 @@ The following are experimental runtime contracts:
 - `execution` on `POST /api/tasks/`.
 - `distribution` on `POST /api/tasks/`.
 - `GET /api/tasks/{id}/shard-plan/`.
+- `GET /api/tasks/{id}/result-summary/`.
+- `GET /api/tasks/{id}/artifacts/`.
 - Worker execution mapping for k6 and JMeter.
 - Worker shard metadata mapping for k6 and JMeter.
 
@@ -59,7 +64,7 @@ The following are planning-only:
 - Advanced distributed scheduler.
 - Worker claim lifecycle.
 - Advanced result aggregation.
-- Full artifact browser API.
+- Artifact download and full artifact browser API.
 - Dataset resolver and artifact storage lifecycle.
 
 Planning-only content should not be treated as runtime availability. External clients can use these documents for roadmap alignment, but production integration should depend only on implemented endpoints and explicit stable candidates.
@@ -134,6 +139,9 @@ External clients should:
 - Create tasks through documented HTTP APIs.
 - Prefer template identifiers over direct internal script discovery.
 - Read coverage through `GET /api/tasks/templates/coverage/`.
+- Read run history through `GET /api/tasks/`.
+- Read result summary through `GET /api/tasks/{id}/result-summary/` and handle `not_available` as a normal waiting state.
+- Read artifact metadata through `GET /api/tasks/{id}/artifacts/` and treat empty placeholder responses as runtime-supported absence of artifact metadata.
 - Read manual shard plans through `GET /api/tasks/{id}/shard-plan/` when a task uses distribution metadata.
 - Avoid importing internal Python functions or relying on undocumented file layout.
 - Treat any downstream requirement as a request for a generic Core capability.
@@ -152,6 +160,8 @@ Stable candidate example:
 ```text
 GET /api/tasks/templates/
 GET /api/tasks/templates/coverage/
+GET /api/tasks/
+GET /api/tasks/{id}/
 ```
 
 Experimental runtime example:
@@ -198,4 +208,5 @@ Planning-only example:
 /api/v1/artifacts/
 advanced distributed scheduler
 exact percentile merge
+report generation
 ```

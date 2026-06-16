@@ -27,6 +27,9 @@ Do not use this system against third-party targets or systems without explicit p
 | Worker heartbeat | Worker to Control Plane | `POST /api/workers/{id}/heartbeat/` |
 | Current preview task dispatch | Control Plane to Worker | `POST /execute` |
 | Manual shard plan read | User network to Control Plane | `GET /api/tasks/{id}/shard-plan/` |
+| Run history read | User network to Control Plane | `GET /api/tasks/` |
+| Result summary read | User network to Control Plane | `GET /api/tasks/{id}/result-summary/` |
+| Artifact metadata read | User network to Control Plane | `GET /api/tasks/{id}/artifacts/` |
 | Future shard claim | Worker to Control Plane | Claim pending shard work for a matching agent selector |
 | Result callback | Worker to Control Plane | `POST /api/tasks/{id}/results/` |
 | Load generation | Worker to target app | k6/JMeter traffic |
@@ -96,6 +99,8 @@ The Worker `/execute` endpoint expects an authenticated POST request for real di
 | Shard plan missing | task was created with a valid `distribution` object |
 | Future shard remains unclaimed | agent labels, engine capability, and target network selector match the shard |
 | Result missing | Worker can reach Control Plane result callback route |
+| Result summary not available | task has not posted a `TestResult`; handle `not_available` as a normal lifecycle state |
+| Artifact metadata empty | artifact metadata storage is not implemented; placeholder response is expected |
 | Partial success | inspect failed, cancelled, timed-out, and completed shard counts separately |
 | Load traffic fails | Worker can reach the authorized target URL |
 
@@ -127,6 +132,8 @@ For distributed results:
 - Recalculate throughput from the overall run time window.
 - Do not average shard p95 or p99 values into a global percentile.
 - Mark global latency percentiles unavailable until raw samples, histogram buckets, HDR histogram, t-digest, or engine-supported merge output is available.
+- Read `GET /api/tasks/{id}/result-summary/` for task-level summaries and do not infer missing percentile fields.
+- Read `GET /api/tasks/{id}/artifacts/` for artifact metadata; current placeholder responses do not imply downloadable files.
 
 ## Rollback
 

@@ -12,7 +12,7 @@ Core should remain reusable by multiple API consumers. It should not contain cli
 
 - Local target app catalog and profile metadata.
 - k6 and JMeter profile parity metadata.
-- Preview Control Plane APIs for workers, tasks, templates, coverage, results, execution metadata, and shard plan export.
+- Preview Control Plane APIs for workers, tasks, run history, task detail, templates, coverage, result summaries, artifact metadata placeholders, execution metadata, and shard plan export.
 - Worker runtime support for duration execution metadata and one-shard dataset metadata mapping.
 - Documentation contracts for task execution, distributed metadata, API consumption, and dashboard read models.
 - Public project governance under `docs/v3/`.
@@ -25,6 +25,7 @@ Core should remain reusable by multiple API consumers. It should not contain cli
 - Persistent shard tables or per-shard result rows.
 - Dataset loading, dataset resolver, or artifact storage lifecycle.
 - Exact percentile merge across shards.
+- Report generation or artifact download.
 - Client-specific integration logic.
 
 ## External Client Responsibilities
@@ -74,11 +75,15 @@ Core extension points should be generic:
 | Template catalog | Provide `GET /api/tasks/templates/` with documented profile metadata. | Render selectable profiles and tolerate additive fields. | Stable candidate. |
 | Coverage metadata | Provide `GET /api/tasks/templates/coverage/` with summary, target, profile, and gap rows. | Build coverage views and validate expected profile parity. | Stable candidate. |
 | Task creation | Accept documented task creation payloads. | Prefer `target_app_id` and `target_profile_id` over direct script entry. | Preview `/api/` now; future `/api/v1` should stabilize. |
+| Run history | Provide `GET /api/tasks/` as a read-model envelope. | Render task history and tolerate null target/profile identifiers for older or manual tasks. | Stable candidate. |
+| Task detail | Provide `GET /api/tasks/{id}/` as a normalized read contract. | Show task state, execution, distribution, and result status without reading internal storage. | Stable candidate. |
 | Execution metadata | Validate and store `execution`, then map it to supported engines. | Provide duration and stop settings only through documented fields. | Experimental runtime contract. |
 | Distribution metadata | Validate and store manual shard metadata and generate shard plans. | Build manual shard forms and preview intended assignment. | Experimental runtime contract. |
 | Shard scheduling | Document future lifecycle concepts. | Do not assume Core fans out shards today. | Future work. |
 | Dataset partition | Validate dataset source, format, offset, and limit metadata. | Own dataset preparation and source references. | Runtime metadata only; no dataset loading yet. |
 | Result aggregation | Define summary-only placeholder and aggregation rules. | Avoid direct averaging of latency averages or percentiles. | Exact percentile merge is future work. |
+| Result summary | Provide `GET /api/tasks/{id}/result-summary/` with available or not_available state. | Treat not_available as an ordinary lifecycle state and avoid inventing missing metrics. | Experimental read contract. |
+| Artifact metadata | Provide `GET /api/tasks/{id}/artifacts/` placeholder metadata. | Do not assume downloads or report files exist until documented. | Stable placeholder. |
 | Dashboard UI | Provide API and read-model contracts. | Implement UI, navigation, filters, and user workflows. | Core does not implement a dashboard in this phase. |
 | Token access | Document planned scoped access model. | Use current preview access mechanism where applicable. | Scoped token API is planning-only. |
 | Artifact handling | Validate placeholder-safe dataset source conventions. | Manage artifact storage or references until Core provides an artifact API. | Full artifact browser API is planning-only. |

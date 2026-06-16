@@ -149,6 +149,7 @@ Central orchestration API managing workers, tasks, and results.
 
 * **Tech Stack**: Django 5, Django REST Framework, Celery, Redis
 * **Core Models**: `WorkerNode` (7 states), `LoadTestTask` (7 states), `TestResult`
+* **Read Contracts**: task history, task detail, result summary, shard plan, and artifact metadata placeholders under `/api/tasks/`
 * **Celery Beat Tasks**: `mark_stale_workers` (30s), `dispatch_pending_tasks` (periodic)
 * **Architecture Details**: See [Control Plane ARCHITECTURE.md](control-plane/ARCHITECTURE.md)
 * **Interaction Diagrams**: See [architecture-interaction.md](docs/architecture-interaction.md)

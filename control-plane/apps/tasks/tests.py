@@ -1,7 +1,9 @@
 from unittest import mock
+from datetime import timedelta
 from urllib.error import URLError
 
 from django.test import TestCase, override_settings
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.results.models import TestResult
@@ -108,6 +110,184 @@ class TaskResultCreateTests(TestCase):
         self.assertTrue(TestResult.objects.filter(task=task).exists())
         self.assertEqual(task.status, LoadTestTask.Status.FAILED)
         self.assertEqual(task.error_message, "k6 exited with code 107")
+
+
+@override_settings(PLOADTESTING_API_TOKEN=API_TOKEN)
+class TaskReadContractTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.client.credentials(HTTP_X_PLOADTESTING_API_TOKEN=API_TOKEN)
+
+    def create_task(self, *, name="history task", status=LoadTestTask.Status.PENDING):
+        return LoadTestTask.objects.create(
+            name=name,
+            engine="k6",
+            script_path="engines/k6/target_apps_payload_download.js",
+            target_url="http://127.0.0.1:18084",
+            status=status,
+            parameters={
+                "target_app_id": "payload-api",
+                "target_profile_id": "payload-k6-download",
+                "TARGET_URL": "http://127.0.0.1:18084",
+                "execution": {
+                    "duration_seconds": 600,
+                    "ramp_up_seconds": 30,
+                    "ramp_down_seconds": 0,
+                    "stop_policy": "graceful_stop",
+                    "graceful_stop_seconds": 30,
+                    "max_run_seconds": 660,
+                    "iteration_limit": None,
+                    "data_policy": "duration_first",
+                },
+                "distribution": {
+                    "mode": "manual_shards",
+                    "result_merge_policy": "summary_only",
+                    "shards": [
+                        {
+                            "shard_id": "users-a",
+                            "agent_selector": {"labels": ["zone:a", "engine:k6"]},
+                            "dataset": {
+                                "source": "artifact://datasets/users.csv",
+                                "format": "csv",
+                                "offset": 0,
+                                "limit": 2000,
+                            },
+                        }
+                    ],
+                },
+            },
+        )
+
+    def test_task_history_returns_read_model_envelope(self):
+        self.create_task(name="first task")
+
+        response = self.client.get("/api/tasks/")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["source"]["status"], "ok")
+        self.assertEqual(payload["summary"]["count"], 1)
+        self.assertEqual(payload["summary"]["limit"], 20)
+        self.assertEqual(payload["summary"]["total_available"], 1)
+        self.assertEqual(payload["items"][0]["target_app_id"], "payload-api")
+        self.assertEqual(payload["items"][0]["target_profile_id"], "payload-k6-download")
+        self.assertEqual(payload["items"][0]["engine"], "k6")
+
+    def test_task_history_limit_bounds_items(self):
+        for index in range(3):
+            self.create_task(name=f"task {index}")
+
+        response = self.client.get("/api/tasks/?limit=2")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["summary"]["count"], 2)
+        self.assertEqual(payload["summary"]["limit"], 2)
+        self.assertEqual(payload["summary"]["total_available"], 3)
+        self.assertEqual(len(payload["items"]), 2)
+
+    def test_task_history_status_filter(self):
+        self.create_task(name="queued task", status=LoadTestTask.Status.PENDING)
+        self.create_task(name="failed task", status=LoadTestTask.Status.FAILED)
+
+        response = self.client.get("/api/tasks/?status=failed")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["summary"]["count"], 1)
+        self.assertEqual(payload["items"][0]["status"], "failed")
+
+    def test_task_detail_returns_normalized_read_model(self):
+        task = self.create_task()
+
+        response = self.client.get(f"/api/tasks/{task.id}/")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["source"]["status"], "ok")
+        self.assertEqual(payload["task"]["id"], str(task.id))
+        self.assertEqual(payload["task"]["target_app_id"], "payload-api")
+        self.assertEqual(payload["task"]["target_profile_id"], "payload-k6-download")
+        self.assertEqual(payload["execution"]["duration_seconds"], 600)
+        self.assertEqual(payload["distribution"]["mode"], "manual_shards")
+        self.assertEqual(payload["parameters"]["has_execution"], True)
+        self.assertEqual(payload["parameters"]["has_distribution"], True)
+        self.assertEqual(payload["result"]["status"], "not_available")
+
+    def test_missing_task_read_endpoints_return_404(self):
+        missing = "00000000-0000-0000-0000-000000000000"
+
+        for path in (
+            f"/api/tasks/{missing}/",
+            f"/api/tasks/{missing}/result-summary/",
+            f"/api/tasks/{missing}/artifacts/",
+        ):
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 404)
+
+    def test_result_summary_returns_not_available_placeholder(self):
+        task = self.create_task()
+
+        response = self.client.get(f"/api/tasks/{task.id}/result-summary/")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["source"]["status"], "ok")
+        self.assertEqual(payload["task_id"], str(task.id))
+        self.assertEqual(payload["status"], "not_available")
+        self.assertIsNone(payload["summary"]["total_requests"])
+        self.assertIsNone(payload["latency"]["p95_ms"])
+        self.assertEqual(payload["warnings"][0]["code"], "result_summary_not_available")
+
+    def test_result_summary_maps_existing_result(self):
+        task = self.create_task(status=LoadTestTask.Status.COMPLETED)
+        task.started_at = timezone.now()
+        task.finished_at = task.started_at + timedelta(seconds=60)
+        task.save(update_fields=["started_at", "finished_at", "updated_at"])
+        result = TestResult.objects.create(
+            task=task,
+            raw_report={"message": "complete"},
+            total_requests=100,
+            failed_requests=3,
+            error_rate_pct=3.0,
+            avg_response_ms=120.5,
+            p90_response_ms=200.0,
+            p95_response_ms=240.0,
+            p99_response_ms=300.0,
+            max_response_ms=450.0,
+            throughput_rps=1.67,
+            thresholds_passed=True,
+            thresholds_detail=[{"metric": "p95", "passed": True}],
+        )
+
+        response = self.client.get(f"/api/tasks/{task.id}/result-summary/")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["status"], "available")
+        self.assertEqual(payload["summary"]["total_requests"], 100)
+        self.assertEqual(payload["summary"]["total_errors"], 3)
+        self.assertEqual(payload["summary"]["duration_seconds"], 60.0)
+        self.assertEqual(payload["latency"]["avg_ms"], 120.5)
+        self.assertEqual(payload["latency"]["p95_ms"], 240.0)
+        self.assertIsNone(payload["latency"]["p50_ms"])
+        self.assertEqual(payload["thresholds"]["passed"], True)
+        self.assertEqual(payload["summary"]["collected_at"], result.collected_at.isoformat().replace("+00:00", "Z"))
+        self.assertEqual(payload["warnings"], [])
+
+    def test_artifacts_returns_stable_placeholder(self):
+        task = self.create_task()
+
+        response = self.client.get(f"/api/tasks/{task.id}/artifacts/")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["source"]["status"], "ok")
+        self.assertEqual(payload["task_id"], str(task.id))
+        self.assertEqual(payload["summary"]["count"], 0)
+        self.assertEqual(payload["items"], [])
+        self.assertEqual(payload["warnings"][0]["code"], "artifacts_not_available")
 
 
 @override_settings(PLOADTESTING_API_TOKEN=API_TOKEN)
