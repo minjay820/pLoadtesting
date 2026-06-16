@@ -53,6 +53,11 @@ class TestResultSerializer(serializers.ModelSerializer):
 
 
 class TestResultCreateSerializer(serializers.ModelSerializer):
+    artifact_manifest = serializers.JSONField(
+        required=False,
+        write_only=True,
+        help_text="Optional worker artifact manifest payload.",
+    )
     execution_status = serializers.ChoiceField(
         choices=["completed", "failed"],
         required=False,
@@ -91,6 +96,7 @@ class TestResultCreateSerializer(serializers.ModelSerializer):
             "peak_vus",
             "thresholds_passed",
             "thresholds_detail",
+            "artifact_manifest",
             "execution_status",
             "error_message",
         ]

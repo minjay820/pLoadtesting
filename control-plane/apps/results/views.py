@@ -10,12 +10,14 @@ Results API Views：
         finished_at → timezone.now()
 """
 
+from django.db import transaction
 from django.utils import timezone
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.tasks.artifact_registry import register_task_artifacts
 from apps.tasks.models import LoadTestTask
 from .models import TestResult
 from .serializers import TestResultCreateSerializer, TestResultSerializer
@@ -62,21 +64,27 @@ class TaskResultCreateView(APIView):
         serializer = TestResultCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        artifact_manifest = serializer.validated_data.pop("artifact_manifest", None)
         execution_status = serializer.validated_data.pop("execution_status", "completed")
         error_message = serializer.validated_data.pop("error_message", "")
 
-        # ── 建立 TestResult（task 由此注入，不來自請求端） ──────────
-        result = TestResult.objects.create(task=task, **serializer.validated_data)
+        try:
+            with transaction.atomic():
+                # ── 建立 TestResult（task 由此注入，不來自請求端） ──────────
+                result = TestResult.objects.create(task=task, **serializer.validated_data)
+                register_task_artifacts(task, artifact_manifest)
 
-        # ── 連動更新 LoadTestTask 狀態 ──────────────────────────────
-        task.status = (
-            LoadTestTask.Status.FAILED
-            if execution_status == "failed"
-            else LoadTestTask.Status.COMPLETED
-        )
-        task.error_message = error_message if execution_status == "failed" else ""
-        task.finished_at = timezone.now()
-        task.save(update_fields=["status", "error_message", "finished_at", "updated_at"])
+                # ── 連動更新 LoadTestTask 狀態 ──────────────────────────────
+                task.status = (
+                    LoadTestTask.Status.FAILED
+                    if execution_status == "failed"
+                    else LoadTestTask.Status.COMPLETED
+                )
+                task.error_message = error_message if execution_status == "failed" else ""
+                task.finished_at = timezone.now()
+                task.save(update_fields=["status", "error_message", "finished_at", "updated_at"])
+        except ValueError as exc:
+            raise serializers.ValidationError({"artifact_manifest": [str(exc)]}) from exc
 
         return Response(
             TestResultSerializer(result).data,

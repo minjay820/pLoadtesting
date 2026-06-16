@@ -112,6 +112,152 @@ class TaskResultCreateTests(TestCase):
         self.assertEqual(task.status, LoadTestTask.Status.FAILED)
         self.assertEqual(task.error_message, "k6 exited with code 107")
 
+    def test_result_callback_registers_worker_artifact_manifest(self):
+        task = LoadTestTask.objects.create(
+            name="artifact manifest run",
+            engine="k6",
+            script_path="engines/k6/target_apps_payload_download.js",
+            target_url="http://target-app:8000",
+            status=LoadTestTask.Status.DISPATCHED,
+        )
+
+        response = self.client.post(
+            f"/api/tasks/{task.id}/results/",
+            {
+                "execution_status": "completed",
+                "raw_report": {"stdout": "ok"},
+                "artifact_manifest": [
+                    {
+                        "artifact_id": "k6-stdout",
+                        "kind": "stdout",
+                        "name": "stdout.txt",
+                        "state": "available",
+                        "content_type": "text/plain",
+                        "object_ref": f"artifact://tasks/{task.id}/k6-stdout",
+                        "provenance_source": "worker_output",
+                        "metadata": {"source": "worker"},
+                    }
+                ],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        artifact = TaskArtifact.objects.get(task=task, artifact_id="k6-stdout")
+        self.assertEqual(artifact.state, "available")
+        self.assertEqual(artifact.object_ref, f"artifact://tasks/{task.id}/k6-stdout")
+
+    def test_result_callback_registered_artifact_is_visible_in_artifact_list(self):
+        task = LoadTestTask.objects.create(
+            name="artifact manifest list run",
+            engine="k6",
+            script_path="engines/k6/target_apps_payload_download.js",
+            target_url="http://target-app:8000",
+            status=LoadTestTask.Status.DISPATCHED,
+        )
+
+        response = self.client.post(
+            f"/api/tasks/{task.id}/results/",
+            {
+                "execution_status": "completed",
+                "raw_report": {"stdout": "ok"},
+                "artifact_manifest": [
+                    {
+                        "artifact_id": "k6-stdout",
+                        "kind": "stdout",
+                        "name": "stdout.txt",
+                        "state": "available",
+                        "content_type": "text/plain",
+                        "object_ref": f"artifact://tasks/{task.id}/k6-stdout",
+                        "provenance_source": "worker_output",
+                        "metadata": {"source": "worker"},
+                    }
+                ],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+        artifact_response = self.client.get(f"/api/tasks/{task.id}/artifacts/")
+
+        self.assertEqual(artifact_response.status_code, 200)
+        payload = artifact_response.json()
+        self.assertEqual(payload["summary"]["available_count"], 2)
+        items = {item["artifact_id"]: item for item in payload["items"]}
+        self.assertEqual(items["k6-stdout"]["state"], "available")
+        self.assertEqual(items["k6-stdout"]["provenance"]["source"], "worker_output")
+        self.assertEqual(items["k6-engine-output"]["state"], "available")
+        self.assertNotIn("object_ref", items["k6-stdout"])
+
+    def test_result_callback_rejects_invalid_local_path_artifact_manifest(self):
+        task = LoadTestTask.objects.create(
+            name="invalid artifact path run",
+            engine="k6",
+            script_path="engines/k6/target_apps_payload_download.js",
+            target_url="http://target-app:8000",
+            status=LoadTestTask.Status.DISPATCHED,
+        )
+
+        response = self.client.post(
+            f"/api/tasks/{task.id}/results/",
+            {
+                "execution_status": "completed",
+                "raw_report": {"stdout": "ok"},
+                "artifact_manifest": [
+                    {
+                        "artifact_id": "k6-stdout",
+                        "kind": "stdout",
+                        "name": "stdout.txt",
+                        "state": "available",
+                        "content_type": "text/plain",
+                        "object_ref": "/tmp/stdout.txt",
+                        "provenance_source": "worker_output",
+                        "metadata": {"source": "worker"},
+                    }
+                ],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(TestResult.objects.filter(task=task).exists())
+        self.assertFalse(TaskArtifact.objects.filter(task=task).exists())
+
+    def test_result_callback_rejects_sensitive_artifact_metadata(self):
+        task = LoadTestTask.objects.create(
+            name="invalid artifact metadata run",
+            engine="k6",
+            script_path="engines/k6/target_apps_payload_download.js",
+            target_url="http://target-app:8000",
+            status=LoadTestTask.Status.DISPATCHED,
+        )
+
+        response = self.client.post(
+            f"/api/tasks/{task.id}/results/",
+            {
+                "execution_status": "completed",
+                "raw_report": {"stdout": "ok"},
+                "artifact_manifest": [
+                    {
+                        "artifact_id": "k6-stdout",
+                        "kind": "stdout",
+                        "name": "stdout.txt",
+                        "state": "available",
+                        "content_type": "text/plain",
+                        "object_ref": f"artifact://tasks/{task.id}/k6-stdout",
+                        "provenance_source": "worker_output",
+                        "metadata": {"api_key": "should-not-pass"},
+                    }
+                ],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(TestResult.objects.filter(task=task).exists())
+        self.assertFalse(TaskArtifact.objects.filter(task=task).exists())
+
 
 @override_settings(PLOADTESTING_API_TOKEN=API_TOKEN)
 class TaskReadContractTests(TestCase):

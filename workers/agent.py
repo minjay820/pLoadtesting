@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import socket
 import logging
@@ -13,6 +14,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
 import uvicorn
+
+WORKER_DIR = os.path.dirname(__file__)
+if WORKER_DIR not in sys.path:
+    sys.path.insert(0, WORKER_DIR)
+
+from artifacts import build_artifact_manifest_entries
 
 # ── InfluxDB v2 Client（可選，僅在環境變數存在時啟用）───────────────────────
 try:
@@ -440,6 +447,17 @@ def post_task_result(task_id: str, payload: dict):
     resp.raise_for_status()
 
 
+def attach_artifact_manifest(task_id: str, engine: str, summary: dict, *, artifact_evidence: dict | None = None) -> None:
+    summary["artifact_manifest"] = build_artifact_manifest_entries(
+        task_id,
+        engine,
+        {
+            **summary,
+            "artifact_evidence": artifact_evidence or {},
+        },
+    )
+
+
 def push_summary_to_influxdb(task_id: str, engine: str, summary: dict, target_url: str = ""):
     """壓測完成後，將彙總指標寫入 InfluxDB v2。
 
@@ -542,6 +560,12 @@ def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
                 timeout_payload = timeout_summary(exc, process_timeout, execution)
                 summary["raw_report"].update(timeout_payload["raw_report"])
                 attach_shard_metadata(summary, shard_metadata)
+                attach_artifact_manifest(
+                    task_id,
+                    "k6",
+                    summary,
+                    artifact_evidence={"has_summary_json": os.path.exists(output_file)},
+                )
                 summary["execution_status"] = timeout_payload["execution_status"]
                 summary["error_message"] = timeout_payload["error_message"]
                 try:
@@ -559,6 +583,12 @@ def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
                 "exit_code": process.returncode,
             })
             attach_shard_metadata(summary, shard_metadata)
+            attach_artifact_manifest(
+                task_id,
+                "k6",
+                summary,
+                artifact_evidence={"has_summary_json": os.path.exists(output_file)},
+            )
             if process.returncode != 0:
                 logger.error(f"k6 execution failed: {process.stderr}")
                 summary["execution_status"] = "failed"
@@ -610,6 +640,15 @@ def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
                 timeout_payload = timeout_summary(exc, process_timeout, execution)
                 summary["raw_report"].update(timeout_payload["raw_report"])
                 attach_shard_metadata(summary, shard_metadata)
+                attach_artifact_manifest(
+                    task_id,
+                    "jmeter",
+                    summary,
+                    artifact_evidence={
+                        "has_jtl": os.path.exists(output_jtl),
+                        "has_html_report": False,
+                    },
+                )
                 summary["execution_status"] = timeout_payload["execution_status"]
                 summary["error_message"] = timeout_payload["error_message"]
                 try:
@@ -627,6 +666,15 @@ def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
                 "exit_code": process.returncode,
             })
             attach_shard_metadata(summary, shard_metadata)
+            attach_artifact_manifest(
+                task_id,
+                "jmeter",
+                summary,
+                artifact_evidence={
+                    "has_jtl": os.path.exists(output_jtl),
+                    "has_html_report": False,
+                },
+            )
             if process.returncode != 0:
                 logger.error(f"JMeter execution failed: {process.stderr}")
                 summary["execution_status"] = "failed"
@@ -651,11 +699,13 @@ def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
         else:
             logger.warning(f"Unsupported engine: {engine}")
             try:
-                post_task_result(task_id, {
+                payload = {
                     "execution_status": "failed",
                     "error_message": f"Unsupported engine: {engine}",
                     "raw_report": {"error": f"Unsupported engine: {engine}"},
-                })
+                }
+                attach_artifact_manifest(task_id, engine, payload, artifact_evidence={})
+                post_task_result(task_id, payload)
             except requests.exceptions.RequestException as e:
                 logger.error(f"Failed to post unsupported-engine result for task {task_id}: {e}")
             

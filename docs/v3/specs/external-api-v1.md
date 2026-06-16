@@ -109,6 +109,18 @@ The preview `GET /api/tasks/` endpoint now returns a read-model envelope:
 
 The preview `GET /api/tasks/{id}/` endpoint returns task identity, status, engine, target/profile identifiers when available, parameter summary, execution, distribution, result status, and warnings. This detail contract avoids requiring API consumers to parse internal serializer fields or database relationships.
 
+### Worker Result Callback Preview Contract
+
+The preview `POST /api/tasks/{id}/results/` route is still a worker-oriented callback, not a general external client write API. Phase 9 allows the callback payload to include an optional `artifact_manifest` list so the worker can register persisted artifact metadata without exposing local filesystem paths.
+
+Current callback behavior:
+
+- `raw_report` remains the required result payload
+- `artifact_manifest` is optional and additive
+- artifact entries are validated through the same kind, state, object reference, and safe metadata rules used by persisted manifest registration
+- invalid local paths, traversal strings, and sensitive metadata are rejected with `400`
+- successful registration upserts persisted manifest rows before task completion is finalized
+
 ### Execution Object
 
 The preview `POST /api/tasks/` endpoint accepts an `execution` object for single-agent duration-based execution and stores it in `parameters.execution`. Future v1 task creation should preserve the same shape:
@@ -162,6 +174,18 @@ The preview `POST /api/tasks/` endpoint accepts a `distribution` object for manu
 Current preview support is limited to `mode=manual_shards`, `result_merge_policy=summary_only`, `agent_selector.labels`, and per-shard dataset `source`, `format`, `offset`, and `limit`. Dataset source values must use `artifact://` or `inline://`. Dataset formats are `csv`, `jsonl`, and `json`.
 
 Full shard lifecycle, worker claim, retry, partial success, cancellation, artifact storage, hash partitioning, weighted partitioning, round-robin partitioning, and dynamic balancing remain future work.
+
+### Artifact Manifest Preview Contract
+
+The preview artifact manifest contract remains task-scoped and metadata-only. Current worker registration entries use deterministic ids and logical object references such as `artifact://tasks/<task-id>/<artifact-id>`.
+
+Current supported worker registration rows are:
+
+- k6: `k6-summary-json`, `k6-stdout`, `k6-stderr`, `k6-engine-output`
+- jmeter: `jmeter-jtl`, `jmeter-html-report`, `jmeter-stdout`, `jmeter-stderr`, `jmeter-engine-output`
+- unknown: `engine-output`
+
+`available` depends on actual evidence, such as captured `stdout`, captured `stderr`, a persisted `raw_report`, or engine-specific summary/JTL/report evidence. Preview v1 planning still does not include real file download, object storage, or complete retention cleanup.
 
 ### POST /api/v1/tasks Examples
 

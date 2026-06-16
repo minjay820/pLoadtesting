@@ -1,6 +1,6 @@
 # Artifact Lifecycle
 
-This spec defines the current Phase 8 artifact lifecycle contract for Core preview APIs. It hardens artifact metadata, result reporting provenance, retention expectations, persisted artifact manifest behavior, and future-safe download behavior without adding a complete report center or unsafe filesystem download.
+This spec defines the current Phase 9 artifact lifecycle contract for Core preview APIs. It hardens artifact metadata, result reporting provenance, persisted manifest behavior, and worker artifact registration without adding a complete report center, object storage, or unsafe filesystem download.
 
 ## Current Runtime Boundary
 
@@ -19,6 +19,7 @@ Current artifact source categories:
 
 - `artifact_manifest`: persisted manifest metadata stored in the Control Plane database
 - `worker_output`: files the worker may generate during execution, such as k6 JSON output or JMeter JTL/log files
+- `worker_registration`: safe manifest entries posted by the worker through the result callback payload
 - `result_raw_report`: persisted `stdout`, `stderr`, or structured engine output already stored in `TestResult.raw_report`
 - `engine_convention`: planned artifact rows derived from the engine contract even when no persisted evidence exists yet
 - `external_reference`: reserved for future signed URL or external object storage references
@@ -81,6 +82,9 @@ Current worker runtime conventions:
 - k6 writes line-oriented JSON output to a worker-local file and posts parsed summary fields plus `raw_report`
 - JMeter writes JTL and log files to worker-local paths and posts parsed summary fields plus `raw_report`
 - both engines can persist `stdout` and `stderr` inside `TestResult.raw_report`
+- workers can now post an optional `artifact_manifest` alongside `POST /api/tasks/{id}/results/`
+- worker artifact registration is task-scoped and uses controlled logical object references only
+- worker artifact registration must not send worker-local absolute paths, `file:///...`, or traversal strings
 
 The Control Plane artifact contract does not assume those worker-local files are still present after callback completion.
 
@@ -91,12 +95,12 @@ Artifact metadata is returned by `GET /api/tasks/{id}/artifacts/` from a merge o
 Current timing rules:
 
 - before result callback: return engine-based `planned` rows
-- after manifest registration: return persisted rows immediately
+- after worker manifest registration: return persisted rows immediately
 - after result callback: upgrade rows to `available` only when persisted evidence exists
 - after result callback with missing persisted evidence for an expected worker file: return `missing`
 - when persisted and derived metadata overlap on the same `artifact_id`, the persisted row overrides the derived row
 
-Phase 8 adds a persisted artifact manifest MVP through `TaskArtifact`.
+Phase 8 adds a persisted artifact manifest MVP through `TaskArtifact`. Phase 9 adds narrow worker registration through the existing result callback path.
 
 ## Artifact States
 
@@ -129,6 +133,28 @@ Phase 8 adds a minimal persisted manifest model with task-scoped rows. The manif
 
 The manifest does not expose worker-local paths and does not imply a real download implementation.
 
+## Worker Artifact Registration MVP
+
+Phase 9 allows the worker to send known artifact manifest entries together with `POST /api/tasks/{id}/results/`.
+
+Current registration rules:
+
+- the worker builds deterministic artifact ids by engine convention
+- the worker registers only safe metadata and logical object references
+- the Control Plane validates kind, state, object reference, and safe metadata before upsert
+- invalid local paths, traversal strings, and sensitive metadata are rejected
+- registration remains additive to existing result callback behavior and does not require the worker to import Django models
+
+Current engine mapping:
+
+| Engine | Registered artifact ids | `available` evidence |
+|---|---|---|
+| `k6` | `k6-summary-json`, `k6-stdout`, `k6-stderr`, `k6-engine-output` | summary output evidence, captured `stdout`, captured `stderr`, or persisted `raw_report` |
+| `jmeter` | `jmeter-jtl`, `jmeter-html-report`, `jmeter-stdout`, `jmeter-stderr`, `jmeter-engine-output` | JTL evidence, HTML report evidence, captured `stdout`, captured `stderr`, or persisted `raw_report` |
+| unknown | `engine-output` | persisted `raw_report` evidence only |
+
+`available` must depend on evidence. Worker registration must not invent file existence just because a worker-local output path was expected.
+
 ## Object Reference Rules
 
 Current allowed object reference shapes:
@@ -151,6 +177,8 @@ Validation rules:
 - path traversal segments are rejected
 - `artifact://tasks/...` references must match the owning task and artifact identifier
 - object references are logical identifiers only, not filesystem paths
+
+Phase 9 worker registration uses `artifact://tasks/<task-id>/<artifact-id>` for current logical references. Future `object://...` and `external://...` references remain valid for later storage backends, but the worker does not expose local paths in this phase.
 
 ## Retention Policy
 

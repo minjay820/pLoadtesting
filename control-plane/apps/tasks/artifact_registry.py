@@ -12,8 +12,27 @@ from .models import LoadTestTask, TaskArtifact
 
 
 def register_task_artifact(task: LoadTestTask, artifact_metadata: dict[str, Any]) -> dict[str, Any]:
+    normalized = normalize_task_artifact_metadata(task, artifact_metadata)
+
+    record, _ = TaskArtifact.objects.update_or_create(
+        task=task,
+        artifact_id=normalized["artifact_id"],
+        defaults=normalized,
+    )
+    return task_artifact_to_item(record)
+
+
+def register_task_artifacts(task: LoadTestTask, artifact_manifest: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    if not artifact_manifest:
+        return []
+    if not isinstance(artifact_manifest, list):
+        raise ValueError("artifact_manifest must be a list.")
+    return [register_task_artifact(task, entry) for entry in artifact_manifest]
+
+
+def normalize_task_artifact_metadata(task: LoadTestTask, artifact_metadata: dict[str, Any]) -> dict[str, Any]:
     artifact_id = _required_string(artifact_metadata.get("artifact_id"), "artifact_id")
-    normalized = {
+    return {
         "artifact_id": artifact_id,
         "kind": validate_artifact_kind(_required_string(artifact_metadata.get("kind"), "kind")),
         "name": _required_string(artifact_metadata.get("name"), "name"),
@@ -25,20 +44,13 @@ def register_task_artifact(task: LoadTestTask, artifact_metadata: dict[str, Any]
             task_id=str(task.id),
             artifact_id=artifact_id,
         ),
-        "storage_backend": _optional_string(artifact_metadata.get("storage_backend")),
-        "checksum_sha256": _optional_string(artifact_metadata.get("checksum_sha256")),
+        "storage_backend": _optional_string(artifact_metadata.get("storage_backend")) or "",
+        "checksum_sha256": _optional_string(artifact_metadata.get("checksum_sha256")) or "",
         "expires_at": artifact_metadata.get("expires_at"),
         "provenance_engine": _optional_string(artifact_metadata.get("provenance_engine")) or task.engine,
         "provenance_source": _required_string(artifact_metadata.get("provenance_source"), "provenance_source"),
         "metadata": sanitize_artifact_metadata(artifact_metadata.get("metadata")),
     }
-
-    record, _ = TaskArtifact.objects.update_or_create(
-        task=task,
-        artifact_id=artifact_id,
-        defaults=normalized,
-    )
-    return task_artifact_to_item(record)
 
 
 def task_artifact_to_item(record: TaskArtifact) -> dict[str, Any]:

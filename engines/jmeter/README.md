@@ -58,6 +58,26 @@ Other JMeter plans continue using their existing duration or loop settings until
 
 Phase 5.9 shard dataset properties are metadata only. Current JMeter plans can receive the properties, but automatic dataset loading from `artifact://` or `inline://` sources is future work.
 
+## Worker Artifact Registration
+
+Phase 9 adds narrow worker artifact registration through the existing result callback path. The worker can register these deterministic JMeter artifact ids:
+
+- `jmeter-jtl`
+- `jmeter-html-report`
+- `jmeter-stdout`
+- `jmeter-stderr`
+- `jmeter-engine-output`
+
+Current `available` evidence rules:
+
+- `jmeter-jtl`: only when JTL output evidence exists
+- `jmeter-html-report`: only when HTML report evidence exists
+- `jmeter-stdout`: only when captured `stdout` is present
+- `jmeter-stderr`: only when captured `stderr` is present
+- `jmeter-engine-output`: only when persisted `raw_report` evidence exists
+
+The worker registers only logical object references such as `artifact://tasks/<task-id>/<artifact-id>`. It does not expose worker-local output paths or provide real download behavior in this phase.
+
 Flow-specific properties depend on the plan, for example:
 
 - SSE: `SSE_ENDPOINT_PATH`, `SSE_COUNT`, `SSE_STEPS`, `SSE_INTERVAL_MS`

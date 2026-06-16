@@ -219,6 +219,24 @@ Phase 5.9 also lets a worker pass one manual shard dataset assignment to k6 thro
 - `DATASET_OFFSET`
 - `DATASET_LIMIT`
 
+### Worker Artifact Registration
+
+Phase 9 adds narrow worker artifact registration through the existing result callback path. The worker can register these deterministic k6 artifact ids:
+
+- `k6-summary-json`
+- `k6-stdout`
+- `k6-stderr`
+- `k6-engine-output`
+
+Current `available` evidence rules:
+
+- `k6-summary-json`: only when the worker has summary output evidence
+- `k6-stdout`: only when captured `stdout` is present
+- `k6-stderr`: only when captured `stderr` is present
+- `k6-engine-output`: only when persisted `raw_report` evidence exists
+
+The worker registers only logical object references such as `artifact://tasks/<task-id>/<artifact-id>`. It does not expose worker-local output paths or provide real download behavior in this phase.
+
 These variables are metadata only. The current k6 scripts do not automatically load `artifact://` or `inline://` datasets; script-specific dataset consumption remains future work.
 
 Example:

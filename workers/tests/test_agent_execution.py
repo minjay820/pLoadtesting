@@ -63,9 +63,13 @@ def install_worker_dependency_stubs():
 install_worker_dependency_stubs()
 
 AGENT_PATH = Path(__file__).resolve().parents[1] / "agent.py"
+ARTIFACTS_PATH = Path(__file__).resolve().parents[1] / "artifacts.py"
 SPEC = importlib.util.spec_from_file_location("worker_agent", AGENT_PATH)
 agent = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(agent)
+ARTIFACTS_SPEC = importlib.util.spec_from_file_location("worker_artifacts", ARTIFACTS_PATH)
+worker_artifacts = importlib.util.module_from_spec(ARTIFACTS_SPEC)
+ARTIFACTS_SPEC.loader.exec_module(worker_artifacts)
 
 
 def completed_process(cmd):
@@ -83,6 +87,76 @@ def sample_shard():
             "limit": 2000,
         },
     }
+
+
+def test_build_k6_artifact_manifest_entries_from_evidence():
+    entries = worker_artifacts.build_artifact_manifest_entries(
+        "task-1",
+        "k6",
+        {
+            "raw_report": {"stdout": "ok", "stderr": "warn"},
+            "artifact_evidence": {"has_summary_json": True},
+        },
+    )
+
+    by_id = {entry["artifact_id"]: entry for entry in entries}
+    assert by_id["k6-summary-json"]["state"] == "available"
+    assert by_id["k6-summary-json"]["object_ref"] == "artifact://tasks/task-1/k6-summary-json"
+    assert by_id["k6-stdout"]["state"] == "available"
+    assert by_id["k6-stderr"]["state"] == "available"
+    assert by_id["k6-engine-output"]["state"] == "available"
+
+
+def test_build_jmeter_artifact_manifest_entries_from_evidence():
+    entries = worker_artifacts.build_artifact_manifest_entries(
+        "task-2",
+        "jmeter",
+        {
+            "raw_report": {"stdout": "ok", "stderr": "warn"},
+            "artifact_evidence": {"has_jtl": True, "has_html_report": True},
+        },
+    )
+
+    by_id = {entry["artifact_id"]: entry for entry in entries}
+    assert by_id["jmeter-jtl"]["state"] == "available"
+    assert by_id["jmeter-html-report"]["state"] == "available"
+    assert by_id["jmeter-engine-output"]["state"] == "available"
+    assert by_id["jmeter-jtl"]["object_ref"] == "artifact://tasks/task-2/jmeter-jtl"
+
+
+def test_build_unknown_engine_artifact_manifest_entry():
+    entries = worker_artifacts.build_artifact_manifest_entries(
+        "task-3",
+        "custom",
+        {"raw_report": {"error": "unsupported"}},
+    )
+
+    assert len(entries) == 1
+    assert entries[0]["artifact_id"] == "engine-output"
+    assert entries[0]["state"] == "available"
+
+
+def test_build_artifact_manifest_without_evidence_does_not_fake_available():
+    entries = worker_artifacts.build_artifact_manifest_entries("task-4", "k6", {"raw_report": {}})
+
+    by_id = {entry["artifact_id"]: entry for entry in entries}
+    assert by_id["k6-summary-json"]["state"] == "planned"
+    assert by_id["k6-summary-json"]["object_ref"] is None
+    assert by_id["k6-stdout"]["state"] == "planned"
+    assert by_id["k6-engine-output"]["state"] == "planned"
+
+
+def test_build_artifact_manifest_does_not_expose_local_paths():
+    entries = worker_artifacts.build_artifact_manifest_entries(
+        "task-5",
+        "jmeter",
+        {"raw_report": {"stdout": "ok"}, "artifact_evidence": {"has_jtl": True}},
+    )
+
+    for entry in entries:
+        assert entry["object_ref"] is None or entry["object_ref"].startswith("artifact://tasks/task-5/")
+        assert "/tmp/" not in str(entry)
+        assert "file:///" not in str(entry)
 
 
 def test_k6_env_includes_execution_settings():
@@ -140,6 +214,8 @@ def test_k6_env_includes_shard_metadata():
     assert kwargs["env"]["DATASET_LIMIT"] == "2000"
     assert "shard" not in kwargs["env"]
     payload = post_mock.call_args.args[1]
+    assert payload["artifact_manifest"][0]["artifact_id"] == "k6-summary-json"
+    assert all("/tmp/" not in str(entry) for entry in payload["artifact_manifest"])
     assert payload["raw_report"]["shard"] == shard
 
 
@@ -198,6 +274,8 @@ def test_jmeter_command_includes_shard_properties():
     assert "-Jdataset_limit=2000" in cmd
     assert not any(item.startswith("-Jshard_metadata=") for item in cmd)
     payload = post_mock.call_args.args[1]
+    assert payload["artifact_manifest"][0]["artifact_id"] == "jmeter-jtl"
+    assert all("/tmp/" not in str(entry) for entry in payload["artifact_manifest"])
     assert payload["raw_report"]["shard"] == shard
 
 
@@ -253,3 +331,4 @@ def test_timeout_posts_failed_result_with_diagnostics():
     assert payload["raw_report"]["shard"] == shard
     assert payload["raw_report"]["stdout"] == "partial out"
     assert payload["raw_report"]["stderr"] == "partial err"
+    assert payload["artifact_manifest"][0]["artifact_id"] == "k6-summary-json"

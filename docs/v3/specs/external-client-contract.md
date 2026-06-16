@@ -207,7 +207,7 @@ Current artifact kinds are:
 - `engine_output`
 - `unknown`
 
-`stdout` and `stderr` become `available` only when those values are already persisted in `TestResult.raw_report`. `engine_output` becomes `available` only when a stored `raw_report` exists. Engine-convention file rows such as `summary_json`, `jtl`, or `raw_log` remain `planned` before result callback and can become `missing` after result callback when Core has no persisted evidence for them.
+`stdout` and `stderr` become `available` only when those values are already persisted in `TestResult.raw_report` or when an equivalent persisted manifest row exists. `engine_output` becomes `available` only when a stored `raw_report` exists or a persisted manifest row proves availability. Engine-convention file rows such as `summary_json`, `jtl`, or `raw_log` remain `planned` before result callback and can become `missing` after result callback when Core has no persisted evidence for them.
 
 `download_available` is always `false` in this phase and `download_url` is always `null`.
 
@@ -221,6 +221,8 @@ Current persisted manifest behavior:
 - persisted rows can carry `expires_at`, checksum, storage backend, and controlled object reference metadata
 - persisted rows must not expose local filesystem paths
 - object references are logical identifiers only
+- worker result callbacks can register persisted manifest rows through an optional `artifact_manifest` payload
+- the Control Plane rejects invalid local paths, traversal strings, and sensitive manifest metadata
 
 Current object reference rules:
 
@@ -232,6 +234,23 @@ Current object reference rules:
 `GET /api/tasks/{id}/artifacts/{artifact_id}/download/` is a preview placeholder route. The current runtime can return structured `501 not implemented` metadata for a known artifact and structured `404` for an unknown artifact. It must not download a real file, expose a worker-local path, or accept arbitrary filesystem input.
 
 Future download behavior must use controlled task and artifact identifiers only. Signed URLs or external object storage remain future work.
+
+## Worker Artifact Registration Contract
+
+Phase 9 adds a narrow worker artifact registration MVP through the existing result callback path. This is still an internal runtime boundary, but external clients that read artifact metadata should understand how persisted rows appear.
+
+Current worker registration behavior:
+
+- the worker can post `artifact_manifest` together with `POST /api/tasks/{id}/results/`
+- persisted rows override derived rows with the same `artifact_id`
+- current worker mappings are deterministic by engine:
+  - k6: `k6-summary-json`, `k6-stdout`, `k6-stderr`, `k6-engine-output`
+  - jmeter: `jmeter-jtl`, `jmeter-html-report`, `jmeter-stdout`, `jmeter-stderr`, `jmeter-engine-output`
+  - unknown: `engine-output`
+- `available` state depends on real evidence and must not be inferred from a hidden worker-local path
+- object references remain logical identifiers only, currently using `artifact://tasks/<task-id>/<artifact-id>` for worker-registered rows
+
+External clients should continue to treat `download_available=false` as authoritative even when a persisted row is `available`.
 
 ## Engine Parameter Mapping Contract
 
