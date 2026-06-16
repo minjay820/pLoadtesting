@@ -8,6 +8,8 @@ import uuid
 
 from django.db import models
 
+from .artifact_contract import ALLOWED_ARTIFACT_KINDS, ALLOWED_ARTIFACT_STATES
+
 
 class LoadTestTask(models.Model):
     """
@@ -136,3 +138,48 @@ class LoadTestTask(models.Model):
         if self.started_at and self.finished_at:
             return (self.finished_at - self.started_at).total_seconds()
         return None
+
+
+class TaskArtifact(models.Model):
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    task = models.ForeignKey(
+        "tasks.LoadTestTask",
+        on_delete=models.CASCADE,
+        related_name="artifacts",
+    )
+    artifact_id = models.CharField(max_length=128)
+    kind = models.CharField(
+        max_length=32,
+        choices=sorted((value, value) for value in ALLOWED_ARTIFACT_KINDS),
+    )
+    name = models.CharField(max_length=256)
+    state = models.CharField(
+        max_length=16,
+        choices=sorted((value, value) for value in ALLOWED_ARTIFACT_STATES),
+    )
+    size_bytes = models.BigIntegerField(null=True, blank=True)
+    content_type = models.CharField(max_length=128, null=True, blank=True)
+    object_ref = models.CharField(max_length=512, null=True, blank=True)
+    storage_backend = models.CharField(max_length=64, blank=True, default="")
+    checksum_sha256 = models.CharField(max_length=128, blank=True, default="")
+    provenance_engine = models.CharField(max_length=16)
+    provenance_source = models.CharField(max_length=64)
+    metadata = models.JSONField(default=dict, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["artifact_id"]
+        constraints = [
+            models.UniqueConstraint(fields=["task", "artifact_id"], name="unique_task_artifact_id"),
+        ]
+        verbose_name = "任務 Artifact"
+        verbose_name_plural = "任務 Artifacts"
+
+    def __str__(self) -> str:
+        return f"{self.task_id}:{self.artifact_id} ({self.state})"

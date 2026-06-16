@@ -370,7 +370,10 @@ The preview `GET /api/tasks/{id}/artifacts/` endpoint returns a stable metadata 
   "summary": {
     "count": 5,
     "available_count": 0,
-    "missing_count": 0
+    "missing_count": 0,
+    "planned_count": 5,
+    "expired_count": 0,
+    "external_count": 0
   },
   "items": [
     {
@@ -397,13 +400,23 @@ Current artifact kinds are `summary_json`, `html_report`, `jtl`, `raw_log`, `std
 
 Current artifact states are `planned`, `available`, `missing`, `expired`, and `external`.
 
-`stdout` and `stderr` are `available` only when they are already persisted inside `TestResult.raw_report`. `engine_output` is `available` only when a stored `raw_report` exists. Engine-convention file rows such as `summary_json`, `jtl`, and `raw_log` remain `planned` before result callback and can become `missing` after result callback when Core has no persisted evidence for them.
+The preview runtime now merges persisted artifact manifest rows with derived metadata:
+
+- persisted rows win when `artifact_id` matches a derived row
+- derived rows remain as fallback when no persisted row exists
+- `stdout` and `stderr` are `available` from `TestResult.raw_report` only when no persisted row overrides them
+- `engine_output` is `available` only when a stored `raw_report` exists or a persisted row marks it otherwise
+- engine-convention file rows such as `summary_json`, `jtl`, and `raw_log` remain `planned` before result callback and can become `missing` after result callback when Core has no persisted evidence for them
 
 `download_available` remains `false` and `download_url` remains `null` in this phase.
+
+Persisted manifest rows can store a controlled object reference and safe retention metadata, but those fields are not exposed as local paths and do not imply real download support.
 
 ### Artifact Download Placeholder Contract
 
 The preview `GET /api/tasks/{id}/artifacts/{artifact_id}/download/` endpoint can return structured `501 not implemented` metadata.
+
+If the requested artifact identifier does not exist for the task, the route returns structured `404`.
 
 The route must not:
 

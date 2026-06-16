@@ -7,8 +7,9 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.results.models import TestResult
+from apps.tasks.artifact_registry import register_task_artifact
 from apps.tasks.execution import ENGINE_DEFAULT_EXECUTION
-from apps.tasks.models import LoadTestTask
+from apps.tasks.models import LoadTestTask, TaskArtifact
 from apps.tasks.tasks import dispatch_pending_tasks
 from apps.workers.models import WorkerNode
 
@@ -172,6 +173,24 @@ class TaskReadContractTests(TestCase):
             },
         )
 
+    def register_artifact(self, task, **overrides):
+        payload = {
+            "artifact_id": "k6-summary-json",
+            "kind": "summary_json",
+            "name": "summary.json",
+            "state": "available",
+            "size_bytes": 12345,
+            "content_type": "application/json",
+            "object_ref": f"artifact://tasks/{task.id}/k6-summary-json",
+            "storage_backend": "manifest",
+            "checksum_sha256": "abc123",
+            "provenance_engine": task.engine,
+            "provenance_source": "worker_output",
+            "metadata": {"source": "worker"},
+        }
+        payload.update(overrides)
+        return register_task_artifact(task, payload)
+
     def test_task_history_returns_read_model_envelope(self):
         self.create_task(name="first task")
 
@@ -309,6 +328,9 @@ class TaskReadContractTests(TestCase):
         self.assertEqual(payload["summary"]["count"], 5)
         self.assertEqual(payload["summary"]["available_count"], 0)
         self.assertEqual(payload["summary"]["missing_count"], 0)
+        self.assertEqual(payload["summary"]["planned_count"], 5)
+        self.assertEqual(payload["summary"]["expired_count"], 0)
+        self.assertEqual(payload["summary"]["external_count"], 0)
         self.assertEqual(payload["warnings"], [])
         items = {item["artifact_id"]: item for item in payload["items"]}
         self.assertEqual(set(items), {"k6-summary-json", "k6-stdout", "k6-stderr", "k6-engine-output", "k6-html-report"})
@@ -336,6 +358,7 @@ class TaskReadContractTests(TestCase):
         self.assertEqual(payload["summary"]["count"], 5)
         self.assertEqual(payload["summary"]["available_count"], 3)
         self.assertEqual(payload["summary"]["missing_count"], 1)
+        self.assertEqual(payload["summary"]["planned_count"], 1)
         items = {item["artifact_id"]: item for item in payload["items"]}
         self.assertEqual(items["k6-stdout"]["state"], "available")
         self.assertEqual(items["k6-stderr"]["state"], "available")
@@ -356,6 +379,67 @@ class TaskReadContractTests(TestCase):
         self.assertEqual(items["jmeter-jtl"]["kind"], "jtl")
         self.assertEqual(items["jmeter-raw-log"]["kind"], "raw_log")
         self.assertEqual(items["jmeter-html-report"]["state"], "planned")
+
+    def test_persisted_artifact_overrides_derived_metadata(self):
+        task = self.create_task(status=LoadTestTask.Status.COMPLETED)
+        self.register_artifact(
+            task,
+            size_bytes=678,
+            provenance_source="artifact_manifest",
+            metadata={"source": "persisted"},
+        )
+
+        response = self.client.get(f"/api/tasks/{task.id}/artifacts/")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["summary"]["available_count"], 1)
+        items = {item["artifact_id"]: item for item in payload["items"]}
+        self.assertEqual(items["k6-summary-json"]["state"], "available")
+        self.assertEqual(items["k6-summary-json"]["size_bytes"], 678)
+        self.assertEqual(items["k6-summary-json"]["provenance"]["source"], "artifact_manifest")
+
+    def test_persisted_artifact_manifest_supports_state_counts(self):
+        task = self.create_task()
+        self.register_artifact(task, artifact_id="k6-summary-json", state="available")
+        self.register_artifact(
+            task,
+            artifact_id="k6-html-report",
+            kind="html_report",
+            name="report.html",
+            state="external",
+            object_ref="external://reports/task-1/report.html",
+            provenance_source="external_reference",
+        )
+        self.register_artifact(
+            task,
+            artifact_id="k6-stderr",
+            kind="stderr",
+            name="stderr.txt",
+            state="expired",
+            object_ref="object://reports/task-1/stderr.txt",
+            provenance_source="artifact_manifest",
+        )
+        self.register_artifact(
+            task,
+            artifact_id="k6-engine-output",
+            kind="engine_output",
+            name="raw-report.json",
+            state="missing",
+            object_ref=None,
+            provenance_source="worker_output",
+        )
+
+        response = self.client.get(f"/api/tasks/{task.id}/artifacts/")
+
+        self.assertEqual(response.status_code, 200)
+        summary = response.json()["summary"]
+        self.assertEqual(summary["count"], 5)
+        self.assertEqual(summary["available_count"], 1)
+        self.assertEqual(summary["missing_count"], 1)
+        self.assertEqual(summary["planned_count"], 1)
+        self.assertEqual(summary["expired_count"], 1)
+        self.assertEqual(summary["external_count"], 1)
 
     def test_artifacts_unknown_engine_falls_back_safely(self):
         task = LoadTestTask.objects.create(
@@ -387,6 +471,62 @@ class TaskReadContractTests(TestCase):
         self.assertEqual(payload["download_available"], False)
         self.assertEqual(payload["warnings"][0]["code"], "artifact_download_not_implemented")
         self.assertNotIn("/tmp/", str(payload))
+
+    def test_artifact_download_unknown_artifact_returns_404(self):
+        task = self.create_task()
+
+        response = self.client.get(f"/api/tasks/{task.id}/artifacts/not-real/download/")
+
+        self.assertEqual(response.status_code, 404)
+        payload = response.json()
+        self.assertEqual(payload["source"]["status"], "error")
+        self.assertEqual(payload["artifact_id"], "not-real")
+        self.assertEqual(payload["warnings"][0]["code"], "artifact_not_found")
+
+    def test_register_task_artifact_rejects_invalid_kind(self):
+        task = self.create_task()
+
+        with self.assertRaisesMessage(ValueError, "Unsupported artifact kind"):
+            self.register_artifact(task, kind="bad_kind")
+
+    def test_register_task_artifact_rejects_invalid_state(self):
+        task = self.create_task()
+
+        with self.assertRaisesMessage(ValueError, "Unsupported artifact state"):
+            self.register_artifact(task, state="broken")
+
+    def test_register_task_artifact_rejects_absolute_local_path(self):
+        task = self.create_task()
+
+        with self.assertRaisesMessage(ValueError, "local filesystem path"):
+            self.register_artifact(task, object_ref="/tmp/result.json")
+
+    def test_register_task_artifact_rejects_path_traversal(self):
+        task = self.create_task()
+
+        with self.assertRaisesMessage(ValueError, "path traversal"):
+            self.register_artifact(task, object_ref="../result.json")
+
+    def test_register_task_artifact_upserts_by_task_and_artifact_id(self):
+        task = self.create_task()
+        self.register_artifact(task, size_bytes=1)
+        self.register_artifact(task, size_bytes=2, metadata={"source": "updated"})
+
+        self.assertEqual(TaskArtifact.objects.filter(task=task, artifact_id="k6-summary-json").count(), 1)
+        record = TaskArtifact.objects.get(task=task, artifact_id="k6-summary-json")
+        self.assertEqual(record.size_bytes, 2)
+
+    def test_register_task_artifact_rejects_mismatched_task_in_object_ref(self):
+        task = self.create_task()
+
+        with self.assertRaisesMessage(ValueError, "task id must match"):
+            self.register_artifact(task, object_ref="artifact://tasks/other-task/k6-summary-json")
+
+    def test_register_task_artifact_rejects_mismatched_artifact_id_in_object_ref(self):
+        task = self.create_task()
+
+        with self.assertRaisesMessage(ValueError, "artifact id must match"):
+            self.register_artifact(task, object_ref=f"artifact://tasks/{task.id}/other-artifact")
 
 
 @override_settings(PLOADTESTING_API_TOKEN=API_TOKEN)

@@ -213,9 +213,23 @@ Current artifact kinds are:
 
 See [Artifact lifecycle](artifact-lifecycle.md) for retention, security notes, and non-goals.
 
+Phase 8 adds a persisted artifact manifest MVP. External clients should treat persisted manifest rows as authoritative metadata when they exist, and treat derived rows as fallback metadata when they do not.
+
+Current persisted manifest behavior:
+
+- rows are upserted by `(task, artifact_id)`
+- persisted rows can carry `expires_at`, checksum, storage backend, and controlled object reference metadata
+- persisted rows must not expose local filesystem paths
+- object references are logical identifiers only
+
+Current object reference rules:
+
+- allowed: `artifact://tasks/<task-id>/<artifact-id>`, `object://...`, `external://...`, or `null`
+- rejected: absolute local paths, relative traversal, and `file:///...`
+
 ## Artifact Download Placeholder Contract
 
-`GET /api/tasks/{id}/artifacts/{artifact_id}/download/` is a preview placeholder route. The current runtime can return structured `501 not implemented` metadata and must not download a real file, expose a worker-local path, or accept arbitrary filesystem input.
+`GET /api/tasks/{id}/artifacts/{artifact_id}/download/` is a preview placeholder route. The current runtime can return structured `501 not implemented` metadata for a known artifact and structured `404` for an unknown artifact. It must not download a real file, expose a worker-local path, or accept arbitrary filesystem input.
 
 Future download behavior must use controlled task and artifact identifiers only. Signed URLs or external object storage remain future work.
 

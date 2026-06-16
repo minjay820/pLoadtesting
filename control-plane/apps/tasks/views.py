@@ -18,6 +18,7 @@ from .models import LoadTestTask
 from .read_models import (
     artifact_download_placeholder_read_model,
     artifact_metadata_read_model,
+    artifact_not_found_read_model,
     result_summary_read_model,
     task_detail_read_model,
     task_history_item,
@@ -150,7 +151,7 @@ class TaskArtifactsView(APIView):
 
     def get(self, request: Request, pk: str) -> Response:
         try:
-            task = LoadTestTask.objects.get(pk=pk)
+            task = LoadTestTask.objects.prefetch_related("artifacts").get(pk=pk)
         except LoadTestTask.DoesNotExist:
             return Response({"detail": f"Task '{pk}' not found."}, status=status.HTTP_404_NOT_FOUND)
         return Response(artifact_metadata_read_model(task), status=status.HTTP_200_OK)
@@ -163,10 +164,16 @@ class TaskArtifactDownloadView(APIView):
 
     def get(self, request: Request, pk: str, artifact_id: str) -> Response:
         try:
-            task = LoadTestTask.objects.get(pk=pk)
+            task = LoadTestTask.objects.prefetch_related("artifacts").get(pk=pk)
         except LoadTestTask.DoesNotExist:
             return Response({"detail": f"Task '{pk}' not found."}, status=status.HTTP_404_NOT_FOUND)
+        payload = artifact_download_placeholder_read_model(task, artifact_id)
+        if payload is None:
+            return Response(
+                artifact_not_found_read_model(task, artifact_id),
+                status=status.HTTP_404_NOT_FOUND,
+            )
         return Response(
-            artifact_download_placeholder_read_model(task, artifact_id),
+            payload,
             status=status.HTTP_501_NOT_IMPLEMENTED,
         )

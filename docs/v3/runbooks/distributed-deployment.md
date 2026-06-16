@@ -102,6 +102,7 @@ The Worker `/execute` endpoint expects an authenticated POST request for real di
 | Result summary not available | task has not posted a `TestResult`; handle `not_available` as a normal lifecycle state |
 | Artifact metadata shows planned rows | task has no persisted artifact evidence yet; planned metadata is expected |
 | Artifact metadata shows missing rows | worker result exists but Core has no persisted evidence for an expected worker file |
+| Artifact metadata shows persisted rows | manifest registration succeeded and persisted metadata now overrides derived fallback rows |
 | Artifact download returns 501 | preview placeholder route is active; real download is intentionally not implemented |
 | Partial success | inspect failed, cancelled, timed-out, and completed shard counts separately |
 | Load traffic fails | Worker can reach the authorized target URL |
@@ -136,6 +137,7 @@ For distributed results:
 - Mark global latency percentiles unavailable until raw samples, histogram buckets, HDR histogram, t-digest, or engine-supported merge output is available.
 - Read `GET /api/tasks/{id}/result-summary/` for task-level summaries, check `provenance`, and do not infer missing percentile fields.
 - Read `GET /api/tasks/{id}/artifacts/` for artifact metadata; `planned` and `missing` states do not imply downloadable files.
+- Treat persisted manifest rows as authoritative when `artifact_id` overlaps with derived fallback metadata.
 - Treat `GET /api/tasks/{id}/artifacts/{artifact_id}/download/` as a structured preview placeholder until a durable artifact store exists.
 
 ## Rollback

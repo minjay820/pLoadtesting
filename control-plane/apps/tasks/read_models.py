@@ -2,23 +2,23 @@ from __future__ import annotations
 
 from typing import Any
 
-from .models import LoadTestTask
-
-
-ARTIFACT_KIND_SUMMARY_JSON = "summary_json"
-ARTIFACT_KIND_HTML_REPORT = "html_report"
-ARTIFACT_KIND_JTL = "jtl"
-ARTIFACT_KIND_RAW_LOG = "raw_log"
-ARTIFACT_KIND_STDOUT = "stdout"
-ARTIFACT_KIND_STDERR = "stderr"
-ARTIFACT_KIND_ENGINE_OUTPUT = "engine_output"
-ARTIFACT_KIND_UNKNOWN = "unknown"
-
-ARTIFACT_STATE_PLANNED = "planned"
-ARTIFACT_STATE_AVAILABLE = "available"
-ARTIFACT_STATE_MISSING = "missing"
-ARTIFACT_STATE_EXPIRED = "expired"
-ARTIFACT_STATE_EXTERNAL = "external"
+from .artifact_contract import (
+    ARTIFACT_KIND_ENGINE_OUTPUT,
+    ARTIFACT_KIND_HTML_REPORT,
+    ARTIFACT_KIND_JTL,
+    ARTIFACT_KIND_RAW_LOG,
+    ARTIFACT_KIND_STDERR,
+    ARTIFACT_KIND_STDOUT,
+    ARTIFACT_KIND_SUMMARY_JSON,
+    ARTIFACT_KIND_UNKNOWN,
+    ARTIFACT_STATE_AVAILABLE,
+    ARTIFACT_STATE_EXPIRED,
+    ARTIFACT_STATE_EXTERNAL,
+    ARTIFACT_STATE_MISSING,
+    ARTIFACT_STATE_PLANNED,
+)
+from .artifact_registry import task_artifact_to_item
+from .models import LoadTestTask, TaskArtifact
 
 
 def _dt(value) -> str | None:
@@ -205,23 +205,26 @@ def result_summary_read_model(task: LoadTestTask) -> dict[str, Any]:
 
 
 def artifact_metadata_read_model(task: LoadTestTask) -> dict[str, Any]:
-    items = _artifact_items(task)
-    available_count = sum(1 for item in items if item["state"] == ARTIFACT_STATE_AVAILABLE)
-    missing_count = sum(1 for item in items if item["state"] == ARTIFACT_STATE_MISSING)
+    items = _merged_artifact_items(task)
     return {
         "source": {"status": "ok"},
         "task_id": str(task.id),
         "summary": {
             "count": len(items),
-            "available_count": available_count,
-            "missing_count": missing_count,
+            "available_count": _state_count(items, ARTIFACT_STATE_AVAILABLE),
+            "missing_count": _state_count(items, ARTIFACT_STATE_MISSING),
+            "planned_count": _state_count(items, ARTIFACT_STATE_PLANNED),
+            "expired_count": _state_count(items, ARTIFACT_STATE_EXPIRED),
+            "external_count": _state_count(items, ARTIFACT_STATE_EXTERNAL),
         },
         "items": items,
         "warnings": [],
     }
 
 
-def artifact_download_placeholder_read_model(task: LoadTestTask, artifact_id: str) -> dict[str, Any]:
+def artifact_download_placeholder_read_model(task: LoadTestTask, artifact_id: str) -> dict[str, Any] | None:
+    if artifact_item_for_download(task, artifact_id) is None:
+        return None
     return {
         "source": {"status": "ok"},
         "task_id": str(task.id),
@@ -237,7 +240,49 @@ def artifact_download_placeholder_read_model(task: LoadTestTask, artifact_id: st
     }
 
 
-def _artifact_items(task: LoadTestTask) -> list[dict[str, Any]]:
+def artifact_not_found_read_model(task: LoadTestTask, artifact_id: str) -> dict[str, Any]:
+    return {
+        "source": {"status": "error"},
+        "task_id": str(task.id),
+        "artifact_id": artifact_id,
+        "detail": "Artifact not found for this task.",
+        "warnings": [
+            _warning(
+                "artifact_not_found",
+                "The requested artifact does not exist for this task.",
+            )
+        ],
+    }
+
+
+def artifact_item_for_download(task: LoadTestTask, artifact_id: str) -> dict[str, Any] | None:
+    items_by_id = {item["artifact_id"]: item for item in _merged_artifact_items(task)}
+    return items_by_id.get(artifact_id)
+
+
+def _state_count(items: list[dict[str, Any]], state: str) -> int:
+    return sum(1 for item in items if item["state"] == state)
+
+
+def _merged_artifact_items(task: LoadTestTask) -> list[dict[str, Any]]:
+    derived_items = {item["artifact_id"]: item for item in _derived_artifact_items(task)}
+    persisted_items = _persisted_artifact_items(task)
+    derived_items.update(persisted_items)
+    return [derived_items[artifact_id] for artifact_id in sorted(derived_items)]
+
+
+def _persisted_artifact_items(task: LoadTestTask) -> dict[str, dict[str, Any]]:
+    records = getattr(task, "artifacts", None)
+    if records is None:
+        queryset = TaskArtifact.objects.filter(task=task)
+        return {record.artifact_id: task_artifact_to_item(record) for record in queryset}
+    return {
+        record.artifact_id: task_artifact_to_item(record)
+        for record in records.all()
+    }
+
+
+def _derived_artifact_items(task: LoadTestTask) -> list[dict[str, Any]]:
     if task.engine == LoadTestTask.Engine.K6:
         specs = [
             ("k6-summary-json", ARTIFACT_KIND_SUMMARY_JSON, "summary.json", "application/json"),
