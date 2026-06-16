@@ -343,15 +343,19 @@ The preview `GET /api/tasks/{id}/result-summary/` endpoint maps existing `TestRe
 - `summary.throughput_rps`
 - `summary.error_rate_pct`
 - `latency.avg_ms`
-- `latency.p90_ms`
+- `latency.p50_ms`
 - `latency.p95_ms`
 - `latency.p99_ms`
-- `latency.max_ms`
-- `thresholds`
+- `provenance.metrics_source`
+- `provenance.engine`
+- `provenance.percentile_policy`
+- additive `thresholds`
 
-If no result exists, `status` is `not_available`, metric fields are `null`, and `warnings` includes `result_summary_not_available`. API consumers should handle that response as an ordinary task lifecycle state.
+If no result exists, `status` is `not_available`, metric fields are `null`, `provenance` is still present, and `warnings` includes `result_summary_not_available`. API consumers should handle that response as an ordinary task lifecycle state.
 
 `latency.p50_ms` is currently `null` because the stored result model does not provide a p50 field. Core must not invent missing percentile values.
+
+Stored task percentiles are engine-reported values for one task result only. Core must not average shard `p95` or `p99` values. Exact global percentile merge requires raw samples, histogram buckets, HDR histogram, t-digest, or engine-supported merge output.
 
 ### Artifact Metadata Read Contract
 
@@ -364,19 +368,50 @@ The preview `GET /api/tasks/{id}/artifacts/` endpoint returns a stable metadata 
   },
   "task_id": "task-uuid",
   "summary": {
-    "count": 0
+    "count": 5,
+    "available_count": 0,
+    "missing_count": 0
   },
-  "items": [],
-  "warnings": [
+  "items": [
     {
-      "code": "artifacts_not_available",
-      "message": "Artifact metadata is not available for this task yet."
+      "artifact_id": "k6-summary-json",
+      "kind": "summary_json",
+      "name": "summary.json",
+      "state": "planned",
+      "size_bytes": null,
+      "content_type": "application/json",
+      "created_at": null,
+      "download_available": false,
+      "download_url": null,
+      "provenance": {
+        "engine": "k6",
+        "source": "engine_convention"
+      }
     }
-  ]
+  ],
+  "warnings": []
 }
 ```
 
-Artifact download and report generation are planning-only. Future artifact metadata rows can add `artifact_id`, `kind`, `name`, `size_bytes`, `content_type`, `created_at`, and `download_url`.
+Current artifact kinds are `summary_json`, `html_report`, `jtl`, `raw_log`, `stdout`, `stderr`, `engine_output`, and `unknown`.
+
+Current artifact states are `planned`, `available`, `missing`, `expired`, and `external`.
+
+`stdout` and `stderr` are `available` only when they are already persisted inside `TestResult.raw_report`. `engine_output` is `available` only when a stored `raw_report` exists. Engine-convention file rows such as `summary_json`, `jtl`, and `raw_log` remain `planned` before result callback and can become `missing` after result callback when Core has no persisted evidence for them.
+
+`download_available` remains `false` and `download_url` remains `null` in this phase.
+
+### Artifact Download Placeholder Contract
+
+The preview `GET /api/tasks/{id}/artifacts/{artifact_id}/download/` endpoint can return structured `501 not implemented` metadata.
+
+The route must not:
+
+- download a real worker-local file
+- expose a worker-local path
+- accept arbitrary filesystem input
+
+Future download support should use controlled task and artifact identifiers, with signed URLs or external object storage only after a durable artifact store exists.
 
 ## Template Coverage Contract
 

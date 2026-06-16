@@ -12,7 +12,7 @@ Core should remain reusable by multiple API consumers. It should not contain cli
 
 - Local target app catalog and profile metadata.
 - k6 and JMeter profile parity metadata.
-- Preview Control Plane APIs for workers, tasks, run history, task detail, templates, coverage, result summaries, artifact metadata placeholders, execution metadata, and shard plan export.
+- Preview Control Plane APIs for workers, tasks, run history, task detail, templates, coverage, result summaries with provenance, artifact lifecycle metadata, artifact download placeholders, execution metadata, and shard plan export.
 - Worker runtime support for duration execution metadata and one-shard dataset metadata mapping.
 - Documentation contracts for task execution, distributed metadata, API consumption, and dashboard read models.
 - Public project governance under `docs/v3/`.
@@ -23,9 +23,9 @@ Core should remain reusable by multiple API consumers. It should not contain cli
 - A scoped token system beyond the current preview compatibility layer.
 - A full distributed scheduler or worker claim lifecycle.
 - Persistent shard tables or per-shard result rows.
-- Dataset loading, dataset resolver, or artifact storage lifecycle.
+- Dataset loading, dataset resolver, or durable artifact storage lifecycle.
 - Exact percentile merge across shards.
-- Report generation or artifact download.
+- Report generation or real artifact download.
 - Client-specific integration logic.
 
 ## External Client Responsibilities
@@ -82,11 +82,12 @@ Core extension points should be generic:
 | Shard scheduling | Document future lifecycle concepts. | Do not assume Core fans out shards today. | Future work. |
 | Dataset partition | Validate dataset source, format, offset, and limit metadata. | Own dataset preparation and source references. | Runtime metadata only; no dataset loading yet. |
 | Result aggregation | Define summary-only placeholder and aggregation rules. | Avoid direct averaging of latency averages or percentiles. | Exact percentile merge is future work. |
-| Result summary | Provide `GET /api/tasks/{id}/result-summary/` with available or not_available state. | Treat not_available as an ordinary lifecycle state and avoid inventing missing metrics. | Experimental read contract. |
-| Artifact metadata | Provide `GET /api/tasks/{id}/artifacts/` placeholder metadata. | Do not assume downloads or report files exist until documented. | Stable placeholder. |
+| Result summary | Provide `GET /api/tasks/{id}/result-summary/` with available or not_available state plus provenance metadata. | Treat not_available as an ordinary lifecycle state and avoid inventing missing or merged percentiles. | Experimental read contract. |
+| Artifact metadata | Provide `GET /api/tasks/{id}/artifacts/` with derived task-scoped metadata, truthful availability, and no local path exposure. | Do not assume downloads or durable report files exist until documented. | Experimental preview contract. |
+| Artifact download placeholder | Provide `GET /api/tasks/{id}/artifacts/{artifact_id}/download/` as a structured not-implemented route only. | Treat it as a controlled future extension point, not as current download support. | Experimental preview contract. |
 | Dashboard UI | Provide API and read-model contracts. | Implement UI, navigation, filters, and user workflows. | Core does not implement a dashboard in this phase. |
 | Token access | Document planned scoped access model. | Use current preview access mechanism where applicable. | Scoped token API is planning-only. |
-| Artifact handling | Validate placeholder-safe dataset source conventions. | Manage artifact storage or references until Core provides an artifact API. | Full artifact browser API is planning-only. |
+| Artifact handling | Validate placeholder-safe dataset source conventions and document artifact lifecycle, retention, and download boundaries. | Manage artifact storage or references until Core provides a durable artifact API. | Full artifact browser API is planning-only. |
 
 ## Boundary Decision Rule
 

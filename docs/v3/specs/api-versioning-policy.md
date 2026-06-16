@@ -46,6 +46,7 @@ The following are experimental runtime contracts:
 - `GET /api/tasks/{id}/shard-plan/`.
 - `GET /api/tasks/{id}/result-summary/`.
 - `GET /api/tasks/{id}/artifacts/`.
+- `GET /api/tasks/{id}/artifacts/{artifact_id}/download/`.
 - Worker execution mapping for k6 and JMeter.
 - Worker shard metadata mapping for k6 and JMeter.
 
@@ -64,7 +65,7 @@ The following are planning-only:
 - Advanced distributed scheduler.
 - Worker claim lifecycle.
 - Advanced result aggregation.
-- Artifact download and full artifact browser API.
+- Durable artifact download and full artifact browser API.
 - Dataset resolver and artifact storage lifecycle.
 
 Planning-only content should not be treated as runtime availability. External clients can use these documents for roadmap alignment, but production integration should depend only on implemented endpoints and explicit stable candidates.
@@ -141,7 +142,8 @@ External clients should:
 - Read coverage through `GET /api/tasks/templates/coverage/`.
 - Read run history through `GET /api/tasks/`.
 - Read result summary through `GET /api/tasks/{id}/result-summary/` and handle `not_available` as a normal waiting state.
-- Read artifact metadata through `GET /api/tasks/{id}/artifacts/` and treat empty placeholder responses as runtime-supported absence of artifact metadata.
+- Read artifact metadata through `GET /api/tasks/{id}/artifacts/` and treat `planned`, `available`, and `missing` states as the runtime-supported lifecycle.
+- Treat `GET /api/tasks/{id}/artifacts/{artifact_id}/download/` as a preview placeholder route until a durable download policy is documented.
 - Read manual shard plans through `GET /api/tasks/{id}/shard-plan/` when a task uses distribution metadata.
 - Avoid importing internal Python functions or relying on undocumented file layout.
 - Treat any downstream requirement as a request for a generic Core capability.
@@ -152,6 +154,7 @@ Core should:
 - Keep public contracts neutral and reusable.
 - Document runtime support separately from planning-only roadmap items.
 - Keep future `/api/v1` compatibility aligned with current stable candidate contracts.
+- Preserve result provenance semantics so clients can distinguish stored task metrics from future aggregate metrics.
 
 ## Examples
 

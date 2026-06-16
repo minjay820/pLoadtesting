@@ -12,6 +12,7 @@ This area is for implementation-facing contracts: APIs, data models, worker prot
 - [API consumer guide](api-consumer-guide.md)
 - [Task execution model](task-execution-model.md)
 - [Distributed agent execution](distributed-agent-execution.md)
+- [Artifact lifecycle](artifact-lifecycle.md)
 - [API example payloads](examples/)
 
 ## Likely Future Specs

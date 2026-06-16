@@ -158,6 +158,20 @@ class TaskReadContractTests(TestCase):
             },
         )
 
+    def create_jmeter_task(self, *, name="jmeter history task", status=LoadTestTask.Status.PENDING):
+        return LoadTestTask.objects.create(
+            name=name,
+            engine="jmeter",
+            script_path="engines/jmeter/target_apps_payload_crud_plan.jmx",
+            target_url="http://127.0.0.1:18084",
+            status=status,
+            parameters={
+                "target_app_id": "payload-api",
+                "target_profile_id": "payload-jmeter-download",
+                "target_url": "http://127.0.0.1:18084",
+            },
+        )
+
     def test_task_history_returns_read_model_envelope(self):
         self.create_task(name="first task")
 
@@ -221,6 +235,7 @@ class TaskReadContractTests(TestCase):
             f"/api/tasks/{missing}/",
             f"/api/tasks/{missing}/result-summary/",
             f"/api/tasks/{missing}/artifacts/",
+            f"/api/tasks/{missing}/artifacts/any/download/",
         ):
             with self.subTest(path=path):
                 response = self.client.get(path)
@@ -238,6 +253,8 @@ class TaskReadContractTests(TestCase):
         self.assertEqual(payload["status"], "not_available")
         self.assertIsNone(payload["summary"]["total_requests"])
         self.assertIsNone(payload["latency"]["p95_ms"])
+        self.assertEqual(payload["provenance"]["engine"], "k6")
+        self.assertIsNone(payload["provenance"]["metrics_source"])
         self.assertEqual(payload["warnings"][0]["code"], "result_summary_not_available")
 
     def test_result_summary_maps_existing_result(self):
@@ -272,11 +289,15 @@ class TaskReadContractTests(TestCase):
         self.assertEqual(payload["latency"]["avg_ms"], 120.5)
         self.assertEqual(payload["latency"]["p95_ms"], 240.0)
         self.assertIsNone(payload["latency"]["p50_ms"])
+        self.assertEqual(payload["provenance"]["metrics_source"], "test_result")
+        self.assertEqual(payload["provenance"]["engine"], "k6")
+        self.assertEqual(payload["provenance"]["percentile_policy"], "engine_reported")
         self.assertEqual(payload["thresholds"]["passed"], True)
         self.assertEqual(payload["summary"]["collected_at"], result.collected_at.isoformat().replace("+00:00", "Z"))
-        self.assertEqual(payload["warnings"], [])
+        self.assertEqual(payload["warnings"][0]["code"], "percentiles_engine_reported")
+        self.assertEqual(payload["warnings"][1]["code"], "p50_not_available")
 
-    def test_artifacts_returns_stable_placeholder(self):
+    def test_artifacts_returns_planned_rows_without_result(self):
         task = self.create_task()
 
         response = self.client.get(f"/api/tasks/{task.id}/artifacts/")
@@ -285,9 +306,87 @@ class TaskReadContractTests(TestCase):
         payload = response.json()
         self.assertEqual(payload["source"]["status"], "ok")
         self.assertEqual(payload["task_id"], str(task.id))
-        self.assertEqual(payload["summary"]["count"], 0)
-        self.assertEqual(payload["items"], [])
-        self.assertEqual(payload["warnings"][0]["code"], "artifacts_not_available")
+        self.assertEqual(payload["summary"]["count"], 5)
+        self.assertEqual(payload["summary"]["available_count"], 0)
+        self.assertEqual(payload["summary"]["missing_count"], 0)
+        self.assertEqual(payload["warnings"], [])
+        items = {item["artifact_id"]: item for item in payload["items"]}
+        self.assertEqual(set(items), {"k6-summary-json", "k6-stdout", "k6-stderr", "k6-engine-output", "k6-html-report"})
+        self.assertEqual(items["k6-summary-json"]["kind"], "summary_json")
+        self.assertEqual(items["k6-summary-json"]["state"], "planned")
+        self.assertEqual(items["k6-summary-json"]["download_available"], False)
+        self.assertIsNone(items["k6-summary-json"]["download_url"])
+        self.assertEqual(items["k6-summary-json"]["provenance"]["source"], "engine_convention")
+        self.assertEqual(items["k6-engine-output"]["kind"], "engine_output")
+        self.assertEqual(items["k6-html-report"]["kind"], "html_report")
+
+    def test_artifacts_derive_available_rows_from_raw_report_only(self):
+        task = self.create_task(status=LoadTestTask.Status.COMPLETED)
+        TestResult.objects.create(
+            task=task,
+            raw_report={"stdout": "ok", "stderr": "warn", "message": "complete"},
+            total_requests=10,
+            failed_requests=0,
+        )
+
+        response = self.client.get(f"/api/tasks/{task.id}/artifacts/")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["summary"]["count"], 5)
+        self.assertEqual(payload["summary"]["available_count"], 3)
+        self.assertEqual(payload["summary"]["missing_count"], 1)
+        items = {item["artifact_id"]: item for item in payload["items"]}
+        self.assertEqual(items["k6-stdout"]["state"], "available")
+        self.assertEqual(items["k6-stderr"]["state"], "available")
+        self.assertEqual(items["k6-engine-output"]["state"], "available")
+        self.assertEqual(items["k6-summary-json"]["state"], "missing")
+        self.assertEqual(items["k6-html-report"]["state"], "planned")
+        self.assertEqual(items["k6-engine-output"]["provenance"]["source"], "result_raw_report")
+        self.assertIsNotNone(items["k6-stdout"]["created_at"])
+
+    def test_artifacts_include_jmeter_kinds(self):
+        task = self.create_jmeter_task()
+
+        response = self.client.get(f"/api/tasks/{task.id}/artifacts/")
+
+        self.assertEqual(response.status_code, 200)
+        items = {item["artifact_id"]: item for item in response.json()["items"]}
+        self.assertEqual(set(items), {"jmeter-jtl", "jmeter-raw-log", "jmeter-stdout", "jmeter-stderr", "jmeter-engine-output", "jmeter-html-report"})
+        self.assertEqual(items["jmeter-jtl"]["kind"], "jtl")
+        self.assertEqual(items["jmeter-raw-log"]["kind"], "raw_log")
+        self.assertEqual(items["jmeter-html-report"]["state"], "planned")
+
+    def test_artifacts_unknown_engine_falls_back_safely(self):
+        task = LoadTestTask.objects.create(
+            name="unknown engine task",
+            engine="loadrunner",
+            script_path="engines/loadrunner/demo",
+            target_url="http://127.0.0.1:18084",
+        )
+
+        response = self.client.get(f"/api/tasks/{task.id}/artifacts/")
+
+        self.assertEqual(response.status_code, 200)
+        items = {item["artifact_id"]: item for item in response.json()["items"]}
+        self.assertEqual(items["engine-output"]["kind"], "engine_output")
+        self.assertEqual(items["unknown-artifact"]["kind"], "unknown")
+        self.assertEqual(items["unknown-artifact"]["state"], "planned")
+
+    def test_artifact_download_placeholder_returns_501(self):
+        task = self.create_task()
+
+        response = self.client.get(f"/api/tasks/{task.id}/artifacts/k6-summary-json/download/")
+
+        self.assertEqual(response.status_code, 501)
+        payload = response.json()
+        self.assertEqual(payload["source"]["status"], "ok")
+        self.assertEqual(payload["task_id"], str(task.id))
+        self.assertEqual(payload["artifact_id"], "k6-summary-json")
+        self.assertEqual(payload["status"], "not_implemented")
+        self.assertEqual(payload["download_available"], False)
+        self.assertEqual(payload["warnings"][0]["code"], "artifact_download_not_implemented")
+        self.assertNotIn("/tmp/", str(payload))
 
 
 @override_settings(PLOADTESTING_API_TOKEN=API_TOKEN)

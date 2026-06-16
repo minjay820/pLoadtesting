@@ -47,6 +47,7 @@ This project is a multi-engine load testing ecosystem:
 - `docs/v3/specs/api-versioning-policy.md`: preview, stable candidate, experimental, and planning-only API compatibility policy.
 - `docs/v3/specs/task-execution-model.md`: duration, stop policy, worker timeout, and shard metadata contract.
 - `docs/v3/specs/distributed-agent-execution.md`: manual shard distribution metadata, dataset partition, and aggregation contract.
+- `docs/v3/specs/artifact-lifecycle.md`: artifact metadata lifecycle, retention, download placeholder, and result provenance contract.
 - `docs/v3/specs/api-token-auth.md`: future scoped API access plan.
 - `docs/v3/runbooks/distributed-deployment.md`: cross-host deployment planning runbook.
 - `docs/v3/roadmap/github-issues-dashboard-api-deployment.md`: issue-sized roadmap drafts for dashboard, API, access, and deployment work.

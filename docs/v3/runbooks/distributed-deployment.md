@@ -100,7 +100,9 @@ The Worker `/execute` endpoint expects an authenticated POST request for real di
 | Future shard remains unclaimed | agent labels, engine capability, and target network selector match the shard |
 | Result missing | Worker can reach Control Plane result callback route |
 | Result summary not available | task has not posted a `TestResult`; handle `not_available` as a normal lifecycle state |
-| Artifact metadata empty | artifact metadata storage is not implemented; placeholder response is expected |
+| Artifact metadata shows planned rows | task has no persisted artifact evidence yet; planned metadata is expected |
+| Artifact metadata shows missing rows | worker result exists but Core has no persisted evidence for an expected worker file |
+| Artifact download returns 501 | preview placeholder route is active; real download is intentionally not implemented |
 | Partial success | inspect failed, cancelled, timed-out, and completed shard counts separately |
 | Load traffic fails | Worker can reach the authorized target URL |
 
@@ -132,8 +134,9 @@ For distributed results:
 - Recalculate throughput from the overall run time window.
 - Do not average shard p95 or p99 values into a global percentile.
 - Mark global latency percentiles unavailable until raw samples, histogram buckets, HDR histogram, t-digest, or engine-supported merge output is available.
-- Read `GET /api/tasks/{id}/result-summary/` for task-level summaries and do not infer missing percentile fields.
-- Read `GET /api/tasks/{id}/artifacts/` for artifact metadata; current placeholder responses do not imply downloadable files.
+- Read `GET /api/tasks/{id}/result-summary/` for task-level summaries, check `provenance`, and do not infer missing percentile fields.
+- Read `GET /api/tasks/{id}/artifacts/` for artifact metadata; `planned` and `missing` states do not imply downloadable files.
+- Treat `GET /api/tasks/{id}/artifacts/{artifact_id}/download/` as a structured preview placeholder until a durable artifact store exists.
 
 ## Rollback
 

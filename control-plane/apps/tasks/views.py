@@ -16,6 +16,7 @@ from rest_framework.views import APIView
 
 from .models import LoadTestTask
 from .read_models import (
+    artifact_download_placeholder_read_model,
     artifact_metadata_read_model,
     result_summary_read_model,
     task_detail_read_model,
@@ -153,3 +154,19 @@ class TaskArtifactsView(APIView):
         except LoadTestTask.DoesNotExist:
             return Response({"detail": f"Task '{pk}' not found."}, status=status.HTTP_404_NOT_FOUND)
         return Response(artifact_metadata_read_model(task), status=status.HTTP_200_OK)
+
+
+class TaskArtifactDownloadView(APIView):
+    """
+    GET /api/tasks/{id}/artifacts/{artifact_id}/download/ returns a structured not-implemented response.
+    """
+
+    def get(self, request: Request, pk: str, artifact_id: str) -> Response:
+        try:
+            task = LoadTestTask.objects.get(pk=pk)
+        except LoadTestTask.DoesNotExist:
+            return Response({"detail": f"Task '{pk}' not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            artifact_download_placeholder_read_model(task, artifact_id),
+            status=status.HTTP_501_NOT_IMPLEMENTED,
+        )
