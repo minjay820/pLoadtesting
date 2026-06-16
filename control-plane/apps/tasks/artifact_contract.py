@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+import re
 from typing import Any
 from urllib.parse import urlparse
 
+
+ARTIFACT_MANIFEST_VERSION = "1.0"
+LEGACY_ARTIFACT_MANIFEST_VERSION = "unspecified"
+SUPPORTED_ARTIFACT_MANIFEST_VERSIONS = {ARTIFACT_MANIFEST_VERSION}
 
 ARTIFACT_KIND_SUMMARY_JSON = "summary_json"
 ARTIFACT_KIND_HTML_REPORT = "html_report"
@@ -50,6 +55,19 @@ SENSITIVE_METADATA_TOKENS = {
     "api_key",
     "apikey",
 }
+SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def validate_artifact_manifest_version(version: str | None, *, allow_legacy_unspecified: bool = False) -> str:
+    if version in (None, ""):
+        if allow_legacy_unspecified:
+            return LEGACY_ARTIFACT_MANIFEST_VERSION
+        raise ValueError("artifact_manifest_version is required.")
+    if not isinstance(version, str):
+        raise ValueError("artifact_manifest_version must be a string.")
+    if version not in SUPPORTED_ARTIFACT_MANIFEST_VERSIONS:
+        raise ValueError(f"Unsupported artifact manifest version: {version}")
+    return version
 
 
 def validate_artifact_kind(kind: str) -> str:
@@ -99,6 +117,17 @@ def sanitize_artifact_metadata(value: Any) -> dict[str, Any]:
     if not isinstance(value, Mapping):
         raise ValueError("metadata must be a JSON object.")
     return {str(key): _sanitize_metadata_value(str(key), item) for key, item in value.items()}
+
+
+def validate_checksum_sha256(value: Any) -> str:
+    if value in (None, ""):
+        return ""
+    if not isinstance(value, str):
+        raise ValueError("checksum_sha256 must be a string when provided.")
+    lowered = value.lower()
+    if not SHA256_HEX_RE.match(lowered):
+        raise ValueError("checksum_sha256 must be a 64-character lowercase hex SHA-256 value.")
+    return lowered
 
 
 def _sanitize_metadata_value(key: str, value: Any) -> Any:

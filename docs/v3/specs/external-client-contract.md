@@ -181,12 +181,17 @@ Current artifact item fields are:
 - `name`
 - `state`
 - `size_bytes`
+- `checksum_sha256`
 - `content_type`
 - `created_at`
 - `download_available`
 - `download_url`
 - `provenance.engine`
 - `provenance.source`
+
+Current artifact response envelope also includes:
+
+- `contract.artifact_manifest_version`
 
 Current artifact states are:
 
@@ -223,6 +228,8 @@ Current persisted manifest behavior:
 - object references are logical identifiers only
 - worker result callbacks can register persisted manifest rows through an optional `artifact_manifest` payload
 - the Control Plane rejects invalid local paths, traversal strings, and sensitive manifest metadata
+- `checksum_sha256` must be a valid 64-character lowercase hex SHA-256 string when present
+- legacy list-only worker payloads remain accepted, while the preferred payload shape is a versioned envelope with `artifact_manifest_version: "1.0"`
 
 Current object reference rules:
 
@@ -242,6 +249,9 @@ Phase 9 adds a narrow worker artifact registration MVP through the existing resu
 Current worker registration behavior:
 
 - the worker can post `artifact_manifest` together with `POST /api/tasks/{id}/results/`
+- the preferred payload shape is:
+  - `artifact_manifest_version: "1.0"`
+  - `items: [...]`
 - persisted rows override derived rows with the same `artifact_id`
 - current worker mappings are deterministic by engine:
   - k6: `k6-summary-json`, `k6-stdout`, `k6-stderr`, `k6-engine-output`
@@ -249,6 +259,7 @@ Current worker registration behavior:
   - unknown: `engine-output`
 - `available` state depends on real evidence and must not be inferred from a hidden worker-local path
 - object references remain logical identifiers only, currently using `artifact://tasks/<task-id>/<artifact-id>` for worker-registered rows
+- size and checksum enrichment is limited to safe in-memory evidence such as captured `stdout`, captured `stderr`, or persisted `raw_report`
 
 External clients should continue to treat `download_available=false` as authoritative even when a persisted row is `available`.
 

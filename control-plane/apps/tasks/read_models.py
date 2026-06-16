@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from .artifact_contract import (
+    ARTIFACT_MANIFEST_VERSION,
     ARTIFACT_KIND_ENGINE_OUTPUT,
     ARTIFACT_KIND_HTML_REPORT,
     ARTIFACT_KIND_JTL,
@@ -208,6 +209,9 @@ def artifact_metadata_read_model(task: LoadTestTask) -> dict[str, Any]:
     items = _merged_artifact_items(task)
     return {
         "source": {"status": "ok"},
+        "contract": {
+            "artifact_manifest_version": ARTIFACT_MANIFEST_VERSION,
+        },
         "task_id": str(task.id),
         "summary": {
             "count": len(items),
@@ -341,6 +345,7 @@ def _artifact_item(
         "name": name,
         "state": state,
         "size_bytes": None,
+        "checksum_sha256": None,
         "content_type": content_type,
         "created_at": _dt(result.collected_at) if state == ARTIFACT_STATE_AVAILABLE and result is not None else None,
         "download_available": False,

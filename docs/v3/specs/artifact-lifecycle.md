@@ -1,6 +1,6 @@
 # Artifact Lifecycle
 
-This spec defines the current Phase 9 artifact lifecycle contract for Core preview APIs. It hardens artifact metadata, result reporting provenance, persisted manifest behavior, and worker artifact registration without adding a complete report center, object storage, or unsafe filesystem download.
+This spec defines the current Phase 10 artifact lifecycle contract for Core preview APIs. It hardens artifact metadata, manifest versioning, worker registration payload compatibility, and size/checksum enrichment without adding a complete report center, object storage, or unsafe filesystem download.
 
 ## Current Runtime Boundary
 
@@ -133,6 +133,19 @@ Phase 8 adds a minimal persisted manifest model with task-scoped rows. The manif
 
 The manifest does not expose worker-local paths and does not imply a real download implementation.
 
+## Manifest Versioning
+
+Current artifact manifest contract version:
+
+- `artifact_manifest_version = "1.0"`
+
+Current versioning rules:
+
+- worker registration payloads should send `artifact_manifest_version: "1.0"`
+- the public `GET /api/tasks/{id}/artifacts/` response exposes the current contract version in `contract.artifact_manifest_version`
+- legacy list-only worker payloads remain accepted for backward compatibility and are treated as `unspecified` legacy payloads
+- future unsupported manifest versions are currently rejected rather than downgraded silently
+
 ## Worker Artifact Registration MVP
 
 Phase 9 allows the worker to send known artifact manifest entries together with `POST /api/tasks/{id}/results/`.
@@ -140,10 +153,41 @@ Phase 9 allows the worker to send known artifact manifest entries together with 
 Current registration rules:
 
 - the worker builds deterministic artifact ids by engine convention
+- the worker sends a versioned payload envelope with `artifact_manifest_version` and `items`
 - the worker registers only safe metadata and logical object references
 - the Control Plane validates kind, state, object reference, and safe metadata before upsert
+- the Control Plane validates `checksum_sha256` format when present
 - invalid local paths, traversal strings, and sensitive metadata are rejected
 - registration remains additive to existing result callback behavior and does not require the worker to import Django models
+
+Current accepted payload formats:
+
+- preferred:
+
+```json
+{
+  "artifact_manifest_version": "1.0",
+  "items": [
+    {
+      "artifact_id": "k6-stdout",
+      "kind": "stdout",
+      "state": "available"
+    }
+  ]
+}
+```
+
+- backward-compatible legacy:
+
+```json
+[
+  {
+    "artifact_id": "k6-stdout",
+    "kind": "stdout",
+    "state": "available"
+  }
+]
+```
 
 Current engine mapping:
 
@@ -154,6 +198,18 @@ Current engine mapping:
 | unknown | `engine-output` | persisted `raw_report` evidence only |
 
 `available` must depend on evidence. Worker registration must not invent file existence just because a worker-local output path was expected.
+
+## Size And Checksum Enrichment
+
+Phase 10 adds safe enrichment for `size_bytes` and `checksum_sha256`.
+
+Current enrichment rules:
+
+- `stdout` and `stderr` can derive size and SHA-256 from captured string or bytes evidence
+- `engine_output` can derive size and SHA-256 from a stable serialized `raw_report`
+- summary or report artifact rows without safe in-memory evidence remain `available` or `planned` based on evidence, but can keep `size_bytes` and `checksum_sha256` empty
+- raw artifact content is not copied into artifact metadata
+- worker registration does not read arbitrary local files to compute size or checksum
 
 ## Object Reference Rules
 
@@ -177,6 +233,7 @@ Validation rules:
 - path traversal segments are rejected
 - `artifact://tasks/...` references must match the owning task and artifact identifier
 - object references are logical identifiers only, not filesystem paths
+- `checksum_sha256` must be a 64-character lowercase hex SHA-256 value when provided
 
 Phase 9 worker registration uses `artifact://tasks/<task-id>/<artifact-id>` for current logical references. Future `object://...` and `external://...` references remain valid for later storage backends, but the worker does not expose local paths in this phase.
 

@@ -117,8 +117,12 @@ Current callback behavior:
 
 - `raw_report` remains the required result payload
 - `artifact_manifest` is optional and additive
+- the preferred artifact manifest payload shape is an envelope with `artifact_manifest_version: "1.0"` and `items`
+- the legacy list-only `artifact_manifest` shape remains accepted for backward compatibility
 - artifact entries are validated through the same kind, state, object reference, and safe metadata rules used by persisted manifest registration
+- `size_bytes` and `checksum_sha256` can be provided when safe evidence exists
 - invalid local paths, traversal strings, and sensitive metadata are rejected with `400`
+- unsupported artifact manifest versions are rejected with `400`
 - successful registration upserts persisted manifest rows before task completion is finalized
 
 ### Execution Object
@@ -179,6 +183,10 @@ Full shard lifecycle, worker claim, retry, partial success, cancellation, artifa
 
 The preview artifact manifest contract remains task-scoped and metadata-only. Current worker registration entries use deterministic ids and logical object references such as `artifact://tasks/<task-id>/<artifact-id>`.
 
+Current manifest version:
+
+- `artifact_manifest_version = "1.0"`
+
 Current supported worker registration rows are:
 
 - k6: `k6-summary-json`, `k6-stdout`, `k6-stderr`, `k6-engine-output`
@@ -186,6 +194,11 @@ Current supported worker registration rows are:
 - unknown: `engine-output`
 
 `available` depends on actual evidence, such as captured `stdout`, captured `stderr`, a persisted `raw_report`, or engine-specific summary/JTL/report evidence. Preview v1 planning still does not include real file download, object storage, or complete retention cleanup.
+
+When safe evidence exists, current rows can also include:
+
+- `size_bytes`
+- `checksum_sha256`
 
 ### POST /api/v1/tasks Examples
 

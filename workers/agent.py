@@ -19,7 +19,7 @@ WORKER_DIR = os.path.dirname(__file__)
 if WORKER_DIR not in sys.path:
     sys.path.insert(0, WORKER_DIR)
 
-from artifacts import build_artifact_manifest_entries
+from artifacts import build_artifact_manifest
 
 # ── InfluxDB v2 Client（可選，僅在環境變數存在時啟用）───────────────────────
 try:
@@ -448,7 +448,7 @@ def post_task_result(task_id: str, payload: dict):
 
 
 def attach_artifact_manifest(task_id: str, engine: str, summary: dict, *, artifact_evidence: dict | None = None) -> None:
-    summary["artifact_manifest"] = build_artifact_manifest_entries(
+    summary["artifact_manifest"] = build_artifact_manifest(
         task_id,
         engine,
         {

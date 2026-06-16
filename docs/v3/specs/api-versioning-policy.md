@@ -48,6 +48,7 @@ The following are experimental runtime contracts:
 - `GET /api/tasks/{id}/artifacts/`.
 - `GET /api/tasks/{id}/artifacts/{artifact_id}/download/`.
 - Persisted artifact manifest metadata and controlled object references.
+- Artifact manifest version `1.0` and worker artifact registration payload compatibility.
 - Worker execution mapping for k6 and JMeter.
 - Worker shard metadata mapping for k6 and JMeter.
 
@@ -58,6 +59,8 @@ Compatibility expectations:
 - Expect additive metadata and possible `/api/v1` naming refinements before stabilization.
 - Keep existing MVP enum values valid unless a deprecation path is documented.
 - Preserve artifact item shape even as persisted manifest metadata expands behind the same response contract.
+- Preserve backward compatibility for legacy list-only worker artifact payloads while preferring the versioned envelope shape.
+- Treat unsupported future artifact manifest versions as explicit validation failures until a migration path is documented.
 
 ## Planning-Only Contracts
 
@@ -82,6 +85,7 @@ Core can add:
 - New endpoints.
 - New template metadata fields.
 - New coverage metadata dimensions.
+- New optional artifact metadata fields such as checksum, size, or contract metadata.
 
 External clients should ignore unknown response fields and should avoid strict schema rejection for additional optional fields.
 

@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import subprocess
 import sys
 import types
@@ -107,6 +108,18 @@ def test_build_k6_artifact_manifest_entries_from_evidence():
     assert by_id["k6-engine-output"]["state"] == "available"
 
 
+def test_build_artifact_manifest_returns_versioned_envelope():
+    payload = worker_artifacts.build_artifact_manifest(
+        "task-versioned",
+        "k6",
+        {"raw_report": {"stdout": "ok"}},
+    )
+
+    assert payload["artifact_manifest_version"] == "1.0"
+    assert isinstance(payload["items"], list)
+    assert payload["items"][0]["artifact_id"] == "k6-summary-json"
+
+
 def test_build_jmeter_artifact_manifest_entries_from_evidence():
     entries = worker_artifacts.build_artifact_manifest_entries(
         "task-2",
@@ -157,6 +170,54 @@ def test_build_artifact_manifest_does_not_expose_local_paths():
         assert entry["object_ref"] is None or entry["object_ref"].startswith("artifact://tasks/task-5/")
         assert "/tmp/" not in str(entry)
         assert "file:///" not in str(entry)
+
+
+def test_stdout_evidence_generates_size_and_checksum():
+    entries = worker_artifacts.build_artifact_manifest_entries(
+        "task-stdout",
+        "k6",
+        {"raw_report": {"stdout": "hello"}},
+    )
+
+    stdout_entry = {entry["artifact_id"]: entry for entry in entries}["k6-stdout"]
+    assert stdout_entry["size_bytes"] == 5
+    assert stdout_entry["checksum_sha256"] == hashlib.sha256(b"hello").hexdigest()
+
+
+def test_stderr_evidence_generates_size_and_checksum():
+    entries = worker_artifacts.build_artifact_manifest_entries(
+        "task-stderr",
+        "jmeter",
+        {"raw_report": {"stderr": "warn"}},
+    )
+
+    stderr_entry = {entry["artifact_id"]: entry for entry in entries}["jmeter-stderr"]
+    assert stderr_entry["size_bytes"] == 4
+    assert stderr_entry["checksum_sha256"] == hashlib.sha256(b"warn").hexdigest()
+
+
+def test_raw_report_evidence_generates_size_and_checksum():
+    entries = worker_artifacts.build_artifact_manifest_entries(
+        "task-raw",
+        "custom",
+        {"raw_report": {"error": "unsupported"}},
+    )
+
+    entry = entries[0]
+    assert entry["size_bytes"] is not None
+    assert len(entry["checksum_sha256"]) == 64
+
+
+def test_checksum_is_64_char_hex():
+    entries = worker_artifacts.build_artifact_manifest_entries(
+        "task-hash",
+        "k6",
+        {"raw_report": {"stdout": "hash-me"}},
+    )
+
+    stdout_entry = {entry["artifact_id"]: entry for entry in entries}["k6-stdout"]
+    assert len(stdout_entry["checksum_sha256"]) == 64
+    assert stdout_entry["checksum_sha256"] == stdout_entry["checksum_sha256"].lower()
 
 
 def test_k6_env_includes_execution_settings():
@@ -214,8 +275,9 @@ def test_k6_env_includes_shard_metadata():
     assert kwargs["env"]["DATASET_LIMIT"] == "2000"
     assert "shard" not in kwargs["env"]
     payload = post_mock.call_args.args[1]
-    assert payload["artifact_manifest"][0]["artifact_id"] == "k6-summary-json"
-    assert all("/tmp/" not in str(entry) for entry in payload["artifact_manifest"])
+    assert payload["artifact_manifest"]["artifact_manifest_version"] == "1.0"
+    assert payload["artifact_manifest"]["items"][0]["artifact_id"] == "k6-summary-json"
+    assert all("/tmp/" not in str(entry) for entry in payload["artifact_manifest"]["items"])
     assert payload["raw_report"]["shard"] == shard
 
 
@@ -274,8 +336,9 @@ def test_jmeter_command_includes_shard_properties():
     assert "-Jdataset_limit=2000" in cmd
     assert not any(item.startswith("-Jshard_metadata=") for item in cmd)
     payload = post_mock.call_args.args[1]
-    assert payload["artifact_manifest"][0]["artifact_id"] == "jmeter-jtl"
-    assert all("/tmp/" not in str(entry) for entry in payload["artifact_manifest"])
+    assert payload["artifact_manifest"]["artifact_manifest_version"] == "1.0"
+    assert payload["artifact_manifest"]["items"][0]["artifact_id"] == "jmeter-jtl"
+    assert all("/tmp/" not in str(entry) for entry in payload["artifact_manifest"]["items"])
     assert payload["raw_report"]["shard"] == shard
 
 
@@ -331,4 +394,5 @@ def test_timeout_posts_failed_result_with_diagnostics():
     assert payload["raw_report"]["shard"] == shard
     assert payload["raw_report"]["stdout"] == "partial out"
     assert payload["raw_report"]["stderr"] == "partial err"
-    assert payload["artifact_manifest"][0]["artifact_id"] == "k6-summary-json"
+    assert payload["artifact_manifest"]["artifact_manifest_version"] == "1.0"
+    assert payload["artifact_manifest"]["items"][0]["artifact_id"] == "k6-summary-json"

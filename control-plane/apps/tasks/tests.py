@@ -126,18 +126,23 @@ class TaskResultCreateTests(TestCase):
             {
                 "execution_status": "completed",
                 "raw_report": {"stdout": "ok"},
-                "artifact_manifest": [
-                    {
-                        "artifact_id": "k6-stdout",
-                        "kind": "stdout",
-                        "name": "stdout.txt",
-                        "state": "available",
-                        "content_type": "text/plain",
-                        "object_ref": f"artifact://tasks/{task.id}/k6-stdout",
-                        "provenance_source": "worker_output",
-                        "metadata": {"source": "worker"},
-                    }
-                ],
+                "artifact_manifest": {
+                    "artifact_manifest_version": "1.0",
+                    "items": [
+                        {
+                            "artifact_id": "k6-stdout",
+                            "kind": "stdout",
+                            "name": "stdout.txt",
+                            "state": "available",
+                            "content_type": "text/plain",
+                            "object_ref": f"artifact://tasks/{task.id}/k6-stdout",
+                            "size_bytes": 2,
+                            "checksum_sha256": "2689367b205c16ce32a397a2e792e9898ce3e52ec0a5a63bd62c2a9f0e0f8b6d",
+                            "provenance_source": "worker_output",
+                            "metadata": {"source": "worker"},
+                        }
+                    ],
+                },
             },
             format="json",
         )
@@ -146,10 +151,62 @@ class TaskResultCreateTests(TestCase):
         artifact = TaskArtifact.objects.get(task=task, artifact_id="k6-stdout")
         self.assertEqual(artifact.state, "available")
         self.assertEqual(artifact.object_ref, f"artifact://tasks/{task.id}/k6-stdout")
+        self.assertEqual(artifact.checksum_sha256, "2689367b205c16ce32a397a2e792e9898ce3e52ec0a5a63bd62c2a9f0e0f8b6d")
+        self.assertEqual(artifact.metadata["artifact_manifest_version"], "1.0")
 
     def test_result_callback_registered_artifact_is_visible_in_artifact_list(self):
         task = LoadTestTask.objects.create(
             name="artifact manifest list run",
+            engine="k6",
+            script_path="engines/k6/target_apps_payload_download.js",
+            target_url="http://target-app:8000",
+            status=LoadTestTask.Status.DISPATCHED,
+        )
+
+        response = self.client.post(
+            f"/api/tasks/{task.id}/results/",
+            {
+                "execution_status": "completed",
+                "raw_report": {"stdout": "ok"},
+                "artifact_manifest": {
+                    "artifact_manifest_version": "1.0",
+                    "items": [
+                        {
+                            "artifact_id": "k6-stdout",
+                            "kind": "stdout",
+                            "name": "stdout.txt",
+                            "state": "available",
+                            "content_type": "text/plain",
+                            "object_ref": f"artifact://tasks/{task.id}/k6-stdout",
+                            "size_bytes": 2,
+                            "checksum_sha256": "2689367b205c16ce32a397a2e792e9898ce3e52ec0a5a63bd62c2a9f0e0f8b6d",
+                            "provenance_source": "worker_output",
+                            "metadata": {"source": "worker"},
+                        }
+                    ],
+                },
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+        artifact_response = self.client.get(f"/api/tasks/{task.id}/artifacts/")
+
+        self.assertEqual(artifact_response.status_code, 200)
+        payload = artifact_response.json()
+        self.assertEqual(payload["summary"]["available_count"], 2)
+        items = {item["artifact_id"]: item for item in payload["items"]}
+        self.assertEqual(items["k6-stdout"]["state"], "available")
+        self.assertEqual(items["k6-stdout"]["provenance"]["source"], "worker_output")
+        self.assertEqual(items["k6-engine-output"]["state"], "available")
+        self.assertNotIn("object_ref", items["k6-stdout"])
+        self.assertEqual(items["k6-stdout"]["size_bytes"], 2)
+        self.assertEqual(items["k6-stdout"]["checksum_sha256"], "2689367b205c16ce32a397a2e792e9898ce3e52ec0a5a63bd62c2a9f0e0f8b6d")
+
+    def test_result_callback_accepts_legacy_list_artifact_manifest(self):
+        task = LoadTestTask.objects.create(
+            name="legacy artifact manifest run",
             engine="k6",
             script_path="engines/k6/target_apps_payload_download.js",
             target_url="http://target-app:8000",
@@ -178,17 +235,33 @@ class TaskResultCreateTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 201)
+        artifact = TaskArtifact.objects.get(task=task, artifact_id="k6-stdout")
+        self.assertFalse("artifact_manifest_version" in artifact.metadata)
 
-        artifact_response = self.client.get(f"/api/tasks/{task.id}/artifacts/")
+    def test_result_callback_rejects_unsupported_artifact_manifest_version(self):
+        task = LoadTestTask.objects.create(
+            name="unsupported artifact manifest version run",
+            engine="k6",
+            script_path="engines/k6/target_apps_payload_download.js",
+            target_url="http://target-app:8000",
+            status=LoadTestTask.Status.DISPATCHED,
+        )
 
-        self.assertEqual(artifact_response.status_code, 200)
-        payload = artifact_response.json()
-        self.assertEqual(payload["summary"]["available_count"], 2)
-        items = {item["artifact_id"]: item for item in payload["items"]}
-        self.assertEqual(items["k6-stdout"]["state"], "available")
-        self.assertEqual(items["k6-stdout"]["provenance"]["source"], "worker_output")
-        self.assertEqual(items["k6-engine-output"]["state"], "available")
-        self.assertNotIn("object_ref", items["k6-stdout"])
+        response = self.client.post(
+            f"/api/tasks/{task.id}/results/",
+            {
+                "execution_status": "completed",
+                "raw_report": {"stdout": "ok"},
+                "artifact_manifest": {
+                    "artifact_manifest_version": "2.0",
+                    "items": [],
+                },
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Unsupported artifact manifest version", str(response.json()))
 
     def test_result_callback_rejects_invalid_local_path_artifact_manifest(self):
         task = LoadTestTask.objects.create(
@@ -329,7 +402,7 @@ class TaskReadContractTests(TestCase):
             "content_type": "application/json",
             "object_ref": f"artifact://tasks/{task.id}/k6-summary-json",
             "storage_backend": "manifest",
-            "checksum_sha256": "abc123",
+            "checksum_sha256": "a" * 64,
             "provenance_engine": task.engine,
             "provenance_source": "worker_output",
             "metadata": {"source": "worker"},
@@ -470,6 +543,7 @@ class TaskReadContractTests(TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["source"]["status"], "ok")
+        self.assertEqual(payload["contract"]["artifact_manifest_version"], "1.0")
         self.assertEqual(payload["task_id"], str(task.id))
         self.assertEqual(payload["summary"]["count"], 5)
         self.assertEqual(payload["summary"]["available_count"], 0)
@@ -543,6 +617,7 @@ class TaskReadContractTests(TestCase):
         items = {item["artifact_id"]: item for item in payload["items"]}
         self.assertEqual(items["k6-summary-json"]["state"], "available")
         self.assertEqual(items["k6-summary-json"]["size_bytes"], 678)
+        self.assertEqual(items["k6-summary-json"]["checksum_sha256"], "a" * 64)
         self.assertEqual(items["k6-summary-json"]["provenance"]["source"], "artifact_manifest")
 
     def test_persisted_artifact_manifest_supports_state_counts(self):
@@ -652,6 +727,18 @@ class TaskReadContractTests(TestCase):
 
         with self.assertRaisesMessage(ValueError, "path traversal"):
             self.register_artifact(task, object_ref="../result.json")
+
+    def test_register_task_artifact_rejects_invalid_checksum(self):
+        task = self.create_task()
+
+        with self.assertRaisesMessage(ValueError, "checksum_sha256"):
+            self.register_artifact(task, checksum_sha256="not-a-real-checksum")
+
+    def test_register_task_artifact_rejects_invalid_size(self):
+        task = self.create_task()
+
+        with self.assertRaisesMessage(ValueError, "non-negative"):
+            self.register_artifact(task, size_bytes=-1)
 
     def test_register_task_artifact_upserts_by_task_and_artifact_id(self):
         task = self.create_task()
