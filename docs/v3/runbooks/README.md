@@ -7,6 +7,7 @@ This area is for operator-facing procedures, validation flows, troubleshooting g
 - [CI Control Plane diagnostics](ci-control-plane-diagnostics.md)
 - [Distributed deployment](distributed-deployment.md)
 - [JMeter observability validation](jmeter-observability-validation.md)
+- [Local smoke image build](local-smoke-image-build.md)
 - [Target app local runbook](target-app-local-runbook.md)
 
 ## Likely Future Runbooks

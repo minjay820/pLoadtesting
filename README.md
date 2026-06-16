@@ -86,6 +86,8 @@ pLoadtesting/
 
 Active governed documentation lives in [`docs/v3/README.md`](docs/v3/README.md), including the current target profile coverage matrix, Phase completion assessment, dashboard/API planning specs, external client contract, API versioning policy, and distributed deployment runbook.
 
+Local release candidate smoke image build guidance lives in [`docs/v3/runbooks/local-smoke-image-build.md`](docs/v3/runbooks/local-smoke-image-build.md).
+
 ---
 
 ## 📦 Components
