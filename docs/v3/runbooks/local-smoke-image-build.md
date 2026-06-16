@@ -60,11 +60,17 @@ docker image inspect \
 
 | Image Tag | Image ID / Digest | Created | Size |
 | --- | --- | --- | --- |
-| `local/ploadtesting-control-plane:0.1.0-rc.1` | `sha256:ebf4623a1707430069f1e491fb5b6289a9b9f8b03796638f09dfb1dcfa6d71b1` | `2026-06-16T08:31:41.741366504Z` | `101348919` |
-| `local/ploadtesting-worker:0.1.0-rc.1` | `sha256:b4944440555fe1da820ba901f4b96dcca1b1d9af0dd6cc88ca78aa2de136a1c1` | `2026-06-16T02:22:34.271926046Z` | `335290564` |
-| `local/ploadtesting-target-apps:0.1.0-rc.1` | `sha256:606626b5414aad58ce79a2e81fac563b192ffe516251c25e5a331543acd7c7f7` | `2026-06-15T14:30:20.239281752Z` | `62586146` |
+| `local/ploadtesting-control-plane:0.1.0-rc.1` | `sha256:5629c480c21156c71aa7cb08590f3c27ca46df251844890efb879fcd2d620443` | `2026-06-16T08:43:35.23029021Z` | `71904271` |
+| `local/ploadtesting-worker:0.1.0-rc.1` | `sha256:8700a6f9807c20809b43851e1bfc97643807b4567da97876fb2f110343650b43` | `2026-06-16T08:43:34.776078418Z` | `335272297` |
+| `local/ploadtesting-target-apps:0.1.0-rc.1` | `sha256:440bd2e724059127b0b8a59d9fc84cf76b20de542a7b9d41ccb2975cd1d0798e` | `2026-06-15T14:30:20.239281752Z` | `62586146` |
 
 Repo digests were available for the local tags after build.
+
+Resolved local repo digests:
+
+- `local/ploadtesting-control-plane@sha256:5629c480c21156c71aa7cb08590f3c27ca46df251844890efb879fcd2d620443`
+- `local/ploadtesting-worker@sha256:8700a6f9807c20809b43851e1bfc97643807b4567da97876fb2f110343650b43`
+- `local/ploadtesting-target-apps@sha256:440bd2e724059127b0b8a59d9fc84cf76b20de542a7b9d41ccb2975cd1d0798e`
 
 ## Cleanup
 
