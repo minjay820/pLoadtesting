@@ -51,7 +51,19 @@ When `PLOADTESTING_ENABLE_DEMO_TASK_API=true`, a compatible external client with
 
 The smoke path rejects arbitrary target/profile pairs, direct engine/script/target URL overrides, request parameter overrides, custom execution overrides, distribution metadata, scheduled tasks, and unknown fields. The resolved task must remain local-only and bounded to the profile defaults.
 
-After a controlled demo task is created, Core attempts one immediate worker dispatch using the same worker selection and internal worker delivery path as the scheduled dispatcher. If no compatible idle worker is registered, the task remains `pending` with a diagnostic `error_message` and can be retried by the normal dispatcher when worker capacity appears. Core must not mark a task completed without worker execution or worker callback evidence.
+After a controlled demo task is created, Core attempts one immediate worker dispatch using the same worker selection and internal worker delivery path as the scheduled dispatcher. A compatible idle worker is a registered `WorkerNode` with `status=online`, `active_task_count=0`, and `capabilities` containing the task engine. If no compatible idle worker is registered, the task remains `pending` with a diagnostic `error_message` and can be retried by the normal dispatcher when worker capacity appears. Core must not mark a task completed without worker execution or worker callback evidence.
+
+Worker deployment smoke requires the Worker Agent to register and heartbeat against the same Control Plane runtime. The worker runtime must be configured with:
+
+- `CONTROL_PLANE_URL`
+- `DJANGO_ALLOWED_HOSTS` on Core, including the host name used in `CONTROL_PLANE_URL`
+- `WORKER_NAME`
+- `WORKER_PORT`
+- `WORKER_CAPABILITIES`
+- `PLOADTESTING_API_TOKEN`
+- optional `WORKER_ADVERTISE_IP` when automatic address detection is not reachable from Core
+
+When a compatible worker accepts the dispatch, the task moves to `dispatched`. When the worker starts execution, it posts `execution_status=running` through the protected result callback route, and Core moves the task to `running` with `started_at`. Final worker callback payloads still use `execution_status=completed` or `execution_status=failed` to persist the result and move the task to `completed` or `failed`.
 
 The same flag allows metadata reads only for tasks created through this controlled smoke path:
 
@@ -151,7 +163,9 @@ The preview `POST /api/tasks/{id}/results/` route is still a worker-oriented cal
 
 Current callback behavior:
 
+- `execution_status=running` is accepted as a protected lifecycle callback, updates the task to `running`, and does not create a `TestResult`
 - `raw_report` remains the required result payload
+- final callbacks accept `execution_status=completed` or `execution_status=failed`
 - `artifact_manifest` is optional and additive
 - the preferred artifact manifest payload shape is an envelope with `artifact_manifest_version: "1.0"` and `items`
 - the legacy list-only `artifact_manifest` shape remains accepted for backward compatibility

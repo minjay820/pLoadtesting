@@ -40,7 +40,13 @@ logger = logging.getLogger(__name__)
 # ── 讀取環境變數 ─────────────────────────────────────────────────────────
 CONTROL_PLANE_URL = os.getenv("CONTROL_PLANE_URL", "http://localhost:9000")
 WORKER_NAME       = os.getenv("WORKER_NAME", "worker-local-01")
-WORKER_PORT       = 8100  # 預設，後續可以依據真實起 API server 改動
+WORKER_PORT       = int(os.getenv("WORKER_PORT", "8100"))
+WORKER_ADVERTISE_IP = os.getenv("WORKER_ADVERTISE_IP", "").strip()
+WORKER_CAPABILITIES = [
+    item.strip()
+    for item in os.getenv("WORKER_CAPABILITIES", "k6,jmeter").split(",")
+    if item.strip()
+]
 API_TOKEN         = os.getenv("PLOADTESTING_API_TOKEN", "dev-api-token-change-me")
 
 # ── InfluxDB v2 Observability 環境變數 ───────────────────────────────────
@@ -111,6 +117,14 @@ def get_local_ip():
         return ip
     except Exception:
         return "127.0.0.1"
+
+
+def registration_ip() -> str:
+    return WORKER_ADVERTISE_IP or get_local_ip()
+
+
+def registration_capabilities() -> list[str]:
+    return WORKER_CAPABILITIES or ["k6", "jmeter"]
 
 def api_headers() -> dict:
     """Headers required by the Control Plane preview API."""
@@ -247,13 +261,13 @@ def timeout_summary(exc: subprocess.TimeoutExpired, timeout_seconds: int | None,
 def register_worker() -> str:
     """向 Control Plane 註冊，回傳 Worker UUID"""
     url = f"{CONTROL_PLANE_URL}/api/workers/"
-    ip_addr = get_local_ip()
+    ip_addr = registration_ip()
     
     payload = {
         "name": WORKER_NAME,
         "ip_address": ip_addr,
         "port": WORKER_PORT,
-        "capabilities": ["k6", "jmeter"]
+        "capabilities": registration_capabilities()
     }
     
     while True:
@@ -447,6 +461,11 @@ def post_task_result(task_id: str, payload: dict):
     resp.raise_for_status()
 
 
+def post_task_running(task_id: str):
+    """Notify the Control Plane that a worker started executing the task."""
+    post_task_result(task_id, {"execution_status": "running"})
+
+
 def attach_artifact_manifest(task_id: str, engine: str, summary: dict, *, artifact_evidence: dict | None = None) -> None:
     summary["artifact_manifest"] = build_artifact_manifest(
         task_id,
@@ -515,6 +534,10 @@ def push_summary_to_influxdb(task_id: str, engine: str, summary: dict, target_ur
 def execute_task(task_id: str, engine: str, script_path: str, parameters: dict):
     worker_state["active_task_count"] += 1
     logger.info(f"Starting execution for task {task_id} with script {script_path}")
+    try:
+        post_task_running(task_id)
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Failed to post running status for task {task_id}: {e}")
     
     output_file = f"/tmp/result_{task_id}.json"
     execution = extract_execution(parameters)

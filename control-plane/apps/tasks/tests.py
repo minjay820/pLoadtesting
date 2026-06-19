@@ -111,6 +111,41 @@ class ApiSecurityTests(TestCase):
         self.assertEqual(response.status_code, 403)
 
 
+@override_settings(PLOADTESTING_API_TOKEN=API_TOKEN)
+class WorkerRegistrationDispatchTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.client.credentials(HTTP_X_PLOADTESTING_API_TOKEN=API_TOKEN)
+
+    def test_worker_registration_and_heartbeat_create_compatible_idle_worker(self):
+        registration_response = self.client.post(
+            "/api/workers/",
+            {
+                "name": "demo-worker",
+                "ip_address": "127.0.0.1",
+                "port": 8100,
+                "capabilities": ["k6", "jmeter"],
+            },
+            format="json",
+        )
+
+        self.assertEqual(registration_response.status_code, 201)
+        worker_id = registration_response.json()["id"]
+
+        heartbeat_response = self.client.post(
+            f"/api/workers/{worker_id}/heartbeat/",
+            {"status": "online", "active_task_count": 0},
+            format="json",
+        )
+
+        self.assertEqual(heartbeat_response.status_code, 200)
+        worker = WorkerNode.objects.get(id=worker_id)
+        self.assertEqual(worker.status, WorkerNode.Status.ONLINE)
+        self.assertEqual(worker.active_task_count, 0)
+        self.assertIn("k6", worker.capabilities)
+        self.assertIn("jmeter", worker.capabilities)
+
+
 @override_settings(PLOADTESTING_API_TOKEN=API_TOKEN, PLOADTESTING_ENABLE_DEMO_TASK_API=True)
 class DemoTaskApiAccessTests(TestCase):
     def submit_demo_task(self, target_profile_id="echo-k6-smoke", **overrides):
@@ -374,6 +409,49 @@ class TaskResultCreateTests(TestCase):
         self.assertTrue(TestResult.objects.filter(task=task).exists())
         self.assertEqual(task.status, LoadTestTask.Status.FAILED)
         self.assertEqual(task.error_message, "k6 exited with code 107")
+        self.assertIsNotNone(task.started_at)
+
+    def test_running_worker_callback_marks_task_running_without_result(self):
+        task = LoadTestTask.objects.create(
+            name="running k6 run",
+            engine="k6",
+            script_path="k6/smoke.js",
+            target_url="http://target-app:8000",
+            status=LoadTestTask.Status.DISPATCHED,
+        )
+
+        response = self.client.post(
+            f"/api/tasks/{task.id}/results/",
+            {"execution_status": "running"},
+            format="json",
+        )
+
+        task.refresh_from_db()
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.json()["status"], LoadTestTask.Status.RUNNING)
+        self.assertEqual(task.status, LoadTestTask.Status.RUNNING)
+        self.assertIsNotNone(task.started_at)
+        self.assertFalse(TestResult.objects.filter(task=task).exists())
+
+    def test_running_worker_callback_rejects_task_with_existing_result(self):
+        task = LoadTestTask.objects.create(
+            name="completed k6 run",
+            engine="k6",
+            script_path="k6/smoke.js",
+            target_url="http://target-app:8000",
+            status=LoadTestTask.Status.COMPLETED,
+        )
+        TestResult.objects.create(task=task, raw_report={"stdout": "ok"})
+
+        response = self.client.post(
+            f"/api/tasks/{task.id}/results/",
+            {"execution_status": "running"},
+            format="json",
+        )
+
+        task.refresh_from_db()
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(task.status, LoadTestTask.Status.COMPLETED)
 
     def test_result_callback_registers_worker_artifact_manifest(self):
         task = LoadTestTask.objects.create(

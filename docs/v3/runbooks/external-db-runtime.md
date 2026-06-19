@@ -103,6 +103,19 @@ The flag does not open arbitrary task creation, long-running profiles, third-par
 
 Controlled demo task execution still requires a registered compatible worker with the matching engine capability and the existing internal/shared callback configuration. Core attempts one immediate dispatch after safe demo task creation. When no compatible idle worker is present, the task remains `pending` and records a diagnostic `error_message`; bounded polling should report that worker capacity is missing instead of treating the task as completed.
 
+For deployment smoke, the worker must register into the same Control Plane runtime and therefore the same external database-backed worker registry. Configure only variable names in deployment material, not live values:
+
+- `CONTROL_PLANE_URL`
+- `WORKER_NAME`
+- `WORKER_PORT`
+- `WORKER_CAPABILITIES`
+- `WORKER_ADVERTISE_IP` when Core cannot reach the automatically detected worker IP
+- `PLOADTESTING_API_TOKEN`
+
+`DJANGO_ALLOWED_HOSTS` must include the host name in `CONTROL_PLANE_URL`; otherwise Worker registration can be rejected before it reaches the worker registry. This is a deployment setting, not a reason to make task APIs public.
+
+The expected smoke progression is `pending -> dispatched -> running -> completed` for successful execution, or `pending -> dispatched -> running -> failed` with a diagnostic when the engine or target check fails. `POST /api/tasks/{id}/results/` remains a protected worker callback; unauthenticated external requests must still receive 403.
+
 For non-sharded controlled demo tasks, `GET /api/tasks/{id}/shard-plan/` returns a single-task metadata response with `mode=single`, `shards=[]`, and `status=not_applicable`. That response is the expected read model for safe demo profiles that do not use manual shard distribution.
 
 Safe container check:

@@ -77,6 +77,17 @@ def completed_process(cmd):
     return subprocess.CompletedProcess(cmd, 0, stdout="ok", stderr="")
 
 
+class _Response:
+    def __init__(self, payload=None):
+        self._payload = payload or {}
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self._payload
+
+
 def sample_shard():
     return {
         "shard_id": "users-a",
@@ -88,6 +99,30 @@ def sample_shard():
             "limit": 2000,
         },
     }
+
+
+def test_register_worker_uses_advertised_runtime_metadata():
+    response = _Response({"id": "worker-id-1"})
+
+    with mock.patch.object(agent, "CONTROL_PLANE_URL", "http://core:8000"), \
+        mock.patch.object(agent, "WORKER_NAME", "demo-worker"), \
+        mock.patch.object(agent, "WORKER_ADVERTISE_IP", "10.10.0.5"), \
+        mock.patch.object(agent, "WORKER_PORT", 18100), \
+        mock.patch.object(agent, "WORKER_CAPABILITIES", ["k6"]), \
+        mock.patch.object(agent.requests, "post", return_value=response) as post_mock:
+        worker_id = agent.register_worker()
+
+    assert worker_id == "worker-id-1"
+    url = post_mock.call_args.args[0]
+    payload = post_mock.call_args.kwargs["json"]
+    assert url == "http://core:8000/api/workers/"
+    assert payload == {
+        "name": "demo-worker",
+        "ip_address": "10.10.0.5",
+        "port": 18100,
+        "capabilities": ["k6"],
+    }
+    assert post_mock.call_args.kwargs["headers"] == agent.api_headers()
 
 
 def test_build_k6_artifact_manifest_entries_from_evidence():
@@ -234,7 +269,7 @@ def test_k6_env_includes_execution_settings():
 
     with mock.patch.object(agent.subprocess, "run", return_value=completed_process(["k6"])) as run_mock, \
         mock.patch.object(agent, "calculate_k6_summary", return_value={"raw_report": {}}), \
-        mock.patch.object(agent, "post_task_result"), \
+        mock.patch.object(agent, "post_task_result") as post_mock, \
         mock.patch.object(agent, "push_summary_to_influxdb"):
         agent.execute_task(
             "task-1",
@@ -243,6 +278,7 @@ def test_k6_env_includes_execution_settings():
             {"TARGET_URL": "http://target", "execution": execution},
         )
 
+    assert post_mock.call_args_list[0].args[1] == {"execution_status": "running"}
     kwargs = run_mock.call_args.kwargs
     assert kwargs["timeout"] == 690
     assert kwargs["env"]["DURATION_SECONDS"] == "600"

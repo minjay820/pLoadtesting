@@ -62,9 +62,22 @@ To enable controlled task operation smoke in the control-plane image, set the di
 PLOADTESTING_ENABLE_DEMO_TASK_API=true
 ```
 
-With the flag enabled, compatible external clients can submit only the bundled safe demo profiles and can read only smoke-created task metadata. Core attempts one immediate worker dispatch after task creation. If no compatible idle worker is registered, the task remains `pending` with a diagnostic `error_message`; if a compatible worker accepts the task, the task moves to `dispatched` and later transitions depend on the protected worker result callback. Result callbacks and artifact download remain protected for unauthenticated external requests.
+With the flag enabled, compatible external clients can submit only the bundled safe demo profiles and can read only smoke-created task metadata. Core attempts one immediate worker dispatch after task creation. If no compatible idle worker is registered, the task remains `pending` with a diagnostic `error_message`; if a compatible worker accepts the task, the task moves to `dispatched`, then to `running` after the worker posts the protected running callback, and then to `completed` or `failed` after the final protected result callback. Result callbacks and artifact download remain protected for unauthenticated external requests.
 
 Non-sharded safe demo tasks return a normal shard read model with `mode=single`, `shards=[]`, and `status=not_applicable`; clients should not treat that response as degraded.
+
+Worker deployment smoke requires these runtime variable names:
+
+```text
+CONTROL_PLANE_URL
+DJANGO_ALLOWED_HOSTS
+WORKER_NAME
+WORKER_PORT
+WORKER_CAPABILITIES
+PLOADTESTING_API_TOKEN
+```
+
+`DJANGO_ALLOWED_HOSTS` must include the host name used in `CONTROL_PLANE_URL`. Set `WORKER_ADVERTISE_IP` only when Core cannot reach the worker IP that the agent detects automatically. Do not commit live values.
 
 Bounded local container smoke:
 
@@ -189,6 +202,24 @@ Bounded container smoke with `PLOADTESTING_ENABLE_DEMO_TASK_API=true` confirmed:
 - Result summary: HTTP 200, `status=not_available`.
 - Artifact metadata: HTTP 200, 5 planned artifacts.
 - Artifact download and result callback: HTTP 403 without broader access.
+
+## 2026-06-20 Worker Registration Demo Execution Smoke Build Record
+
+| Image Tag | Image ID / Digest | Created | Size | CMD |
+| --- | --- | --- | --- | --- |
+| `local/ploadtesting-control-plane:0.1.0-rc.1` | `sha256:6ef74008d955a29cb96f4c4290835fe3f3c58b8c07e58044d22b3c12a411068b` | `2026-06-19T17:10:11.072830216Z` | `79482616` | `["python","manage.py","runserver","0.0.0.0:8000"]` |
+| `local/ploadtesting-worker:0.1.0-rc.1` | `sha256:c7a35121837af7a4bdf0e6c2ece84dcb5d273415c48595aac2e98e8ab3ff3cb9` | `2026-06-19T17:01:31.010777086Z` | `335274457` | `["python","agent.py"]` |
+
+Bounded Core/Worker container smoke confirmed:
+
+- Catalog and coverage endpoints: HTTP 200.
+- Safe demo submit with `echo-api` / `echo-k6-smoke`: HTTP 201, initial status `dispatched`, worker assigned.
+- Task status progression observed: `dispatched -> running -> failed`.
+- Final failed state included a diagnostic because the bounded smoke did not start the target service in the same Docker network.
+- Shard-plan: HTTP 200, `mode=single`, `status=not_applicable`.
+- Result summary: HTTP 200, `status=available`.
+- Artifact metadata: HTTP 200, 5 metadata rows.
+- Artifact download and unauthenticated external result callback: HTTP 403.
 
 ## Cleanup
 

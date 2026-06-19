@@ -53,6 +53,26 @@ class TaskResultCreateView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        if request.data.get("execution_status") == "running":
+            if hasattr(task, "result"):
+                return Response(
+                    {"detail": "A result already exists for this task."},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            task.status = LoadTestTask.Status.RUNNING
+            task.error_message = ""
+            if task.started_at is None:
+                task.started_at = timezone.now()
+            task.save(update_fields=["status", "error_message", "started_at", "updated_at"])
+            return Response(
+                {
+                    "task_id": str(task.id),
+                    "status": task.status,
+                    "started_at": task.started_at.isoformat().replace("+00:00", "Z"),
+                },
+                status=status.HTTP_202_ACCEPTED,
+            )
+
         # ── 防止重複提交 ────────────────────────────────────────────
         if hasattr(task, "result"):
             return Response(
@@ -81,8 +101,10 @@ class TaskResultCreateView(APIView):
                     else LoadTestTask.Status.COMPLETED
                 )
                 task.error_message = error_message if execution_status == "failed" else ""
+                if task.started_at is None:
+                    task.started_at = timezone.now()
                 task.finished_at = timezone.now()
-                task.save(update_fields=["status", "error_message", "finished_at", "updated_at"])
+                task.save(update_fields=["status", "error_message", "started_at", "finished_at", "updated_at"])
         except ValueError as exc:
             raise serializers.ValidationError({"artifact_manifest": [str(exc)]}) from exc
 

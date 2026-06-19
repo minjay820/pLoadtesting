@@ -80,7 +80,11 @@ Allowed smoke submit profiles:
 
 The smoke submit path does not accept direct `engine`, `script_path`, `target_url`, `parameters`, `execution`, `distribution`, or `scheduled_at` input. It also rejects unknown fields. Core resolves the task from the catalog profile, marks the task internally as `task_operation_mode=deployment_smoke`, and verifies the resolved script, target URL, and execution bounds before returning success.
 
-Core attempts one immediate worker dispatch after creating a controlled demo task. Dispatch uses the same registered-worker selection and internal delivery path as the scheduled dispatcher. If no compatible idle worker is available, the task stays `pending` with a diagnostic `error_message`; clients should treat that as a worker-capacity state during bounded polling, not as successful execution. When a compatible worker accepts the task, the task moves to `dispatched` and later status transitions depend on the worker result callback.
+Core attempts one immediate worker dispatch after creating a controlled demo task. Dispatch uses the same registered-worker selection and internal delivery path as the scheduled dispatcher. A compatible idle worker is registered with `status=online`, `active_task_count=0`, and a capability matching the task engine. If no compatible idle worker is available, the task stays `pending` with a diagnostic `error_message`; clients should treat that as a worker-capacity state during bounded polling, not as successful execution.
+
+When a compatible worker accepts the task, the task moves to `dispatched`. When that worker starts execution, it uses the protected result callback route to post `execution_status=running`, and Core moves the task to `running`. Final callbacks move the task to `completed` or `failed`; failed final callbacks must include a diagnostic `error_message`.
+
+Deployment operators must configure the Worker Agent to reach Core through `CONTROL_PLANE_URL`, and Core `DJANGO_ALLOWED_HOSTS` must include that host name. A worker process smoke is not enough; Core dispatch requires a registered, heartbeating, compatible idle worker row.
 
 When the flag is enabled, compatible external clients can read metadata only for tasks created through this smoke path. Task history is bounded and filtered to smoke-created tasks; detail, shard-plan, result-summary, and artifact metadata reads require the same internal marker and safe profile constraints.
 

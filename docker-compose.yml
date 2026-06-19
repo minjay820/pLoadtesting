@@ -135,6 +135,8 @@ services:
     environment:
       - CONTROL_PLANE_URL=http://control-plane-web:9000
       - WORKER_NAME=worker-agent-1
+      - WORKER_PORT=8100
+      - WORKER_CAPABILITIES=k6,jmeter
       - PLOADTESTING_API_TOKEN=${PLOADTESTING_API_TOKEN:-dev-api-token-change-me}
       # ── InfluxDB v2 Observability ──────────────────────────────────────────
       - INFLUXDB_URL=http://influxdb:8086
