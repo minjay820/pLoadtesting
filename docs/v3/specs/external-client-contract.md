@@ -21,6 +21,8 @@ Core must remain independent from any specific external client implementation. A
 
 `GET /api/tasks/templates/` is the primary catalog for task creation. External clients should prefer template-driven task creation over direct script-path entry when a matching target profile exists.
 
+The catalog is a registry/static read model. It does not depend on task rows, result rows, or external database seed data. A source checkout reads the target manifests and task templates from `target-apps/`; the control-plane image can fall back to bundled safe demo profile definitions under `apps/tasks/catalog/` when the repo-root catalog is outside the image build context.
+
 Template rows currently expose:
 
 - `target_app_id`
@@ -39,6 +41,8 @@ Template rows currently expose:
 - `execution` when a profile defines a duration default
 
 Template metadata is a stable candidate contract. New optional fields can be added without breaking compatible clients. Clients should ignore unknown fields.
+
+Safe demo profiles are local-only, bounded-duration catalog profiles intended for deployment smoke. They use local target URLs, require no real credentials, and should be selected only for short validation runs. Compatible external clients must not use catalog discovery to start long tests or tests against third-party targets.
 
 ## Coverage Metadata Contract
 

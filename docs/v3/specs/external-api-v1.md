@@ -36,6 +36,10 @@ The preview catalog read APIs are intentionally open for compatible external cli
 
 They expose static task template and coverage metadata only. Task data APIs and write APIs remain protected, including `GET /api/tasks/`, `POST /api/tasks/`, task detail, worker result callbacks, result summary, shard plan, and artifact metadata routes.
 
+Catalog rows are read from registry/static profile definitions, not from task database rows. In a source checkout, the registry reads `target-apps/manifests/*.yaml` and `target-apps/task-templates/*.yaml`. In the control-plane image, when those repo-root catalog files are not present in the build context, the registry falls back to bundled safe demo profile definitions under `apps/tasks/catalog/`.
+
+The bundled safe demo profiles are local-only, bounded-duration profiles intended for deployment smoke by a compatible external client. They must not be treated as permission to run long tests or third-party targets.
+
 ## Versioning Goals
 
 - Use `/api/v1/` for stable external consumers.

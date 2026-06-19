@@ -8,6 +8,9 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[3]
 TARGET_MANIFESTS_DIR = REPO_ROOT / "target-apps" / "manifests"
 TARGET_TEMPLATES_DIR = REPO_ROOT / "target-apps" / "task-templates"
+BUNDLED_CATALOG_DIR = Path(__file__).resolve().parent / "catalog"
+BUNDLED_MANIFESTS_DIR = BUNDLED_CATALOG_DIR / "manifests"
+BUNDLED_TEMPLATES_DIR = BUNDLED_CATALOG_DIR / "task-templates"
 NO_EXACT_EQUIVALENT_GAP = "No exact equivalent profile is currently defined."
 
 
@@ -19,10 +22,17 @@ def _load_yaml(path: Path) -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
+def _catalog_paths(primary_dir: Path, fallback_dir: Path) -> list[Path]:
+    paths = sorted(primary_dir.glob("*.yaml"))
+    if paths:
+        return paths
+    return sorted(fallback_dir.glob("*.yaml"))
+
+
 @lru_cache(maxsize=1)
 def load_target_manifests() -> dict[str, dict]:
     manifests: dict[str, dict] = {}
-    for path in sorted(TARGET_MANIFESTS_DIR.glob("*.yaml")):
+    for path in _catalog_paths(TARGET_MANIFESTS_DIR, BUNDLED_MANIFESTS_DIR):
         data = _load_yaml(path)
         manifests[data["target_app_id"]] = data
     return manifests
@@ -31,7 +41,7 @@ def load_target_manifests() -> dict[str, dict]:
 @lru_cache(maxsize=1)
 def load_task_templates() -> dict[tuple[str, str], dict]:
     templates: dict[tuple[str, str], dict] = {}
-    for path in sorted(TARGET_TEMPLATES_DIR.glob("*.yaml")):
+    for path in _catalog_paths(TARGET_TEMPLATES_DIR, BUNDLED_TEMPLATES_DIR):
         data = _load_yaml(path)
         target_app_id = data["target_app_id"]
         for profile in data.get("profiles", []):

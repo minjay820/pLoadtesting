@@ -12,6 +12,7 @@ from rest_framework.test import APIClient
 from config.settings import build_database_config
 
 from apps.results.models import TestResult
+from apps.tasks import template_registry
 from apps.tasks.artifact_registry import register_task_artifact
 from apps.tasks.execution import ENGINE_DEFAULT_EXECUTION
 from apps.tasks.models import LoadTestTask, TaskArtifact
@@ -93,6 +94,10 @@ class ApiSecurityTests(TestCase):
         self.assertEqual(client.get("/api/tasks/").status_code, 403)
         self.assertEqual(client.post("/api/tasks/", {}, format="json").status_code, 403)
         self.assertEqual(client.get(f"/api/tasks/{task.id}/").status_code, 403)
+        self.assertEqual(client.get(f"/api/tasks/{task.id}/shard-plan/").status_code, 403)
+        self.assertEqual(client.get(f"/api/tasks/{task.id}/result-summary/").status_code, 403)
+        self.assertEqual(client.get(f"/api/tasks/{task.id}/artifacts/").status_code, 403)
+        self.assertEqual(client.get(f"/api/tasks/{task.id}/artifacts/k6-stdout/download/").status_code, 403)
         self.assertEqual(client.post(f"/api/tasks/{task.id}/results/", {"raw_report": {}}, format="json").status_code, 403)
 
 
@@ -933,6 +938,71 @@ class TaskTemplateApiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["templates"])
+
+    def test_template_list_includes_safe_demo_profile_required_fields(self):
+        response = self.client.get("/api/tasks/templates/")
+
+        self.assertEqual(response.status_code, 200)
+        templates_by_profile = {row["target_profile_id"]: row for row in response.json()["templates"]}
+        profile = templates_by_profile["echo-k6-smoke"]
+        required_fields = {
+            "target_app_id",
+            "target_profile_id",
+            "display_name",
+            "description",
+            "engine",
+            "script_path",
+            "target_url",
+            "workload_types",
+            "safe_limits",
+            "coverage_status",
+            "coverage_group",
+            "coverage_gap",
+            "execution",
+        }
+
+        self.assertTrue(required_fields.issubset(profile))
+        self.assertEqual(profile["target_app_id"], "echo-api")
+        self.assertEqual(profile["engine"], "k6")
+        self.assertTrue(profile["target_url"].startswith("http://127.0.0.1:"))
+        self.assertLessEqual(profile["execution"]["duration_seconds"], 30)
+        self.assertLessEqual(profile["execution"]["max_run_seconds"], 60)
+        self.assertIn("max_message_chars", profile["safe_limits"])
+
+    def test_catalog_falls_back_to_bundled_safe_demo_profiles_when_repo_catalog_missing(self):
+        missing_manifests = Path("/tmp/ploadtesting-missing-manifests")
+        missing_templates = Path("/tmp/ploadtesting-missing-task-templates")
+
+        try:
+            with mock.patch.object(template_registry, "TARGET_MANIFESTS_DIR", missing_manifests), mock.patch.object(
+                template_registry,
+                "TARGET_TEMPLATES_DIR",
+                missing_templates,
+            ):
+                template_registry.load_target_manifests.cache_clear()
+                template_registry.load_task_templates.cache_clear()
+
+                templates_response = APIClient().get("/api/tasks/templates/")
+                coverage_response = APIClient().get("/api/tasks/templates/coverage/")
+        finally:
+            template_registry.load_target_manifests.cache_clear()
+            template_registry.load_task_templates.cache_clear()
+
+        self.assertEqual(templates_response.status_code, 200)
+        templates_payload = templates_response.json()
+        self.assertEqual(set(templates_payload), {"templates"})
+        self.assertEqual(len(templates_payload["templates"]), 2)
+        self.assertEqual(
+            {row["target_profile_id"] for row in templates_payload["templates"]},
+            {"echo-k6-smoke", "echo-jmeter-smoke"},
+        )
+
+        self.assertEqual(coverage_response.status_code, 200)
+        coverage_payload = coverage_response.json()
+        self.assertEqual(coverage_payload["summary"]["target_app_count"], 1)
+        self.assertEqual(coverage_payload["summary"]["profile_count"], 2)
+        self.assertEqual(coverage_payload["summary"]["exact_coverage_profile_count"], 2)
+        self.assertEqual(coverage_payload["gaps"], [])
 
     def test_template_coverage_export(self):
         response = self.client.get("/api/tasks/templates/coverage/")

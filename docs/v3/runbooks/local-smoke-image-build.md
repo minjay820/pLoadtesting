@@ -52,6 +52,10 @@ External database environment variables are supplied by the deployment pack or h
 
 For PostgreSQL runtime settings, the control-plane image reads `PLOADTESTING_DATABASE_URL` first, then `DATABASE_URL`, then falls back to local sqlite when neither variable is present. PostgreSQL schema selection should be supplied with `PGOPTIONS`, for example `-c search_path=plt,public`; `PLOADTESTING_DB_SCHEMA` is also accepted when it matches the safe identifier pattern documented in [External database runtime](external-db-runtime.md).
 
+The control-plane image must expose a read-only catalog for deployment smoke without requiring external database seed data. `GET /api/tasks/templates/` and `GET /api/tasks/templates/coverage/` read registry/static profile definitions. Because this image is built with `control-plane/` as its Docker context, the runtime can fall back to bundled safe demo profile definitions under `apps/tasks/catalog/` when repo-root `target-apps` catalog files are not present.
+
+Deployment smoke should use safe demo profiles only for short local validation. It must not run long tests or target third-party services.
+
 Bounded local container smoke:
 
 ```bash
@@ -117,6 +121,17 @@ Container smoke started the image with port `18000:8000`. Django reported `Syste
 | `local/ploadtesting-control-plane:0.1.0-rc.1` | `sha256:9671221ca9a9566b90ed138e6c7f2c4bbc2407947eeb682148652adb5555524e` | `2026-06-19T05:54:43.980209416Z` | `79466309` | `["python","manage.py","runserver","0.0.0.0:8000"]` |
 
 Driver smoke passed with `import psycopg`. Placeholder PostgreSQL runtime env selected `django.db.backends.postgresql`, and `python manage.py check` passed in the rebuilt image without running migrations.
+
+## 2026-06-19 Safe Demo Catalog Build Record
+
+| Image Tag | Image ID / Digest | Created | Size | CMD |
+| --- | --- | --- | --- | --- |
+| `local/ploadtesting-control-plane:0.1.0-rc.1` | `sha256:97819fbf5b57b5262ba9238be4aadd06b89c6dbaf2432c97a90999a42a954450` | `2026-06-19T06:30:29.133051715Z` | `79469880` | `["python","manage.py","runserver","0.0.0.0:8000"]` |
+
+Image catalog smoke confirmed that the control-plane image exposes the bundled safe demo fallback catalog when repo-root `target-apps` catalog files are not present in the image context:
+
+- `GET /api/tasks/templates/`: HTTP 200, `templates` envelope, 1 target, 2 profiles.
+- `GET /api/tasks/templates/coverage/`: HTTP 200, `summary/targets/profiles/gaps` envelope, `target_app_count=1`, `profile_count=2`, `exact_coverage_profile_count=2`, `gap_profile_count=0`.
 
 ## Cleanup
 

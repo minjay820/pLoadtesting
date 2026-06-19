@@ -86,6 +86,10 @@ Task data and write routes remain protected:
 
 The catalog endpoints expose static template and coverage metadata. They do not expose task records or result data.
 
+Catalog output is registry/static metadata. It does not require task rows, result rows, or external database seed data. In deployment smoke images, the registry can use bundled safe demo profile definitions when the repo-root `target-apps` catalog is not present in the control-plane build context.
+
+Safe demo profiles are for short, local-only deployment smoke. They must stay bounded, avoid third-party targets, and require no real credentials or runtime-only access material.
+
 ## Logging Boundary
 
 Settings code must not print database URLs, runtime-only values, or sensitive values. Validation reports should describe which variable names were used and whether the engine points to PostgreSQL, without printing the full URL.
