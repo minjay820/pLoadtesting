@@ -79,6 +79,27 @@ PLOADTESTING_API_TOKEN
 
 `DJANGO_ALLOWED_HOSTS` must include the host name used in `CONTROL_PLANE_URL`. Set `WORKER_ADVERTISE_IP` only when Core cannot reach the worker IP that the agent detects automatically. Do not commit live values.
 
+Worker image safe demo assets:
+
+```text
+/app/engines/k6/target_apps_echo_smoke.js
+/app/engines/k6/lib/execution.js
+/app/engines/jmeter/target_apps_echo_latency_plan.jmx
+```
+
+The Worker image build context is `workers/`, so release candidate image smoke must verify those files are packaged into the image rather than relying on a source checkout bind mount. The safe demo profile target for compose deployment is `http://echo-api:8000`; Worker and the local `echo-api` target service must share a compose network where `echo-api` resolves.
+
+Script presence smoke:
+
+```bash
+docker run --rm local/ploadtesting-worker:0.1.0-rc.1 \
+  test -f /app/engines/k6/target_apps_echo_smoke.js
+docker run --rm local/ploadtesting-worker:0.1.0-rc.1 \
+  test -f /app/engines/jmeter/target_apps_echo_latency_plan.jmx
+```
+
+For single-host compose, declare a shared network in compose files or set a common `PLOADTESTING_TARGET_APPS_NETWORK` for the local target suite and the Worker deployment. For split-host deployment, `WORKER_ADVERTISE_IP` must be a Core-routable IP address and the safe demo target must be reachable from Worker. Manual `docker network connect` is a debugging workaround only, not the normal smoke procedure.
+
 Bounded local container smoke:
 
 ```bash
@@ -148,6 +169,28 @@ Resolved local repo digests:
 | Image Tag | Image ID / Digest | Created | Size | CMD | Entrypoint |
 | --- | --- | --- | --- | --- | --- |
 | `local/ploadtesting-control-plane:0.1.0-rc.1` | `sha256:41feb6f181371672b117291ae72887da6651ccc5b01b379d8e7d8ecabf66483d` | `2026-06-19T01:40:11.88186796Z` | `71904707` | `["python","manage.py","runserver","0.0.0.0:8000"]` | `null` |
+
+## 2026-06-20 Safe Demo Worker Packaging Build Record
+
+| Image Tag | Image ID / Digest | Created | Size | CMD |
+| --- | --- | --- | --- | --- |
+| `local/ploadtesting-worker:0.1.0-rc.1` | `sha256:2b436572b46f3b9413cc6bdf4681e1636e18cf6097b756ba8e3f86612f7e50c7` | `2026-06-19T18:10:40.530664048Z` | `335277402` | `["python","agent.py"]` |
+| `local/ploadtesting-control-plane:0.1.0-rc.1` | `sha256:62cabdf236207752fe7d3163509662aae4ceefd3b183689bb6caf740b380fe1a` | `2026-06-19T18:10:40.533090549Z` | `79482618` | `["python","manage.py","runserver","0.0.0.0:8000"]` |
+
+Script presence smoke passed for:
+
+- `/app/engines/k6/target_apps_echo_smoke.js`
+- `/app/engines/k6/lib/execution.js`
+- `/app/engines/jmeter/target_apps_echo_latency_plan.jmx`
+
+Bounded local integration smoke with Core, Worker, and `echo-api` on a declared Docker network completed the `echo-k6-smoke` safe demo task:
+
+- catalog: HTTP 200
+- coverage: HTTP 200
+- submit: HTTP 201
+- status progression: `dispatched -> running -> completed`
+- result summary: HTTP 200, `status=available`
+- artifact metadata: HTTP 200, 5 rows
 
 Container smoke started the image with port `18000:8000`. Django reported `System check identified no issues`, served at `http://0.0.0.0:8000/`, and returned an API JSON response from `GET /api/tasks/templates/`. The response was an expected access-control response because no runtime access header was supplied for this bounded smoke.
 

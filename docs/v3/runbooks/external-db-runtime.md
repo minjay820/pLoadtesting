@@ -114,6 +114,16 @@ For deployment smoke, the worker must register into the same Control Plane runti
 
 `DJANGO_ALLOWED_HOSTS` must include the host name in `CONTROL_PLANE_URL`; otherwise Worker registration can be rejected before it reaches the worker registry. This is a deployment setting, not a reason to make task APIs public.
 
+The release candidate Worker image must contain the safe demo engine assets used by the catalog:
+
+- `/app/engines/k6/target_apps_echo_smoke.js`
+- `/app/engines/k6/lib/execution.js`
+- `/app/engines/jmeter/target_apps_echo_latency_plan.jmx`
+
+The catalog `script_path` values remain `engines/k6/target_apps_echo_smoke.js` and `engines/jmeter/target_apps_echo_latency_plan.jmx`; the Worker resolves them under `/app/`. The compose-oriented safe demo target URL is `http://echo-api:8000`. Single-host compose deployment must attach Worker and the local target service to a shared network where `echo-api` resolves. Split-host deployment must provide a routable target address through a future explicit deployment profile rather than overriding the controlled demo task request.
+
+Core dispatch calls the Worker by the registered `WorkerNode.ip_address` and `port`. Since the current registry stores an IP address, single-host compose should let Worker register a reachable container IP on the shared Core/Worker network. For split-host deployment, set `WORKER_ADVERTISE_IP` to a Core-routable IP. Do not use manual `docker network connect` as the normal deployment smoke procedure; put shared networks or routable addresses in compose/runtime configuration.
+
 The expected smoke progression is `pending -> dispatched -> running -> completed` for successful execution, or `pending -> dispatched -> running -> failed` with a diagnostic when the engine or target check fails. `POST /api/tasks/{id}/results/` remains a protected worker callback; unauthenticated external requests must still receive 403.
 
 For non-sharded controlled demo tasks, `GET /api/tasks/{id}/shard-plan/` returns a single-task metadata response with `mode=single`, `shards=[]`, and `status=not_applicable`. That response is the expected read model for safe demo profiles that do not use manual shard distribution.

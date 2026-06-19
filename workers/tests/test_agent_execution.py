@@ -125,6 +125,14 @@ def test_register_worker_uses_advertised_runtime_metadata():
     assert post_mock.call_args.kwargs["headers"] == agent.api_headers()
 
 
+def test_safe_demo_scripts_are_packaged_with_worker_context():
+    worker_root = Path(__file__).resolve().parents[1]
+
+    assert (worker_root / "engines/k6/target_apps_echo_smoke.js").is_file()
+    assert (worker_root / "engines/k6/lib/execution.js").is_file()
+    assert (worker_root / "engines/jmeter/target_apps_echo_latency_plan.jmx").is_file()
+
+
 def test_build_k6_artifact_manifest_entries_from_evidence():
     entries = worker_artifacts.build_artifact_manifest_entries(
         "task-1",

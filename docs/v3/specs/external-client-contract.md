@@ -44,6 +44,14 @@ Template metadata is a stable candidate contract. New optional fields can be add
 
 Safe demo profiles are local-only, bounded-duration catalog profiles intended for deployment smoke. They use local target URLs, require no real credentials, and should be selected only for short validation runs. Compatible external clients must not use catalog discovery to start long tests or tests against third-party targets.
 
+For release candidate image smoke, the Worker image packages the executable safe demo assets under `/app/engines/`:
+
+- k6 smoke script: `/app/engines/k6/target_apps_echo_smoke.js`
+- k6 execution helper: `/app/engines/k6/lib/execution.js`
+- JMeter smoke plan: `/app/engines/jmeter/target_apps_echo_latency_plan.jmx`
+
+The catalog keeps repository-relative script paths so the same API contract works in source checkout and image runtimes. The compose-oriented safe demo target is `http://echo-api:8000`; deployment compose files must place the Worker and the local `echo-api` target service on a network where that service name resolves.
+
 ## Coverage Metadata Contract
 
 `GET /api/tasks/templates/coverage/` is the machine-readable coverage export for catalog summaries, coverage matrices, and compatibility checks.
@@ -85,6 +93,8 @@ Core attempts one immediate worker dispatch after creating a controlled demo tas
 When a compatible worker accepts the task, the task moves to `dispatched`. When that worker starts execution, it uses the protected result callback route to post `execution_status=running`, and Core moves the task to `running`. Final callbacks move the task to `completed` or `failed`; failed final callbacks must include a diagnostic `error_message`.
 
 Deployment operators must configure the Worker Agent to reach Core through `CONTROL_PLANE_URL`, and Core `DJANGO_ALLOWED_HOSTS` must include that host name. A worker process smoke is not enough; Core dispatch requires a registered, heartbeating, compatible idle worker row.
+
+Core dispatch currently calls the Worker through the registered `ip_address` and `port`. Because `ip_address` is an IP field, single-host compose should use a shared bridge network where the Worker-detected container IP is reachable from Core. Split-host deployment must set `WORKER_ADVERTISE_IP` to a Core-routable IP address and expose `WORKER_PORT`. Normal deployment smoke should use compose network declarations or routable runtime configuration, not a manual `docker network connect` step.
 
 When the flag is enabled, compatible external clients can read metadata only for tasks created through this smoke path. Task history is bounded and filtered to smoke-created tasks; detail, shard-plan, result-summary, and artifact metadata reads require the same internal marker and safe profile constraints.
 

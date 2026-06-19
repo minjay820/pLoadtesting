@@ -148,3 +148,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 3
+
+networks:
+  default:
+    name: ${PLOADTESTING_TARGET_APPS_NETWORK:-ploadtesting-target-apps-net}

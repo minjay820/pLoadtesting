@@ -6,7 +6,7 @@ profiles:
     engine: k6
     equivalent_profile_id: echo-jmeter-smoke
     script_path: engines/k6/target_apps_echo_smoke.js
-    target_url: http://127.0.0.1:18080
+    target_url: http://echo-api:8000
     execution:
       duration_seconds: 10
       ramp_up_seconds: 0
@@ -17,7 +17,7 @@ profiles:
       iteration_limit:
       data_policy: duration_first
     parameters:
-      TARGET_URL: http://127.0.0.1:18080
+      TARGET_URL: http://echo-api:8000
       ECHO_MESSAGE: smoke
       ECHO_REPEAT: "1"
   - target_profile_id: echo-jmeter-smoke
@@ -26,7 +26,7 @@ profiles:
     engine: jmeter
     equivalent_profile_id: echo-k6-smoke
     script_path: engines/jmeter/target_apps_echo_latency_plan.jmx
-    target_url: http://127.0.0.1:18080
+    target_url: http://echo-api:8000
     execution:
       duration_seconds: 20
       ramp_up_seconds: 5
@@ -37,9 +37,9 @@ profiles:
       iteration_limit:
       data_policy: duration_first
     parameters:
-      target_url: http://127.0.0.1:18080
-      TARGET_HOST: 127.0.0.1
-      TARGET_PORT: "18080"
+      target_url: http://echo-api:8000
+      TARGET_HOST: echo-api
+      TARGET_PORT: "8000"
       TARGET_PATH: /api/echo
       TARGET_METHOD: GET
       TARGET_QUERY: message=jmeter&repeat=1

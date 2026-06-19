@@ -40,6 +40,14 @@ Catalog rows are read from registry/static profile definitions, not from task da
 
 The bundled safe demo profiles are local-only, bounded-duration profiles intended for deployment smoke by a compatible external client. They must not be treated as permission to run long tests or third-party targets.
 
+For release candidate image smoke, the executable safe demo assets are packaged into the Worker image at these paths:
+
+- `/app/engines/k6/target_apps_echo_smoke.js`
+- `/app/engines/k6/lib/execution.js`
+- `/app/engines/jmeter/target_apps_echo_latency_plan.jmx`
+
+The safe demo task catalog keeps the repository-relative `script_path` values `engines/k6/target_apps_echo_smoke.js` and `engines/jmeter/target_apps_echo_latency_plan.jmx`, which the Worker runtime resolves under `/app/`. The compose-oriented safe demo target is `http://echo-api:8000`, so Worker and the local target service must share a Docker network where the `echo-api` service name resolves. This remains a local deployment smoke target and must not be replaced with a third-party URL.
+
 ## Current Deployment Smoke Task Access Policy
 
 Task operation APIs remain protected by default. `PLOADTESTING_ENABLE_DEMO_TASK_API` is a disabled-by-default runtime flag for deployment smoke only.
@@ -62,6 +70,8 @@ Worker deployment smoke requires the Worker Agent to register and heartbeat agai
 - `WORKER_CAPABILITIES`
 - `PLOADTESTING_API_TOKEN`
 - optional `WORKER_ADVERTISE_IP` when automatic address detection is not reachable from Core
+
+`WorkerNode.ip_address` is currently an IP-address field, not a hostname field. In a single-host compose deployment, Core and Worker should share a compose network and the Worker can register the container IP detected on that network. In split-host deployment, `WORKER_ADVERTISE_IP` must be a routable IP that Core can call on `WORKER_PORT`. The normal deployment smoke procedure should declare shared compose networks or routable addresses in compose/runtime configuration; it should not depend on manual `docker network connect`.
 
 When a compatible worker accepts the dispatch, the task moves to `dispatched`. When the worker starts execution, it posts `execution_status=running` through the protected result callback route, and Core moves the task to `running` with `started_at`. Final worker callback payloads still use `execution_status=completed` or `execution_status=failed` to persist the result and move the task to `completed` or `failed`.
 

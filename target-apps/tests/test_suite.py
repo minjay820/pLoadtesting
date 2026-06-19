@@ -96,7 +96,7 @@ def test_task_templates_are_loadable_and_point_to_real_assets():
             assert profile["engine"] in {"k6", "jmeter"}
             script_path = ROOT_DIR / profile["script_path"]
             assert script_path.exists(), f"Missing sample script or plan: {script_path}"
-            assert profile["target_url"].startswith("http://127.0.0.1:")
+            assert profile["target_url"].startswith("http://127.0.0.1:") or profile["target_url"] == "http://echo-api:8000"
             if profile["engine"] == "k6":
                 assert profile["script_path"].startswith("engines/k6/")
                 assert script_path.suffix == ".js"
