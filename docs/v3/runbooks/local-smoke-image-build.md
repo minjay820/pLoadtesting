@@ -62,7 +62,9 @@ To enable controlled task operation smoke in the control-plane image, set the di
 PLOADTESTING_ENABLE_DEMO_TASK_API=true
 ```
 
-With the flag enabled, compatible external clients can submit only the bundled safe demo profiles and can read only smoke-created task metadata. Result callbacks and artifact download remain protected.
+With the flag enabled, compatible external clients can submit only the bundled safe demo profiles and can read only smoke-created task metadata. Core attempts one immediate worker dispatch after task creation. If no compatible idle worker is registered, the task remains `pending` with a diagnostic `error_message`; if a compatible worker accepts the task, the task moves to `dispatched` and later transitions depend on the protected worker result callback. Result callbacks and artifact download remain protected for unauthenticated external requests.
+
+Non-sharded safe demo tasks return a normal shard read model with `mode=single`, `shards=[]`, and `status=not_applicable`; clients should not treat that response as degraded.
 
 Bounded local container smoke:
 
@@ -168,6 +170,24 @@ Bounded container smoke with `PLOADTESTING_ENABLE_DEMO_TASK_API=true` confirmed:
 - `POST /api/tasks/` with `echo-api` / `echo-k6-smoke`: HTTP 201 and task id returned.
 - Task detail, result summary, and artifact metadata: HTTP 200 for the smoke-created task.
 - Shard-plan: HTTP 404 no-plan response for the smoke-created task without distribution metadata.
+- Artifact download and result callback: HTTP 403 without broader access.
+
+## 2026-06-19 Demo Task Dispatch Smoke Build Record
+
+| Image Tag | Image ID / Digest | Created | Size | CMD |
+| --- | --- | --- | --- | --- |
+| `local/ploadtesting-control-plane:0.1.0-rc.1` | `sha256:e9077134eefea42d042f9016888d8378588316f04d7138c9ba7df4bea6c3b006` | `2026-06-19T07:50:24.521195587Z` | `79480716` | `["python","manage.py","runserver","0.0.0.0:8000"]` |
+
+Bounded container smoke with `PLOADTESTING_ENABLE_DEMO_TASK_API=true` confirmed:
+
+- `GET /api/tasks/templates/`: HTTP 200, 2 profiles in the image fallback catalog.
+- `GET /api/tasks/templates/coverage/`: HTTP 200, `profile_count=2`.
+- `POST /api/tasks/` with `echo-api` / `echo-k6-smoke`: HTTP 201 and task id returned.
+- With no registered compatible worker in the bounded container, task status remained `pending` with a dispatch diagnostic.
+- Task detail: HTTP 200.
+- Shard-plan: HTTP 200, `mode=single`, `status=not_applicable`.
+- Result summary: HTTP 200, `status=not_available`.
+- Artifact metadata: HTTP 200, 5 planned artifacts.
 - Artifact download and result callback: HTTP 403 without broader access.
 
 ## Cleanup

@@ -80,6 +80,8 @@ Allowed smoke submit profiles:
 
 The smoke submit path does not accept direct `engine`, `script_path`, `target_url`, `parameters`, `execution`, `distribution`, or `scheduled_at` input. It also rejects unknown fields. Core resolves the task from the catalog profile, marks the task internally as `task_operation_mode=deployment_smoke`, and verifies the resolved script, target URL, and execution bounds before returning success.
 
+Core attempts one immediate worker dispatch after creating a controlled demo task. Dispatch uses the same registered-worker selection and internal delivery path as the scheduled dispatcher. If no compatible idle worker is available, the task stays `pending` with a diagnostic `error_message`; clients should treat that as a worker-capacity state during bounded polling, not as successful execution. When a compatible worker accepts the task, the task moves to `dispatched` and later status transitions depend on the worker result callback.
+
 When the flag is enabled, compatible external clients can read metadata only for tasks created through this smoke path. Task history is bounded and filtered to smoke-created tasks; detail, shard-plan, result-summary, and artifact metadata reads require the same internal marker and safe profile constraints.
 
 Worker result callbacks and artifact download remain protected. This smoke flag is not a replacement for the future formal API authentication strategy.
@@ -158,6 +160,8 @@ Dataset sources must use `artifact://` or `inline://`. Dataset formats are `csv`
 ## Shard Plan Contract
 
 `GET /api/tasks/{id}/shard-plan/` is an experimental read-only preview endpoint. It returns the stored shard execution plan for tasks created with `distribution`.
+
+For controlled demo tasks without manual shard distribution, the endpoint returns HTTP 200 with `mode=single`, an empty `shards` array, `status=not_applicable`, and a reason explaining that manual shard distribution is not configured. Compatible external clients should treat this as a normal non-sharded task state, not as a degraded upstream read.
 
 The plan includes:
 

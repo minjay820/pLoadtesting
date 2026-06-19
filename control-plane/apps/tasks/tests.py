@@ -1,4 +1,5 @@
 import io
+import json
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
@@ -125,9 +126,13 @@ class DemoTaskApiAccessTests(TestCase):
 
         self.assertEqual(response.status_code, 201)
         task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.status, LoadTestTask.Status.PENDING)
+        self.assertIn("No compatible idle worker", task.error_message)
         self.assertEqual(task.parameters["task_operation_mode"], "deployment_smoke")
         self.assertEqual(task.parameters["target_app_id"], "echo-api")
         self.assertEqual(task.parameters["target_profile_id"], "echo-k6-smoke")
+        self.assertEqual(task.parameters["TARGET_URL"], task.target_url)
+        self.assertEqual(task.parameters["target_url"], task.target_url)
         self.assertEqual(task.engine, "k6")
         self.assertLessEqual(task.parameters["execution"]["duration_seconds"], 30)
         self.assertLessEqual(task.parameters["execution"]["max_run_seconds"], 60)
@@ -137,12 +142,46 @@ class DemoTaskApiAccessTests(TestCase):
 
         self.assertEqual(response.status_code, 201)
         task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.status, LoadTestTask.Status.PENDING)
+        self.assertIn("No compatible idle worker", task.error_message)
         self.assertEqual(task.parameters["task_operation_mode"], "deployment_smoke")
         self.assertEqual(task.parameters["target_app_id"], "echo-api")
         self.assertEqual(task.parameters["target_profile_id"], "echo-jmeter-smoke")
         self.assertEqual(task.engine, "jmeter")
         self.assertLessEqual(task.parameters["execution"]["duration_seconds"], 30)
         self.assertLessEqual(task.parameters["execution"]["max_run_seconds"], 60)
+
+    @mock.patch("apps.tasks.tasks.urllib.request.urlopen")
+    def test_demo_task_api_dispatches_to_compatible_worker(self, mocked_urlopen):
+        worker = WorkerNode.objects.create(
+            name="demo-k6-worker",
+            ip_address="127.0.0.1",
+            port=8100,
+            status=WorkerNode.Status.ONLINE,
+            capabilities=["k6"],
+            active_task_count=0,
+        )
+        mocked_urlopen.return_value.__enter__.return_value.status = 202
+
+        response = self.submit_demo_task("echo-k6-smoke")
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.status, LoadTestTask.Status.DISPATCHED)
+        self.assertEqual(task.worker, worker)
+        self.assertEqual(task.error_message, "")
+        mocked_urlopen.assert_called_once()
+        request = mocked_urlopen.call_args.args[0]
+        payload = json.loads(request.data.decode("utf-8"))
+        self.assertEqual(payload["task_id"], str(task.id))
+        self.assertEqual(payload["engine"], "k6")
+        self.assertEqual(payload["script_path"], "engines/k6/target_apps_echo_smoke.js")
+        self.assertEqual(payload["parameters"]["task_operation_mode"], "deployment_smoke")
+        self.assertEqual(payload["parameters"]["target_app_id"], "echo-api")
+        self.assertEqual(payload["parameters"]["target_profile_id"], "echo-k6-smoke")
+        self.assertEqual(payload["parameters"]["TARGET_URL"], task.target_url)
+        self.assertLessEqual(payload["parameters"]["execution"]["duration_seconds"], 30)
+        self.assertLessEqual(payload["parameters"]["execution"]["max_run_seconds"], 60)
 
     def test_demo_task_api_rejects_non_safe_profile(self):
         response = APIClient().post(
@@ -209,8 +248,13 @@ class DemoTaskApiAccessTests(TestCase):
         self.assertEqual(result_response.json()["status"], "not_available")
         self.assertEqual(artifacts_response.status_code, 200)
         self.assertGreater(artifacts_response.json()["summary"]["planned_count"], 0)
-        self.assertEqual(shard_response.status_code, 404)
-        self.assertIn("No shard execution plan", shard_response.json()["detail"])
+        self.assertEqual(shard_response.status_code, 200)
+        shard_payload = shard_response.json()
+        self.assertEqual(shard_payload["source"]["status"], "ok")
+        self.assertEqual(shard_payload["task_id"], task_id)
+        self.assertEqual(shard_payload["mode"], "single")
+        self.assertEqual(shard_payload["status"], "not_applicable")
+        self.assertEqual(shard_payload["shards"], [])
 
     def test_demo_task_metadata_does_not_read_non_demo_task(self):
         task = LoadTestTask.objects.create(

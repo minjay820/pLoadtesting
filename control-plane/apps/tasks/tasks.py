@@ -66,6 +66,43 @@ def _dispatch_to_worker(task: LoadTestTask, worker: WorkerNode) -> None:
             )
 
 
+def dispatch_task_once(task: LoadTestTask) -> bool:
+    """
+    Attempt a single immediate dispatch for one pending task.
+
+    This is intentionally narrow: it uses the same worker selection and delivery
+    path as the scheduler, keeps a task pending when no worker is available, and
+    records a diagnostic so deployment smoke can distinguish access success from
+    missing runtime capacity.
+    """
+    task.refresh_from_db()
+    if task.status != LoadTestTask.Status.PENDING:
+        return False
+
+    worker = _select_available_worker(task)
+    if not worker:
+        logger.warning("No compatible idle workers available for task %s", task.id)
+        task.error_message = "No compatible idle worker is currently available."
+        task.save(update_fields=["error_message", "updated_at"])
+        return False
+
+    logger.info("Dispatching task %s to worker %s", task.id, worker.name)
+    try:
+        _dispatch_to_worker(task, worker)
+    except Exception as exc:  # noqa: BLE001 - keep dispatch retryable
+        logger.error("Failed to dispatch task %s to worker %s: %s", task.id, worker.name, exc)
+        task.error_message = f"Dispatch to worker '{worker.name}' failed: {exc}"
+        task.save(update_fields=["error_message", "updated_at"])
+        return False
+
+    task.worker = worker
+    task.status = LoadTestTask.Status.DISPATCHED
+    task.error_message = ""
+    task.save(update_fields=["worker", "status", "error_message", "updated_at"])
+    logger.info("Successfully dispatched task %s to worker %s", task.id, worker.name)
+    return True
+
+
 @shared_task
 def dispatch_pending_tasks():
     """
@@ -86,27 +123,7 @@ def dispatch_pending_tasks():
     dispatched_count = 0
 
     for task in pending_tasks:
-        worker = _select_available_worker(task)
-        if not worker:
-            logger.warning("No compatible idle workers available for task %s", task.id)
-            task.error_message = "No compatible idle worker is currently available."
-            task.save(update_fields=["error_message", "updated_at"])
-            continue
-
-        logger.info("Dispatching task %s to worker %s", task.id, worker.name)
-        try:
-            _dispatch_to_worker(task, worker)
-        except Exception as exc:  # noqa: BLE001 - keep scheduler resilient
-            logger.error("Failed to dispatch task %s to worker %s: %s", task.id, worker.name, exc)
-            task.error_message = f"Dispatch to worker '{worker.name}' failed: {exc}"
-            task.save(update_fields=["error_message", "updated_at"])
-            continue
-
-        task.worker = worker
-        task.status = LoadTestTask.Status.DISPATCHED
-        task.error_message = ""
-        task.save(update_fields=["worker", "status", "error_message", "updated_at"])
-        dispatched_count += 1
-        logger.info("Successfully dispatched task %s to worker %s", task.id, worker.name)
+        if dispatch_task_once(task):
+            dispatched_count += 1
 
     return dispatched_count

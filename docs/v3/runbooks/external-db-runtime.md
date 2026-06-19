@@ -101,6 +101,10 @@ When enabled, Core accepts only:
 
 The flag does not open arbitrary task creation, long-running profiles, third-party targets, worker result callbacks, or artifact download. It also does not replace the formal API authentication strategy planned for non-smoke operation.
 
+Controlled demo task execution still requires a registered compatible worker with the matching engine capability and the existing internal/shared callback configuration. Core attempts one immediate dispatch after safe demo task creation. When no compatible idle worker is present, the task remains `pending` and records a diagnostic `error_message`; bounded polling should report that worker capacity is missing instead of treating the task as completed.
+
+For non-sharded controlled demo tasks, `GET /api/tasks/{id}/shard-plan/` returns a single-task metadata response with `mode=single`, `shards=[]`, and `status=not_applicable`. That response is the expected read model for safe demo profiles that do not use manual shard distribution.
+
 Safe container check:
 
 ```bash

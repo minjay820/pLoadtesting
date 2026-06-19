@@ -94,6 +94,17 @@ def task_result_status(task: LoadTestTask) -> dict[str, Any]:
     }
 
 
+def single_task_shard_read_model(task: LoadTestTask) -> dict[str, Any]:
+    return {
+        "source": {"status": "ok"},
+        "task_id": str(task.id),
+        "mode": "single",
+        "shards": [],
+        "status": "not_applicable",
+        "reason": "Task is not configured for manual shard distribution.",
+    }
+
+
 def task_detail_read_model(task: LoadTestTask) -> dict[str, Any]:
     target_app_id, target_profile_id = _target_ids(task)
     parameters = _parameters(task)

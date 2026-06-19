@@ -24,10 +24,12 @@ from .read_models import (
     artifact_metadata_read_model,
     artifact_not_found_read_model,
     result_summary_read_model,
+    single_task_shard_read_model,
     task_detail_read_model,
     task_history_item,
 )
 from .serializers import LoadTestTaskCreateSerializer, LoadTestTaskSerializer
+from .tasks import dispatch_task_once
 from .template_registry import get_task_template, get_template_coverage_export, list_task_templates
 
 
@@ -198,6 +200,8 @@ class TaskListCreateView(generics.ListCreateAPIView):
         task = create_serializer.save()
         if demo_create:
             _mark_demo_task(task)
+            dispatch_task_once(task)
+            task.refresh_from_db()
 
         # 回傳完整序列化（含 status、id、result 等唯讀欄位）
         read_serializer = LoadTestTaskSerializer(task)
@@ -265,6 +269,8 @@ class TaskShardPlanView(APIView):
 
         plan = (task.parameters or {}).get("shard_execution_plan")
         if not plan:
+            if _is_safe_demo_task(task):
+                return Response(single_task_shard_read_model(task), status=status.HTTP_200_OK)
             return Response({"detail": "No shard execution plan exists for this task."}, status=status.HTTP_404_NOT_FOUND)
         return Response(plan, status=status.HTTP_200_OK)
 

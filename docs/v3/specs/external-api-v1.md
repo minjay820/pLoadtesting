@@ -51,6 +51,8 @@ When `PLOADTESTING_ENABLE_DEMO_TASK_API=true`, a compatible external client with
 
 The smoke path rejects arbitrary target/profile pairs, direct engine/script/target URL overrides, request parameter overrides, custom execution overrides, distribution metadata, scheduled tasks, and unknown fields. The resolved task must remain local-only and bounded to the profile defaults.
 
+After a controlled demo task is created, Core attempts one immediate worker dispatch using the same worker selection and internal worker delivery path as the scheduled dispatcher. If no compatible idle worker is registered, the task remains `pending` with a diagnostic `error_message` and can be retried by the normal dispatcher when worker capacity appears. Core must not mark a task completed without worker execution or worker callback evidence.
+
 The same flag allows metadata reads only for tasks created through this controlled smoke path:
 
 - `GET /api/tasks/`
@@ -185,6 +187,21 @@ See [Task execution model](task-execution-model.md) for k6, JMeter, and worker t
 ### Distribution And Dataset Objects
 
 The preview `POST /api/tasks/` endpoint accepts a `distribution` object for manual shard metadata and stores it in `parameters.distribution`. It also generates `parameters.shard_execution_plan`, which is available through `GET /api/tasks/{id}/shard-plan/`.
+
+For controlled demo tasks without manual shard distribution, `GET /api/tasks/{id}/shard-plan/` returns a deterministic single-task read model instead of a degraded error:
+
+```json
+{
+  "source": {
+    "status": "ok"
+  },
+  "task_id": "00000000-0000-0000-0000-000000000000",
+  "mode": "single",
+  "shards": [],
+  "status": "not_applicable",
+  "reason": "Task is not configured for manual shard distribution."
+}
+```
 
 ```json
 {
