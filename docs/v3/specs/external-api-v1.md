@@ -40,6 +40,27 @@ Catalog rows are read from registry/static profile definitions, not from task da
 
 The bundled safe demo profiles are local-only, bounded-duration profiles intended for deployment smoke by a compatible external client. They must not be treated as permission to run long tests or third-party targets.
 
+## Current Deployment Smoke Task Access Policy
+
+Task operation APIs remain protected by default. `PLOADTESTING_ENABLE_DEMO_TASK_API` is a disabled-by-default runtime flag for deployment smoke only.
+
+When `PLOADTESTING_ENABLE_DEMO_TASK_API=true`, a compatible external client without the shared access header can submit only these safe demo profiles:
+
+- `target_app_id=echo-api`, `target_profile_id=echo-k6-smoke`
+- `target_app_id=echo-api`, `target_profile_id=echo-jmeter-smoke`
+
+The smoke path rejects arbitrary target/profile pairs, direct engine/script/target URL overrides, request parameter overrides, custom execution overrides, distribution metadata, scheduled tasks, and unknown fields. The resolved task must remain local-only and bounded to the profile defaults.
+
+The same flag allows metadata reads only for tasks created through this controlled smoke path:
+
+- `GET /api/tasks/`
+- `GET /api/tasks/{id}/`
+- `GET /api/tasks/{id}/shard-plan/`
+- `GET /api/tasks/{id}/result-summary/`
+- `GET /api/tasks/{id}/artifacts/`
+
+The result callback route and artifact download route remain protected. This flag does not replace the future formal API authentication strategy.
+
 ## Versioning Goals
 
 - Use `/api/v1/` for stable external consumers.

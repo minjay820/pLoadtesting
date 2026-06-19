@@ -56,6 +56,14 @@ The control-plane image must expose a read-only catalog for deployment smoke wit
 
 Deployment smoke should use safe demo profiles only for short local validation. It must not run long tests or target third-party services.
 
+To enable controlled task operation smoke in the control-plane image, set the disabled-by-default flag:
+
+```text
+PLOADTESTING_ENABLE_DEMO_TASK_API=true
+```
+
+With the flag enabled, compatible external clients can submit only the bundled safe demo profiles and can read only smoke-created task metadata. Result callbacks and artifact download remain protected.
+
 Bounded local container smoke:
 
 ```bash
@@ -68,6 +76,20 @@ docker ps --filter name=ploadtesting-control-plane-smoke
 docker logs --tail=80 ploadtesting-control-plane-smoke
 curl -i http://localhost:18000/api/tasks/templates/
 docker stop ploadtesting-control-plane-smoke
+```
+
+Bounded demo task API smoke:
+
+```bash
+docker run --rm -d \
+  --name ploadtesting-control-plane-demo-api-smoke \
+  -e PLOADTESTING_ENABLE_DEMO_TASK_API=true \
+  -p 18000:8000 \
+  local/ploadtesting-control-plane:0.1.0-rc.1
+
+curl -fsS http://localhost:18000/api/tasks/templates/
+curl -fsS http://localhost:18000/api/tasks/templates/coverage/
+docker stop ploadtesting-control-plane-demo-api-smoke
 ```
 
 This phase performs no registry push.
@@ -132,6 +154,21 @@ Image catalog smoke confirmed that the control-plane image exposes the bundled s
 
 - `GET /api/tasks/templates/`: HTTP 200, `templates` envelope, 1 target, 2 profiles.
 - `GET /api/tasks/templates/coverage/`: HTTP 200, `summary/targets/profiles/gaps` envelope, `target_app_count=1`, `profile_count=2`, `exact_coverage_profile_count=2`, `gap_profile_count=0`.
+
+## 2026-06-19 Controlled Demo Task API Build Record
+
+| Image Tag | Image ID / Digest | Created | Size | CMD |
+| --- | --- | --- | --- | --- |
+| `local/ploadtesting-control-plane:0.1.0-rc.1` | `sha256:458afb6e69b1a65b745db05d0f006f7484ea76e08cea87adaa5a40d3f20262f7` | `2026-06-19T07:22:20.068954877Z` | `79478767` | `["python","manage.py","runserver","0.0.0.0:8000"]` |
+
+Bounded container smoke with `PLOADTESTING_ENABLE_DEMO_TASK_API=true` confirmed:
+
+- `GET /api/tasks/templates/`: HTTP 200, 2 profiles in the image fallback catalog.
+- `GET /api/tasks/templates/coverage/`: HTTP 200, `profile_count=2`.
+- `POST /api/tasks/` with `echo-api` / `echo-k6-smoke`: HTTP 201 and task id returned.
+- Task detail, result summary, and artifact metadata: HTTP 200 for the smoke-created task.
+- Shard-plan: HTTP 404 no-plan response for the smoke-created task without distribution metadata.
+- Artifact download and result callback: HTTP 403 without broader access.
 
 ## Cleanup
 

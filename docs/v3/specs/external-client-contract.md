@@ -69,6 +69,21 @@ Coverage metadata is a stable candidate contract. Summary counts, target rows, p
 
 Task history, task detail, task creation, worker callbacks, result summaries, shard plans, and artifact metadata remain protected preview APIs. External clients should treat catalog access as separate from task runtime access.
 
+## Controlled Task Operation Smoke Policy
+
+`PLOADTESTING_ENABLE_DEMO_TASK_API` is a disabled-by-default runtime flag for deployment smoke. When enabled, it allows a compatible external client to create and read metadata for a narrow smoke task set without opening arbitrary task operation APIs.
+
+Allowed smoke submit profiles:
+
+- `echo-api` / `echo-k6-smoke`
+- `echo-api` / `echo-jmeter-smoke`
+
+The smoke submit path does not accept direct `engine`, `script_path`, `target_url`, `parameters`, `execution`, `distribution`, or `scheduled_at` input. It also rejects unknown fields. Core resolves the task from the catalog profile, marks the task internally as `task_operation_mode=deployment_smoke`, and verifies the resolved script, target URL, and execution bounds before returning success.
+
+When the flag is enabled, compatible external clients can read metadata only for tasks created through this smoke path. Task history is bounded and filtered to smoke-created tasks; detail, shard-plan, result-summary, and artifact metadata reads require the same internal marker and safe profile constraints.
+
+Worker result callbacks and artifact download remain protected. This smoke flag is not a replacement for the future formal API authentication strategy.
+
 ## Task Creation Contract
 
 External clients create tasks with `POST /api/tasks/`. The preferred request shape uses `target_app_id` and `target_profile_id`, then lets the Control Plane resolve engine, script path, target URL, default task parameters, execution defaults, and profile metadata.

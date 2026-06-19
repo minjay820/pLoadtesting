@@ -75,7 +75,7 @@ class DatabaseSettingsTests(SimpleTestCase):
         self.assertEqual(config["OPTIONS"], {"options": "-c search_path=plt,public"})
 
 
-@override_settings(PLOADTESTING_API_TOKEN=API_TOKEN)
+@override_settings(PLOADTESTING_API_TOKEN=API_TOKEN, PLOADTESTING_ENABLE_DEMO_TASK_API=False)
 class ApiSecurityTests(TestCase):
     def test_api_requires_shared_token(self):
         response = APIClient().get("/api/workers/")
@@ -99,6 +99,149 @@ class ApiSecurityTests(TestCase):
         self.assertEqual(client.get(f"/api/tasks/{task.id}/artifacts/").status_code, 403)
         self.assertEqual(client.get(f"/api/tasks/{task.id}/artifacts/k6-stdout/download/").status_code, 403)
         self.assertEqual(client.post(f"/api/tasks/{task.id}/results/", {"raw_report": {}}, format="json").status_code, 403)
+
+    def test_demo_task_api_is_disabled_by_default(self):
+        response = APIClient().post(
+            "/api/tasks/",
+            {"target_app_id": "echo-api", "target_profile_id": "echo-k6-smoke"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+
+@override_settings(PLOADTESTING_API_TOKEN=API_TOKEN, PLOADTESTING_ENABLE_DEMO_TASK_API=True)
+class DemoTaskApiAccessTests(TestCase):
+    def submit_demo_task(self, target_profile_id="echo-k6-smoke", **overrides):
+        payload = {
+            "target_app_id": "echo-api",
+            "target_profile_id": target_profile_id,
+        }
+        payload.update(overrides)
+        return APIClient().post("/api/tasks/", payload, format="json")
+
+    def test_demo_task_api_accepts_echo_k6_smoke(self):
+        response = self.submit_demo_task("echo-k6-smoke")
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.parameters["task_operation_mode"], "deployment_smoke")
+        self.assertEqual(task.parameters["target_app_id"], "echo-api")
+        self.assertEqual(task.parameters["target_profile_id"], "echo-k6-smoke")
+        self.assertEqual(task.engine, "k6")
+        self.assertLessEqual(task.parameters["execution"]["duration_seconds"], 30)
+        self.assertLessEqual(task.parameters["execution"]["max_run_seconds"], 60)
+
+    def test_demo_task_api_accepts_echo_jmeter_smoke(self):
+        response = self.submit_demo_task("echo-jmeter-smoke")
+
+        self.assertEqual(response.status_code, 201)
+        task = LoadTestTask.objects.get(id=response.json()["id"])
+        self.assertEqual(task.parameters["task_operation_mode"], "deployment_smoke")
+        self.assertEqual(task.parameters["target_app_id"], "echo-api")
+        self.assertEqual(task.parameters["target_profile_id"], "echo-jmeter-smoke")
+        self.assertEqual(task.engine, "jmeter")
+        self.assertLessEqual(task.parameters["execution"]["duration_seconds"], 30)
+        self.assertLessEqual(task.parameters["execution"]["max_run_seconds"], 60)
+
+    def test_demo_task_api_rejects_non_safe_profile(self):
+        response = APIClient().post(
+            "/api/tasks/",
+            {"target_app_id": "payload-api", "target_profile_id": "payload-k6-download"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(LoadTestTask.objects.count(), 0)
+
+    def test_demo_task_api_rejects_overrides_and_unknown_fields(self):
+        blocked_payloads = [
+            {"target_url": "http://127.0.0.1:9999"},
+            {"script_path": "engines/k6/target_apps_payload_download.js"},
+            {"engine": "k6"},
+            {"parameters": {"TARGET_URL": "http://127.0.0.1:9999"}},
+            {"execution": {"duration_seconds": 31, "graceful_stop_seconds": 10, "max_run_seconds": 50}},
+            {"distribution": {"mode": "manual_shards"}},
+            {"scheduled_at": "2026-06-19T00:00:00Z"},
+            {"unexpected": "value"},
+        ]
+
+        for override in blocked_payloads:
+            with self.subTest(override=override):
+                response = self.submit_demo_task("echo-k6-smoke", **override)
+
+                self.assertEqual(response.status_code, 403)
+
+        self.assertEqual(LoadTestTask.objects.count(), 0)
+
+    def test_demo_task_history_lists_only_demo_created_tasks(self):
+        LoadTestTask.objects.create(
+            name="non demo task",
+            engine="k6",
+            script_path="engines/k6/target_apps_echo_smoke.js",
+            target_url="http://127.0.0.1:18080",
+            parameters={"target_app_id": "echo-api", "target_profile_id": "echo-k6-smoke"},
+        )
+        submit_response = self.submit_demo_task("echo-k6-smoke")
+
+        self.assertEqual(submit_response.status_code, 201)
+        response = APIClient().get("/api/tasks/?limit=100")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["summary"]["count"], 1)
+        self.assertEqual(payload["summary"]["limit"], 20)
+        self.assertEqual(payload["items"][0]["id"], submit_response.json()["id"])
+
+    def test_demo_task_metadata_read_path_is_available(self):
+        submit_response = self.submit_demo_task("echo-k6-smoke")
+        task_id = submit_response.json()["id"]
+        client = APIClient()
+
+        detail_response = client.get(f"/api/tasks/{task_id}/")
+        result_response = client.get(f"/api/tasks/{task_id}/result-summary/")
+        artifacts_response = client.get(f"/api/tasks/{task_id}/artifacts/")
+        shard_response = client.get(f"/api/tasks/{task_id}/shard-plan/")
+
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertEqual(detail_response.json()["task"]["target_profile_id"], "echo-k6-smoke")
+        self.assertEqual(result_response.status_code, 200)
+        self.assertEqual(result_response.json()["status"], "not_available")
+        self.assertEqual(artifacts_response.status_code, 200)
+        self.assertGreater(artifacts_response.json()["summary"]["planned_count"], 0)
+        self.assertEqual(shard_response.status_code, 404)
+        self.assertIn("No shard execution plan", shard_response.json()["detail"])
+
+    def test_demo_task_metadata_does_not_read_non_demo_task(self):
+        task = LoadTestTask.objects.create(
+            name="non demo task",
+            engine="k6",
+            script_path="engines/k6/target_apps_echo_smoke.js",
+            target_url="http://127.0.0.1:18080",
+            parameters={"target_app_id": "echo-api", "target_profile_id": "echo-k6-smoke"},
+        )
+        client = APIClient()
+
+        self.assertEqual(client.get(f"/api/tasks/{task.id}/").status_code, 403)
+        self.assertEqual(client.get(f"/api/tasks/{task.id}/result-summary/").status_code, 403)
+        self.assertEqual(client.get(f"/api/tasks/{task.id}/artifacts/").status_code, 403)
+
+    def test_result_callback_and_artifact_download_remain_protected(self):
+        submit_response = self.submit_demo_task("echo-k6-smoke")
+        task_id = submit_response.json()["id"]
+        client = APIClient()
+
+        result_response = client.post(f"/api/tasks/{task_id}/results/", {"raw_report": {}}, format="json")
+        download_response = client.get(f"/api/tasks/{task_id}/artifacts/k6-stdout/download/")
+
+        self.assertEqual(result_response.status_code, 403)
+        self.assertEqual(download_response.status_code, 403)
+
+    def test_catalog_endpoints_remain_readable_without_access_header(self):
+        client = APIClient()
+
+        self.assertEqual(client.get("/api/tasks/templates/").status_code, 200)
+        self.assertEqual(client.get("/api/tasks/templates/coverage/").status_code, 200)
 
 
 class DispatchPendingTasksTests(TestCase):

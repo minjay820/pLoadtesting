@@ -215,7 +215,15 @@ CELERY_TIMEZONE = TIME_ZONE
 # =============================================================================
 # Django REST Framework
 # =============================================================================
+def _env_bool(name: str, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.lower() in {"1", "true", "yes", "on"}
+
+
 PLOADTESTING_API_TOKEN = os.environ.get('PLOADTESTING_API_TOKEN', 'dev-api-token-change-me')
+PLOADTESTING_ENABLE_DEMO_TASK_API = _env_bool('PLOADTESTING_ENABLE_DEMO_TASK_API')
 
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [

@@ -90,6 +90,26 @@ Catalog output is registry/static metadata. It does not require task rows, resul
 
 Safe demo profiles are for short, local-only deployment smoke. They must stay bounded, avoid third-party targets, and require no real credentials or runtime-only access material.
 
+## Deployment Smoke Task Operation Flag
+
+`PLOADTESTING_ENABLE_DEMO_TASK_API` defaults to disabled. Set it only for bounded deployment smoke when a compatible external client needs to submit and inspect a safe demo task without broader task operation access.
+
+When enabled, Core accepts only:
+
+- `target_app_id=echo-api`, `target_profile_id=echo-k6-smoke`
+- `target_app_id=echo-api`, `target_profile_id=echo-jmeter-smoke`
+
+The flag does not open arbitrary task creation, long-running profiles, third-party targets, worker result callbacks, or artifact download. It also does not replace the formal API authentication strategy planned for non-smoke operation.
+
+Safe container check:
+
+```bash
+docker run --rm \
+  -e PLOADTESTING_ENABLE_DEMO_TASK_API=true \
+  local/ploadtesting-control-plane:0.1.0-rc.1 \
+  python manage.py check
+```
+
 ## Logging Boundary
 
 Settings code must not print database URLs, runtime-only values, or sensitive values. Validation reports should describe which variable names were used and whether the engine points to PostgreSQL, without printing the full URL.
