@@ -59,6 +59,12 @@ Current expected preview totals are:
 
 Coverage metadata is a stable candidate contract. Summary counts, target rows, profile rows, and gap rows should remain additive. Clients should not infer unsupported runtime behavior from coverage parity alone.
 
+## Catalog Access Policy
+
+`GET /api/tasks/templates/` and `GET /api/tasks/templates/coverage/` are read-only catalog APIs for compatible external clients. These endpoints can be read without the shared API access header because they expose static template and coverage metadata, not task records, result records, or worker state.
+
+Task history, task detail, task creation, worker callbacks, result summaries, shard plans, and artifact metadata remain protected preview APIs. External clients should treat catalog access as separate from task runtime access.
+
 ## Task Creation Contract
 
 External clients create tasks with `POST /api/tasks/`. The preferred request shape uses `target_app_id` and `target_profile_id`, then lets the Control Plane resolve engine, script path, target URL, default task parameters, execution defaults, and profile metadata.

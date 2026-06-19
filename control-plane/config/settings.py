@@ -11,7 +11,11 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+import re
 from pathlib import Path
+from urllib.parse import parse_qsl, unquote, urlparse
+
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -90,12 +94,72 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+SAFE_POSTGRES_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+POSTGRES_URL_SCHEMES = {"postgres", "postgresql"}
+
+
+def _sqlite_database(base_dir: Path) -> dict[str, object]:
+    return {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": base_dir / "db.sqlite3",
+        }
     }
-}
+
+
+def _postgres_options(env: dict[str, str]) -> dict[str, str]:
+    schema = env.get("PLOADTESTING_DB_SCHEMA", "").strip()
+    if not schema or env.get("PGOPTIONS"):
+        return {}
+    if not SAFE_POSTGRES_IDENTIFIER_RE.fullmatch(schema):
+        raise ImproperlyConfigured("PLOADTESTING_DB_SCHEMA must be a safe PostgreSQL identifier.")
+    return {"options": f"-c search_path={schema},public"}
+
+
+def _database_from_url(database_url: str, env: dict[str, str]) -> dict[str, object]:
+    parsed = urlparse(database_url)
+    if parsed.scheme not in POSTGRES_URL_SCHEMES:
+        raise ImproperlyConfigured("Only postgres and postgresql database URLs are supported.")
+
+    database_name = unquote(parsed.path.lstrip("/"))
+    if not database_name:
+        raise ImproperlyConfigured("PostgreSQL database URL must include a database name.")
+
+    options: dict[str, str] = {}
+    query_options = {
+        key: value
+        for key, value in parse_qsl(parsed.query, keep_blank_values=False)
+        if key in {"sslmode", "connect_timeout", "application_name"}
+    }
+    options.update(query_options)
+    options.update(_postgres_options(env))
+
+    config: dict[str, object] = {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": database_name,
+        "USER": unquote(parsed.username or ""),
+        "PASSWORD": unquote(parsed.password or ""),
+        "HOST": parsed.hostname or "",
+        "PORT": str(parsed.port or ""),
+    }
+    if options:
+        config["OPTIONS"] = options
+    return {"default": config}
+
+
+def build_database_config(
+    *,
+    env: dict[str, str] | None = None,
+    base_dir: Path = BASE_DIR,
+) -> dict[str, object]:
+    runtime_env = os.environ if env is None else env
+    database_url = runtime_env.get("PLOADTESTING_DATABASE_URL") or runtime_env.get("DATABASE_URL")
+    if database_url:
+        return _database_from_url(database_url, runtime_env)
+    return _sqlite_database(base_dir)
+
+
+DATABASES = build_database_config()
 
 
 # Password validation

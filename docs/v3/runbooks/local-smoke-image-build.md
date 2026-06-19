@@ -50,6 +50,8 @@ The image exposes port `8000` for local deployment smoke. The default command do
 
 External database environment variables are supplied by the deployment pack or host runtime. Do not bake runtime-only values into the image, and do not require live `.env*` files in the build context.
 
+For PostgreSQL runtime settings, the control-plane image reads `PLOADTESTING_DATABASE_URL` first, then `DATABASE_URL`, then falls back to local sqlite when neither variable is present. PostgreSQL schema selection should be supplied with `PGOPTIONS`, for example `-c search_path=plt,public`; `PLOADTESTING_DB_SCHEMA` is also accepted when it matches the safe identifier pattern documented in [External database runtime](external-db-runtime.md).
+
 Bounded local container smoke:
 
 ```bash
@@ -107,6 +109,14 @@ Resolved local repo digests:
 | `local/ploadtesting-control-plane:0.1.0-rc.1` | `sha256:41feb6f181371672b117291ae72887da6651ccc5b01b379d8e7d8ecabf66483d` | `2026-06-19T01:40:11.88186796Z` | `71904707` | `["python","manage.py","runserver","0.0.0.0:8000"]` | `null` |
 
 Container smoke started the image with port `18000:8000`. Django reported `System check identified no issues`, served at `http://0.0.0.0:8000/`, and returned an API JSON response from `GET /api/tasks/templates/`. The response was an expected access-control response because no runtime access header was supplied for this bounded smoke.
+
+## 2026-06-19 PostgreSQL Runtime Build Record
+
+| Image Tag | Image ID / Digest | Created | Size | CMD |
+| --- | --- | --- | --- | --- |
+| `local/ploadtesting-control-plane:0.1.0-rc.1` | `sha256:9671221ca9a9566b90ed138e6c7f2c4bbc2407947eeb682148652adb5555524e` | `2026-06-19T05:54:43.980209416Z` | `79466309` | `["python","manage.py","runserver","0.0.0.0:8000"]` |
+
+Driver smoke passed with `import psycopg`. Placeholder PostgreSQL runtime env selected `django.db.backends.postgresql`, and `python manage.py check` passed in the rebuilt image without running migrations.
 
 ## Cleanup
 

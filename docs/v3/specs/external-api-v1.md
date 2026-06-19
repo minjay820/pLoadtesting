@@ -27,6 +27,15 @@ Future `/api/v1` routes should wrap these concepts with clearer compatibility gu
 
 Preview API consumers should use [API consumer guide](api-consumer-guide.md) for current endpoint examples and [Dashboard read model](dashboard-read-model.md) for dashboard-oriented read models.
 
+## Current Catalog Access Policy
+
+The preview catalog read APIs are intentionally open for compatible external clients:
+
+- `GET /api/tasks/templates/`
+- `GET /api/tasks/templates/coverage/`
+
+They expose static task template and coverage metadata only. Task data APIs and write APIs remain protected, including `GET /api/tasks/`, `POST /api/tasks/`, task detail, worker result callbacks, result summary, shard plan, and artifact metadata routes.
+
 ## Versioning Goals
 
 - Use `/api/v1/` for stable external consumers.

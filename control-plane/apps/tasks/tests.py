@@ -1,10 +1,15 @@
+import io
+from contextlib import redirect_stderr, redirect_stdout
+from pathlib import Path
 from unittest import mock
 from datetime import timedelta
 from urllib.error import URLError
 
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
+
+from config.settings import build_database_config
 
 from apps.results.models import TestResult
 from apps.tasks.artifact_registry import register_task_artifact
@@ -17,12 +22,78 @@ from apps.workers.models import WorkerNode
 API_TOKEN = "test-token"
 
 
+class DatabaseSettingsTests(SimpleTestCase):
+    def test_sqlite_fallback_without_database_url(self):
+        config = build_database_config(env={}, base_dir=Path("/tmp/control-plane"))["default"]
+
+        self.assertEqual(config["ENGINE"], "django.db.backends.sqlite3")
+        self.assertEqual(config["NAME"], Path("/tmp/control-plane") / "db.sqlite3")
+
+    def test_ploadtesting_database_url_takes_precedence(self):
+        config = build_database_config(
+            env={
+                "PLOADTESTING_DATABASE_URL": "postgresql://runtime_user@primary-db.example:5432/primary_db",
+                "DATABASE_URL": "postgresql://runtime_user@fallback-db.example:5432/fallback_db",
+            },
+        )["default"]
+
+        self.assertEqual(config["ENGINE"], "django.db.backends.postgresql")
+        self.assertEqual(config["NAME"], "primary_db")
+        self.assertEqual(config["HOST"], "primary-db.example")
+
+    def test_database_url_enables_postgresql_engine(self):
+        config = build_database_config(
+            env={"DATABASE_URL": "postgresql://runtime_user@postgres.example:5432/runtime_db"},
+        )["default"]
+
+        self.assertEqual(config["ENGINE"], "django.db.backends.postgresql")
+        self.assertEqual(config["NAME"], "runtime_db")
+        self.assertEqual(config["USER"], "runtime_user")
+
+    def test_database_url_parsing_writes_no_runtime_values_to_output(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            config = build_database_config(
+                env={"DATABASE_URL": "postgresql://runtime_user:%3Credacted%3E@postgres.example:5432/runtime_db"},
+            )["default"]
+
+        self.assertEqual(config["PASSWORD"], "<redacted>")
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertEqual(stderr.getvalue(), "")
+
+    def test_ploadtesting_db_schema_sets_safe_search_path_option(self):
+        config = build_database_config(
+            env={
+                "DATABASE_URL": "postgresql://runtime_user@postgres.example:5432/runtime_db",
+                "PLOADTESTING_DB_SCHEMA": "plt",
+            },
+        )["default"]
+
+        self.assertEqual(config["OPTIONS"], {"options": "-c search_path=plt,public"})
+
+
 @override_settings(PLOADTESTING_API_TOKEN=API_TOKEN)
 class ApiSecurityTests(TestCase):
     def test_api_requires_shared_token(self):
         response = APIClient().get("/api/workers/")
 
         self.assertEqual(response.status_code, 403)
+
+    def test_task_data_routes_remain_protected(self):
+        task = LoadTestTask.objects.create(
+            name="protected task",
+            engine="k6",
+            script_path="k6/smoke.js",
+            target_url="http://target-app:8000",
+        )
+        client = APIClient()
+
+        self.assertEqual(client.get("/api/tasks/").status_code, 403)
+        self.assertEqual(client.post("/api/tasks/", {}, format="json").status_code, 403)
+        self.assertEqual(client.get(f"/api/tasks/{task.id}/").status_code, 403)
+        self.assertEqual(client.post(f"/api/tasks/{task.id}/results/", {"raw_report": {}}, format="json").status_code, 403)
 
 
 class DispatchPendingTasksTests(TestCase):
@@ -857,6 +928,12 @@ class TaskTemplateApiTests(TestCase):
         self.assertEqual(templates_by_profile["payload-k6-download"]["coverage_group"], "payload.download")
         self.assertIsNone(templates_by_profile["payload-k6-download"]["coverage_gap"])
 
+    def test_list_task_templates_allows_read_only_client_without_access_header(self):
+        response = APIClient().get("/api/tasks/templates/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["templates"])
+
     def test_template_coverage_export(self):
         response = self.client.get("/api/tasks/templates/coverage/")
 
@@ -919,6 +996,12 @@ class TaskTemplateApiTests(TestCase):
         self.assertEqual(targets_by_id["payload-api"]["jmeter_profile_count"], 5)
         self.assertEqual(targets_by_id["payload-api"]["gap_profile_count"], 0)
         self.assertEqual(targets_by_id["payload-api"]["exact_coverage_profile_count"], 10)
+
+    def test_template_coverage_allows_read_only_client_without_access_header(self):
+        response = APIClient().get("/api/tasks/templates/coverage/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["summary"]["profile_count"], 44)
 
     def test_create_task_accepts_valid_execution_object(self):
         response = self.client.post(

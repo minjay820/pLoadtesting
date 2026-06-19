@@ -50,6 +50,7 @@ This project is a multi-engine load testing ecosystem:
 - `docs/v3/specs/artifact-lifecycle.md`: artifact metadata lifecycle, retention, download placeholder, and result provenance contract.
 - `docs/v3/specs/api-token-auth.md`: future scoped API access plan.
 - `docs/v3/runbooks/distributed-deployment.md`: cross-host deployment planning runbook.
+- `docs/v3/runbooks/external-db-runtime.md`: PostgreSQL runtime settings and external database validation runbook.
 - `docs/v3/runbooks/local-smoke-image-build.md`: local smoke image build and inspect flow for deployment validation.
 - `docs/v3/roadmap/github-issues-dashboard-api-deployment.md`: issue-sized roadmap drafts for dashboard, API, access, and deployment work.
 - `docker-compose.yml`: local ecosystem orchestration for target app, control plane, worker, Redis, InfluxDB, and Grafana.

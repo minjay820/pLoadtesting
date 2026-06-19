@@ -10,6 +10,7 @@ Tasks API Views：
 """
 
 from rest_framework import generics, status
+from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -101,6 +102,8 @@ class TaskTemplateListView(APIView):
     GET /api/tasks/templates/  ─ 列出可供 manifest-driven 建立流程使用的 task templates
     """
 
+    permission_classes = [AllowAny]
+
     def get(self, request: Request) -> Response:
         return Response({"templates": list_task_templates()}, status=status.HTTP_200_OK)
 
@@ -109,6 +112,8 @@ class TaskTemplateCoverageView(APIView):
     """
     GET /api/tasks/templates/coverage/  ─ machine-readable target profile coverage export
     """
+
+    permission_classes = [AllowAny]
 
     def get(self, request: Request) -> Response:
         return Response(get_template_coverage_export(), status=status.HTTP_200_OK)

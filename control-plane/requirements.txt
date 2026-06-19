@@ -8,6 +8,9 @@ Django>=5.0,<6.0
 # REST API framework
 djangorestframework>=3.15,<4.0
 
+# PostgreSQL driver for runtime deployments
+psycopg[binary]>=3.1,<4.0
+
 # Async task queue
 celery>=5.3,<6.0
 
