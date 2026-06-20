@@ -7,6 +7,7 @@ This area is for implementation-facing contracts: APIs, data models, worker prot
 - [External API v1 planning spec](external-api-v1.md)
 - [External client contract](external-client-contract.md)
 - [API versioning policy](api-versioning-policy.md)
+- [Repository publication policy](repository-publication-policy.md)
 - [API token access planning spec](api-token-auth.md)
 - [Dashboard read model](dashboard-read-model.md)
 - [API consumer guide](api-consumer-guide.md)

@@ -45,6 +45,7 @@ This project is a multi-engine load testing ecosystem:
 - `docs/v3/specs/external-api-v1.md`: future stable external API contract plan.
 - `docs/v3/specs/external-client-contract.md`: current Core contract for external clients, downstream integrations, and compatible dashboards.
 - `docs/v3/specs/api-versioning-policy.md`: preview, stable candidate, experimental, and planning-only API compatibility policy.
+- `docs/v3/specs/repository-publication-policy.md`: planned GitLab-private and GitHub-public publication policy.
 - `docs/v3/specs/task-execution-model.md`: duration, stop policy, worker timeout, and shard metadata contract.
 - `docs/v3/specs/distributed-agent-execution.md`: manual shard distribution metadata, dataset partition, and aggregation contract.
 - `docs/v3/specs/artifact-lifecycle.md`: artifact metadata lifecycle, retention, download placeholder, and result provenance contract.
