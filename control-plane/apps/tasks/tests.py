@@ -10,7 +10,15 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from config.settings import build_database_config
+from django.core.exceptions import ImproperlyConfigured
+
+from config.settings import (
+    _env_bool,
+    _env_csv,
+    _env_optional,
+    _env_secure_proxy_ssl_header,
+    build_database_config,
+)
 
 from apps.results.models import TestResult
 from apps.tasks import template_registry
@@ -25,6 +33,33 @@ API_TOKEN = "test-token"
 
 
 class DatabaseSettingsTests(SimpleTestCase):
+    def test_env_csv_trims_empty_values(self):
+        values = _env_csv(
+            "DJANGO_CSRF_TRUSTED_ORIGINS",
+            env={"DJANGO_CSRF_TRUSTED_ORIGINS": " https://plt-admin.myii.cc, ,https://other.example "},
+        )
+
+        self.assertEqual(values, ["https://plt-admin.myii.cc", "https://other.example"])
+
+    def test_env_bool_accepts_enabled_values(self):
+        self.assertTrue(_env_bool("DJANGO_SESSION_COOKIE_SECURE", env={"DJANGO_SESSION_COOKIE_SECURE": "true"}))
+        self.assertFalse(_env_bool("DJANGO_SESSION_COOKIE_SECURE", env={}))
+
+    def test_secure_proxy_ssl_header_uses_header_value_pair(self):
+        header = _env_secure_proxy_ssl_header(
+            env={"DJANGO_SECURE_PROXY_SSL_HEADER": "HTTP_X_FORWARDED_PROTO,https"},
+        )
+
+        self.assertEqual(header, ("HTTP_X_FORWARDED_PROTO", "https"))
+
+    def test_secure_proxy_ssl_header_rejects_invalid_format(self):
+        with self.assertRaises(ImproperlyConfigured):
+            _env_secure_proxy_ssl_header(env={"DJANGO_SECURE_PROXY_SSL_HEADER": "HTTP_X_FORWARDED_PROTO"})
+
+    def test_env_optional_returns_none_for_blank_value(self):
+        self.assertIsNone(_env_optional("DJANGO_STATIC_ROOT", env={"DJANGO_STATIC_ROOT": "  "}))
+        self.assertEqual(_env_optional("DJANGO_STATIC_ROOT", env={"DJANGO_STATIC_ROOT": "/app/staticfiles"}), "/app/staticfiles")
+
     def test_sqlite_fallback_without_database_url(self):
         config = build_database_config(env={}, base_dir=Path("/tmp/control-plane"))["default"]
 

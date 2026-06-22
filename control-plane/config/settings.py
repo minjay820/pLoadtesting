@@ -33,11 +33,55 @@ SECRET_KEY = os.environ.get(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() in {'1', 'true', 'yes', 'on'}
 
-ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,control-plane-web').split(',')
-    if host.strip()
-]
+
+def _env_bool(name: str, default: bool = False, *, env: dict[str, str] | None = None) -> bool:
+    runtime_env = os.environ if env is None else env
+    value = runtime_env.get(name)
+    if value is None:
+        return default
+    return value.lower() in {"1", "true", "yes", "on"}
+
+
+def _env_csv(name: str, default: str = "", *, env: dict[str, str] | None = None) -> list[str]:
+    runtime_env = os.environ if env is None else env
+    return [item.strip() for item in runtime_env.get(name, default).split(",") if item.strip()]
+
+
+def _env_optional(name: str, *, env: dict[str, str] | None = None) -> str | None:
+    runtime_env = os.environ if env is None else env
+    value = runtime_env.get(name)
+    if value is None:
+        return None
+    value = value.strip()
+    return value or None
+
+
+def _env_secure_proxy_ssl_header(
+    name: str = "DJANGO_SECURE_PROXY_SSL_HEADER",
+    *,
+    env: dict[str, str] | None = None,
+) -> tuple[str, str] | None:
+    runtime_env = os.environ if env is None else env
+    value = runtime_env.get(name, "").strip()
+    if not value:
+        return None
+    parts = [part.strip() for part in value.split(",", 1)]
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        raise ImproperlyConfigured(f"{name} must use '<header>,<value>' format.")
+    return (parts[0], parts[1])
+
+
+ALLOWED_HOSTS = _env_csv(
+    'DJANGO_ALLOWED_HOSTS',
+    'localhost,127.0.0.1,control-plane-web',
+)
+CSRF_TRUSTED_ORIGINS = _env_csv('DJANGO_CSRF_TRUSTED_ORIGINS')
+SECURE_PROXY_SSL_HEADER = _env_secure_proxy_ssl_header()
+USE_X_FORWARDED_HOST = _env_bool('DJANGO_USE_X_FORWARDED_HOST')
+SESSION_COOKIE_SECURE = _env_bool('DJANGO_SESSION_COOKIE_SECURE')
+CSRF_COOKIE_SECURE = _env_bool('DJANGO_CSRF_COOKIE_SECURE')
+SESSION_COOKIE_PATH = os.environ.get('DJANGO_SESSION_COOKIE_PATH', '/')
+CSRF_COOKIE_PATH = os.environ.get('DJANGO_CSRF_COOKIE_PATH', '/')
 
 
 # Application definition
@@ -197,6 +241,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = _env_optional('DJANGO_STATIC_ROOT')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -215,13 +260,6 @@ CELERY_TIMEZONE = TIME_ZONE
 # =============================================================================
 # Django REST Framework
 # =============================================================================
-def _env_bool(name: str, default: bool = False) -> bool:
-    value = os.environ.get(name)
-    if value is None:
-        return default
-    return value.lower() in {"1", "true", "yes", "on"}
-
-
 PLOADTESTING_API_TOKEN = os.environ.get('PLOADTESTING_API_TOKEN', 'dev-api-token-change-me')
 PLOADTESTING_ENABLE_DEMO_TASK_API = _env_bool('PLOADTESTING_ENABLE_DEMO_TASK_API')
 

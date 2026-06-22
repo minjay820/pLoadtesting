@@ -114,6 +114,22 @@ For deployment smoke, the worker must register into the same Control Plane runti
 
 `DJANGO_ALLOWED_HOSTS` must include the host name in `CONTROL_PLANE_URL`; otherwise Worker registration can be rejected before it reaches the worker registry. This is a deployment setting, not a reason to make task APIs public.
 
+## Admin Host Security Settings
+
+The control-plane settings module accepts admin-host hardening settings through environment variables so downstream deployments can expose Django admin behind a separate protected hostname without changing source code. These settings are inactive by default and preserve the previous local/runtime behavior when unset.
+
+Supported variable names and formats:
+
+- `DJANGO_ALLOWED_HOSTS`: comma-separated host list. Add an admin hostname only after a separate admin route/security gate approves it.
+- `DJANGO_CSRF_TRUSTED_ORIGINS`: comma-separated origins, for example `https://plt-admin.myii.cc`.
+- `DJANGO_SECURE_PROXY_SSL_HEADER`: comma-separated header/value pair, for example `HTTP_X_FORWARDED_PROTO,https`.
+- `DJANGO_USE_X_FORWARDED_HOST`: boolean (`1`, `true`, `yes`, or `on`) when the trusted proxy should define the external host.
+- `DJANGO_SESSION_COOKIE_SECURE` and `DJANGO_CSRF_COOKIE_SECURE`: booleans for HTTPS-only cookies behind the protected external hostname.
+- `DJANGO_SESSION_COOKIE_PATH` and `DJANGO_CSRF_COOKIE_PATH`: optional cookie paths; default remains `/`.
+- `DJANGO_STATIC_ROOT`: optional collectstatic/build output directory for deployments that serve admin static from a scoped read-only path.
+
+Do not use these variables to broad expose `/static/` or general admin access. A production admin hostname still requires an external access-control policy, a scoped static serving route, and an owner-approved private-runtime gate before being enabled.
+
 The release candidate Worker image must contain the safe demo engine assets used by the catalog:
 
 - `/app/engines/k6/target_apps_echo_smoke.js`
