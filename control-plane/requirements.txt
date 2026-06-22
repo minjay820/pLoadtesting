@@ -8,6 +8,9 @@ Django>=5.0,<6.0
 # REST API framework
 djangorestframework>=3.15,<4.0
 
+# Static file serving for protected admin-host deployments
+whitenoise>=6.6,<7.0
+
 # PostgreSQL driver for runtime deployments
 psycopg[binary]>=3.1,<4.0
 

@@ -126,9 +126,9 @@ Supported variable names and formats:
 - `DJANGO_USE_X_FORWARDED_HOST`: boolean (`1`, `true`, `yes`, or `on`) when the trusted proxy should define the external host.
 - `DJANGO_SESSION_COOKIE_SECURE` and `DJANGO_CSRF_COOKIE_SECURE`: booleans for HTTPS-only cookies behind the protected external hostname.
 - `DJANGO_SESSION_COOKIE_PATH` and `DJANGO_CSRF_COOKIE_PATH`: optional cookie paths; default remains `/`.
-- `DJANGO_STATIC_ROOT`: optional collectstatic/build output directory for deployments that serve admin static from a scoped read-only path.
+- `DJANGO_STATIC_ROOT`: optional collectstatic/build output directory. The control-plane image sets this to `/app/staticfiles` and runs `collectstatic` at build time.
 
-Do not use these variables to broad expose `/static/` or general admin access. A production admin hostname still requires an external access-control policy, a scoped static serving route, and an owner-approved private-runtime gate before being enabled.
+The control-plane image includes WhiteNoise so collected Django admin assets can be served by the control-plane process. Downstream nginx deployments should still expose only a scoped admin static path such as `plt-admin.myii.cc/static/admin/...`; do not broad expose `/static/` or general admin access. A production admin hostname still requires an external access-control policy, a scoped static serving route, and an owner-approved private-runtime gate before being enabled.
 
 The release candidate Worker image must contain the safe demo engine assets used by the catalog:
 
