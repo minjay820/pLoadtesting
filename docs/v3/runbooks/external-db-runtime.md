@@ -1,6 +1,15 @@
 # External Database Runtime
 
-This runbook defines control-plane PostgreSQL runtime settings for deployment smoke and release candidate validation. It uses placeholders only; do not paste live runtime values into this document or into command output.
+This runbook defines control-plane database runtime settings for deployment smoke and release candidate validation. It uses placeholders only; do not paste live runtime values into this document or into command output.
+
+## Database Support Baseline
+
+pLoadtesting must support at least these database modes:
+
+- sqlite: local development, demos, single-node basic installs, and fast no-env validation.
+- PostgreSQL: production, multi-user operation, long-lived task/result history, and deployments that run workers or schedulers beyond a local demo.
+
+The same Django migrations must remain compatible with both modes. sqlite validation may run directly in local tests. PostgreSQL validation should first use settings checks and migration planning with redacted runtime values; do not run production migrations until a separate migration gate is approved.
 
 ## Runtime Database Selection
 
@@ -10,7 +19,7 @@ The Django settings module selects the database in this order:
 2. `DATABASE_URL`
 3. sqlite fallback at `control-plane/db.sqlite3`
 
-The sqlite fallback is retained for local tests and no-env developer checks. Deployment smoke should provide one of the PostgreSQL URL variables through the deployment pack or host runtime.
+The sqlite fallback is retained for local tests, demos, basic single-node installation, and no-env developer checks. Deployment smoke and production should provide one of the PostgreSQL URL variables through the deployment pack or host runtime.
 
 ## PostgreSQL Driver
 
@@ -69,6 +78,35 @@ Do not run `python manage.py migrate` against an external database until the ope
 
 The control-plane image startup command only starts the API server. It does not auto-migrate. Operators should run `showmigrations` and `migrate --plan` first, then run the actual migration as a separate, approved deployment action.
 
+## Initial Admin Bootstrap
+
+pLoadtesting must not ship a default admin username or password. A fresh installation should create the first management account through an explicit one-shot command after migrations have been applied:
+
+```bash
+python manage.py create_initial_admin \
+  --username <admin-username> \
+  --email <optional-email> \
+  --password-file /path/to/private/admin-password.txt
+```
+
+The password file must be private. On POSIX systems the command rejects files that are readable, writable, or executable by group/other users. A typical operator-controlled file mode is:
+
+```bash
+chmod 600 /path/to/private/admin-password.txt
+```
+
+Command behavior:
+
+- Creates a staff/superuser account only when no superuser exists.
+- Refuses to create or overwrite accounts once a superuser exists.
+- Refuses to promote an existing normal user with the requested username.
+- Validates the password with Django password validators.
+- Does not print the password.
+
+Interactive password entry is available when `--password-file` is omitted, but production deployment gates should prefer an ignored private password file so the secret is not stored in shell history or tracked documentation.
+
+Production use of `create_initial_admin` is a DB-write action. It must be run only in a separate owner-approved admin-user gate, after route/runtime smoke has verified the management surface and before the first operator login. Password reset is a separate lifecycle operation and must not be bundled with the first-admin bootstrap gate.
+
 ## Catalog Read API Access Policy
 
 These read-only catalog endpoints are safe for compatible external clients without the shared API access header:
@@ -121,14 +159,14 @@ The control-plane settings module accepts admin-host hardening settings through 
 Supported variable names and formats:
 
 - `DJANGO_ALLOWED_HOSTS`: comma-separated host list. Add an admin hostname only after a separate admin route/security gate approves it.
-- `DJANGO_CSRF_TRUSTED_ORIGINS`: comma-separated origins, for example `https://plt-admin.myii.cc`.
+- `DJANGO_CSRF_TRUSTED_ORIGINS`: comma-separated origins, for example `https://plt.myii.cc`.
 - `DJANGO_SECURE_PROXY_SSL_HEADER`: comma-separated header/value pair, for example `HTTP_X_FORWARDED_PROTO,https`.
 - `DJANGO_USE_X_FORWARDED_HOST`: boolean (`1`, `true`, `yes`, or `on`) when the trusted proxy should define the external host.
 - `DJANGO_SESSION_COOKIE_SECURE` and `DJANGO_CSRF_COOKIE_SECURE`: booleans for HTTPS-only cookies behind the protected external hostname.
 - `DJANGO_SESSION_COOKIE_PATH` and `DJANGO_CSRF_COOKIE_PATH`: optional cookie paths; default remains `/`.
 - `DJANGO_STATIC_ROOT`: optional collectstatic/build output directory. The control-plane image sets this to `/app/staticfiles` and runs `collectstatic` at build time.
 
-The control-plane image includes WhiteNoise so collected Django admin assets can be served by the control-plane process. Downstream nginx deployments should still expose only a scoped admin static path such as `plt-admin.myii.cc/static/admin/...`; do not broad expose `/static/` or general admin access. A production admin hostname still requires an external access-control policy, a scoped static serving route, and an owner-approved private-runtime gate before being enabled.
+The control-plane image includes WhiteNoise so collected Django admin assets can be served by the control-plane process. Downstream nginx deployments should still expose only a scoped admin static path such as `<management-host>/static/admin/...`; do not broad expose `/static/` or general admin access. A production management hostname still requires an external access-control policy, a scoped static serving route, and an owner-approved private-runtime gate before being enabled.
 
 The release candidate Worker image must contain the safe demo engine assets used by the catalog:
 

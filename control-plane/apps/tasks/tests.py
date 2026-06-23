@@ -1,5 +1,7 @@
 import io
 import json
+import os
+import tempfile
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
@@ -11,6 +13,9 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from django.core.exceptions import ImproperlyConfigured
+from django.core.management import call_command
+from django.core.management.base import CommandError
+from django.contrib.auth import get_user_model
 
 from config.settings import (
     _env_bool,
@@ -36,10 +41,10 @@ class DatabaseSettingsTests(SimpleTestCase):
     def test_env_csv_trims_empty_values(self):
         values = _env_csv(
             "DJANGO_CSRF_TRUSTED_ORIGINS",
-            env={"DJANGO_CSRF_TRUSTED_ORIGINS": " https://plt-admin.myii.cc, ,https://other.example "},
+            env={"DJANGO_CSRF_TRUSTED_ORIGINS": " https://plt.myii.cc, ,https://other.example "},
         )
 
-        self.assertEqual(values, ["https://plt-admin.myii.cc", "https://other.example"])
+        self.assertEqual(values, ["https://plt.myii.cc", "https://other.example"])
 
     def test_env_bool_accepts_enabled_values(self):
         self.assertTrue(_env_bool("DJANGO_SESSION_COOKIE_SECURE", env={"DJANGO_SESSION_COOKIE_SECURE": "true"}))
@@ -109,6 +114,60 @@ class DatabaseSettingsTests(SimpleTestCase):
         )["default"]
 
         self.assertEqual(config["OPTIONS"], {"options": "-c search_path=plt,public"})
+
+
+class InitialAdminCommandTests(TestCase):
+    password = "Initial.Admin-46-Private-Long!"
+
+    def password_file(self, directory: Path, password: str | None = None, mode: int = 0o600) -> Path:
+        path = directory / "admin-password.txt"
+        path.write_text(password or self.password, encoding="utf-8")
+        os.chmod(path, mode)
+        return path
+
+    def test_create_initial_admin_creates_first_superuser_from_private_file(self):
+        User = get_user_model()
+        stdout = io.StringIO()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            call_command(
+                "create_initial_admin",
+                username="plt-admin",
+                email="admin@example.invalid",
+                password_file=str(self.password_file(Path(tmpdir))),
+                stdout=stdout,
+            )
+
+        user = User.objects.get(username="plt-admin")
+        self.assertTrue(user.is_staff)
+        self.assertTrue(user.is_superuser)
+        self.assertTrue(user.check_password(self.password))
+        self.assertNotIn(self.password, stdout.getvalue())
+
+    def test_create_initial_admin_refuses_when_superuser_already_exists(self):
+        User = get_user_model()
+        User.objects.create_superuser(username="existing-admin", password=self.password)
+
+        with tempfile.TemporaryDirectory() as tmpdir, self.assertRaisesMessage(
+            CommandError,
+            "Initial admin already exists",
+        ):
+            call_command(
+                "create_initial_admin",
+                username="second-admin",
+                password_file=str(self.password_file(Path(tmpdir))),
+            )
+
+    def test_create_initial_admin_refuses_insecure_password_file_mode(self):
+        with tempfile.TemporaryDirectory() as tmpdir, self.assertRaisesMessage(
+            CommandError,
+            "Password file must not be readable",
+        ):
+            call_command(
+                "create_initial_admin",
+                username="plt-admin",
+                password_file=str(self.password_file(Path(tmpdir), mode=0o644)),
+            )
 
 
 @override_settings(PLOADTESTING_API_TOKEN=API_TOKEN, PLOADTESTING_ENABLE_DEMO_TASK_API=False)
