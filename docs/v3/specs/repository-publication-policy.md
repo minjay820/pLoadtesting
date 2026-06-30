@@ -25,6 +25,7 @@ GitHub is the public surface:
 - Public `vX.Y.Z` tags should be pushed only after release export validation passes.
 - GitHub pull requests can be used for public review and public release merging.
 - GitHub issues are for public bug reports, feature requests, documentation feedback, and external collaboration.
+- GitHub Container Registry (`ghcr.io`) is the planned public image surface for `ploadtesting-control-plane`, `ploadtesting-worker`, and `ploadtesting-target-apps`.
 
 ## Public Export Boundary
 
@@ -46,6 +47,7 @@ Always-public candidates:
 Conditionally-public candidates:
 
 - `.github/workflows/` when the workflow is suitable for public CI.
+- `.github/workflows/publish-ghcr.yml` when container publication is intended for GitHub Container Registry.
 - `control-plane/`, `workers/`, `target-app/`, `target-apps/`, `engines/`, and compose files only when the release is intentionally an OSS code release and the exported tree has passed validation.
 - `docs/v3/runbooks/` only when the runbook describes public setup or release validation without private hostnames, tokens, internal network names, or operator-only deployment details.
 
@@ -115,6 +117,31 @@ Prefer:
 - A small public allowlist.
 - Release branches only when needed.
 - GitLab CI for private validation and GitHub Actions for public reproducibility.
+
+## GHCR Image Publication
+
+The public image publication path should publish these package names to GitHub Container Registry:
+
+- `ghcr.io/<owner>/ploadtesting-control-plane`
+- `ghcr.io/<owner>/ploadtesting-worker`
+- `ghcr.io/<owner>/ploadtesting-target-apps`
+
+The tracked workflow entrypoint is `.github/workflows/publish-ghcr.yml`.
+
+Current workflow behavior:
+
+- manual `workflow_dispatch`
+- separate tag inputs for control-plane, worker, and target-apps images
+- optional `latest` alias publication
+- multi-architecture build for `linux/amd64` and `linux/arm64`
+- package publish through the repository `GITHUB_TOKEN`
+
+Publication rules:
+
+- use OCI labels that point back to the source repository so packages can be linked cleanly to the public repo
+- verify package visibility and linked-repository settings in the GitHub Packages UI after the first push
+- keep registry credentials out of tracked env files; deployment hosts should authenticate with `docker login` or a dedicated automation token
+- do not treat package publication as deployment approval by itself
 
 ## Current-State Note
 
